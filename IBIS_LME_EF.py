@@ -76,13 +76,6 @@ merged_demograph_behavior_df = (dx.merge(anotb, on='Identifiers', how='outer').m
 
 IBIS_demograph_behavior_df = merged_demograph_behavior_df.dropna(axis=1, how='all')
 
-# cols_to_check_allnan = IBIS_demograph_behavior_df.columns.to_list()
-#
-# final_substrings_to_remove = ['demographics']
-# final_cols_to_remove = [col for col in IBIS_demograph_behavior_df.columns if any(sub in col for sub in final_substrings_to_remove)]
-#
-# df_nodx = IBIS_demograph_behavior_df.drop(final_cols_to_remove)
-
 IBIS_demograph_behavior_df.to_csv('IBIS_merged_df.csv', index=None)
 
 mystop=1
