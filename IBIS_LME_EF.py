@@ -48,6 +48,7 @@ nihtoolbox = nihtoolbox.loc[:, nihtoolbox.columns.isin(nihtoolbox_cols_to_keep)]
 
 # Replace nans indicated by '.' with NaN
 anotb.replace('#NULL!', np.nan, inplace=True)
+anotb.replace('.', np.nan, inplace=True)
 brief2.replace('.', np.nan, inplace=True)
 dx.replace('.', np.nan, inplace=True)
 nihtoolbox.replace('.', np.nan, inplace=True)
@@ -69,5 +70,13 @@ def combine_vsa_columns(df):
 brief2 = combine_vsa_columns(brief2)
 dx = combine_vsa_columns(dx)
 nihtoolbox = combine_vsa_columns(nihtoolbox)
+
+merged_demograph_behavior_df = (dx.merge(brief2, on='Identifiers', how='outer').merge(dx, on='Identifiers', how='outer')
+                                .merge(anotb, on='Identifiers', how='outer').merge(nihtoolbox, on='Identifiers', how='outer'))
+
+IBIS_demograph_behavior_df = merged_demograph_behavior_df.dropna(axis=1, how='all')
+
+IBIS_demograph_behavior_df.to_csv('IBIS_merged_df.csv')
+
 mystop=1
 
