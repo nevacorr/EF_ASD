@@ -71,12 +71,12 @@ brief2 = combine_vsa_columns(brief2)
 dx = combine_vsa_columns(dx)
 nihtoolbox = combine_vsa_columns(nihtoolbox)
 
-merged_demograph_behavior_df = (dx.merge(brief2, on='Identifiers', how='outer').merge(anotb, on='Identifiers',
+merged_demograph_behavior_df = (dx.merge(anotb, on='Identifiers', how='outer').merge(brief2, on='Identifiers',
                                                         how='outer').merge(nihtoolbox, on='Identifiers', how='outer'))
 
 IBIS_demograph_behavior_df = merged_demograph_behavior_df.dropna(axis=1, how='all')
 
-IBIS_demograph_behavior_df.to_csv('IBIS_merged_df.csv')
+IBIS_demograph_behavior_df.to_csv('IBIS_merged_df.csv', index=None)
 
 mystop=1
 
