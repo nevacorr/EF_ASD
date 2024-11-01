@@ -34,7 +34,7 @@ dx2_cols_to_keep = ['Identifiers']
 dx2_cols_to_keep.extend([col for col in dx2.columns if any(sub in col for sub in dx2_substrings_to_keep)])
 
 nihtoolbox_cols_to_keep = ['Identifiers']
-nihtoolbox_substrings_to_keep = ['InstEnded_10', 'Age_Corrected_Standard_Score', 'RawScore',
+nihtoolbox_substrings_to_keep = ['Inst_10', 'Age_Corrected_Standard_Score', 'RawScore',
                                  'Uncorrected_Standard_Score', 'Validity']
 nihtoolbox_cols_to_keep.extend([col for col in nihtoolbox.columns if any(sub in col for sub in nihtoolbox_substrings_to_keep)])
 
@@ -76,7 +76,34 @@ merged_demograph_behavior_df = (dx.merge(dx2, on='Identifiers', how='outer').mer
 
 IBIS_demograph_behavior_df = merged_demograph_behavior_df.dropna(axis=1, how='all')
 
+# Save this as dataframe that has variables that I may ever want to look at
 IBIS_demograph_behavior_df.to_csv('IBIS_merged_df.csv', index=None)
 
+# Remove columns that I won't use in the first analysis
+dx_col_to_keep = ['Identifiers', 'VSD-All demographics,ASD_Ever_DSMIV']
+dx_cols_to_remove = list(dx.columns.difference(dx_col_to_keep))
+
+dx2_cols_to_keep = ['Identifiers', 'V24 demographics,Risk', 'V24 demographics,Sex']
+dx2_cols_to_remove = list(dx2.columns.difference(dx2_cols_to_keep))
+
+anotb_cols_to_keep = ['Identifiers', 'AB_12_Percent', 'AB_24_Percent', 'V12_AB_validitycode', 'V24_AB_validitycode', 'AB_Reversals_12_Percent', 'AB_Reversals_24_Percent']
+anotb_cols_to_remove = list(anotb.columns.difference(anotb_cols_to_keep))
+anotb_cols_in_IBISdf = [cols for cols in anotb_cols_to_remove if cols in IBIS_demograph_behavior_df]
+
+all_cols_to_remove = dx_cols_to_remove + dx2_cols_to_remove + anotb_cols_in_IBISdf
+
+IBIS_demograph_behavior_df.drop(columns=all_cols_to_remove, inplace=True)
+
+IBIS_demograph_behavior_df['test'] = np.where(IBIS_demograph_behavior_df['VSD-All demographics,ASD_Ever_DSMIV'].fillna('').str.contains('ASD+', regex=False), 'ASD+',
+                                                                    np.where(IBIS_demograph_behavior_df['VSD-All demographics,ASD_Ever_DSMIV'].fillna('').str.contains('ASD-', regex=False), 'ASD-',
+                                                                    np.nan))
+test=IBIS_demograph_behavior_df.pop('test')
+IBIS_demograph_behavior_df.insert(2, 'test',test)
+IBIS_demograph_behavior_df.rename(columns={'test': 'ASD_Ever_DSMIV', 'V24 demographics,Risk': 'Risk',
+                                           'V24 demographics,Sex': 'Sex', 'VSD-All NIHToolBox,Inst_10': 'NIHToolBox,TestName'}, inplace=True)
+IBIS_demograph_behavior_df['NIHToolBox,TestName'] = np.where(IBIS_demograph_behavior_df['NIHToolBox,TestName'].fillna('').str.contains('Flanker', regex=False), 'Flanker',
+                                                    np.where(IBIS_demograph_behavior_df['NIHToolBox,TestName'].fillna('').str.contains('Dimensional', regex=False), 'DCCS',
+                                                    np.nan))
+IBIS_demograph_behavior_df.drop(columns=['VSD-All demographics,ASD_Ever_DSMIV'], inplace=True)
 mystop=1
 
