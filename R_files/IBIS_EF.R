@@ -26,8 +26,17 @@ sum(is.na(ibis_behav_filtered$Risk))
 # plot_boxplot_pairs(ibis_behav_filtered, "AB_12_Percent", "AB_24_Percent", "AB Scores Box Plots")
 
 # plot_boxplot_pairs(ibis_behav_filtered, "AB_Reversals_12_Percent", "AB_Reversals_24_Percent", 
-                   "AB Reversal Box Plots")
+#              "AB Reversal Box Plots")
 
-plot_boxplot_pairs(ibis_behav_filtered, "Flanker_Standard_Age_Corrected", "DCCS_Standard_Age_Corrected", 
-                   "School Age Executive Function Measure Box Plots")
+# plot_boxplot_pairs(ibis_behav_filtered, "Flanker_Standard_Age_Corrected", "DCCS_Standard_Age_Corrected", 
+#                   "School Age Executive Function Measure Box Plots")
 
+# Scale score columns
+scaled_columns <- scale(ibis_behav[, c("AB_12_Percent", "AB_24_Percent", "AB_Reversals_12_Percent",
+                                       "AB_Reversals_24_Percent", "Flanker_Standard_Age_Corrected",
+                                       "DCCS_Standard_Age_Corrected")])
+
+# Replace the original columns with the scaled values
+ibis_behav[, c("AB_12_Percent", "AB_24_Percent", "AB_Reversals_12_Percent",
+           "AB_Reversals_24_Percent", "Flanker_Standard_Age_Corrected",
+           "DCCS_Standard_Age_Corrected")] <- scaled_columns
