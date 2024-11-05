@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import math
 
-def plot_data_histograms(df):
+def plot_data_histograms(working_dir, df):
     # Define the number of columns for each page of subplots
     plots_per_page = 9
     num_columns = 3
@@ -47,4 +47,5 @@ def plot_data_histograms(df):
 
         # Adjust layout and show the figure for the current page
         plt.tight_layout()
-        plt.show()
+        plt.savefig(f'{working_dir}/IBIS_Raw_Data_Histograms_Fig{int(i/plots_per_page)}.png')
+        plt.show(block=False)
