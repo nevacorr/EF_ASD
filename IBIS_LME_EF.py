@@ -180,7 +180,7 @@ fig.tight_layout(rect=[0, 0.05, 1, 1])
 plt.savefig(f'{working_dir}/AnotB_NIHToolbox_Missing_Data_Heatmap.png')
 plt.show(block=False)
 
-IBIS_demograph_behavior_df.to_csv(f'/{working_dir/}IBIS_behav_dataframe_demographics_AnotB_Flanker_DCCS.csv')
+IBIS_demograph_behavior_df.to_csv(f'/{working_dir}/IBIS_behav_dataframe_demographics_AnotB_Flanker_DCCS.csv')
 
 
 mystop=1
