@@ -45,7 +45,7 @@ dx2_cols_to_keep.extend([col for col in dx2.columns if any(sub in col for sub in
 
 #Make a list of nih toolbox columns to keep
 nihtoolbox_cols_to_keep = ['Identifiers']
-nihtoolbox_substrings_to_keep = ['Inst_24', 'Inst_25', 'Age_Corrected_Standard_Score']
+nihtoolbox_substrings_to_keep = ['Candidate_Age', 'Inst_24', 'Inst_25', 'Age_Corrected_Standard_Score']
 nihtoolbox_cols_to_keep.extend([col for col in nihtoolbox.columns if any(sub in col for sub in nihtoolbox_substrings_to_keep)])
 
 # Remove or keep columns specified in lists created above
@@ -88,7 +88,9 @@ dx_col_to_keep = ['Identifiers', 'VSD-All demographics,ASD_Ever_DSMIV']
 dx_cols_to_remove = list(dx.columns.difference(dx_col_to_keep))
 dx2_cols_to_keep = ['Identifiers', 'V24 demographics,Risk', 'V24 demographics,Sex']
 dx2_cols_to_remove = list(dx2.columns.difference(dx2_cols_to_keep))
-anotb_cols_to_keep = ['Identifiers', 'AB_12_Percent', 'AB_24_Percent', 'V12_AB_validitycode', 'V24_AB_validitycode', 'AB_Reversals_12_Percent', 'AB_Reversals_24_Percent']
+anotb_cols_to_keep = ['Identifiers', 'V12prefrontal_taskCandidate_Age', 'V24prefrontal_taskCandidate_Age',
+                      'AB_12_Percent', 'AB_24_Percent', 'V12_AB_validitycode', 'V24_AB_validitycode',
+                      'AB_Reversals_12_Percent', 'AB_Reversals_24_Percent']
 anotb_cols_to_remove = list(anotb.columns.difference(anotb_cols_to_keep))
 anotb_cols_in_IBISdf = [cols for cols in anotb_cols_to_remove if cols in IBIS_demograph_behavior_df]
 all_cols_to_remove = dx_cols_to_remove + dx2_cols_to_remove + anotb_cols_in_IBISdf
