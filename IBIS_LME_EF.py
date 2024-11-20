@@ -177,7 +177,8 @@ cols_convert_to_numeric = [col for col in object_columns if col not in categoric
 IBIS_demograph_behavior_df[cols_convert_to_numeric] = IBIS_demograph_behavior_df[cols_convert_to_numeric].apply(pd.to_numeric, errors='coerce')
 
 # Remove rows that have all nans in non-demographic columns
-cols_demographic = ['Identifiers', 'Risk', 'Sex', 'DoB', 'ASD_Ever_DSMIV']
+cols_demographic = ['Identifiers', 'Risk', 'Sex', 'DoB', 'ASD_Ever_DSMIV', 'V12prefrontal_taskCandidate_Age',
+                    'V24prefrontal_taskCandidate_Age']
 cols_not_demographic = [col for col in IBIS_demograph_behavior_df.columns if col not in cols_demographic]
 ctest = IBIS_demograph_behavior_df.loc[:, cols_not_demographic].copy()
 ctest = ctest.replace(['nan', 'NaN'], np.nan)
@@ -237,10 +238,12 @@ fig.tight_layout(rect=[0, 0.05, 1, 1])
 plt.savefig(f'{working_dir}/AnotB_NIHToolbox_Missing_Data_Heatmap.png')
 plt.show(block=False)
 
-IBIS_demograph_behavior_df.to_csv(f'/{working_dir}/IBIS_behav_dataframe_demographics_AnotB_Flanker_DCCS.csv')
+IBIS_demograph_behavior_df.to_csv(f'{working_dir}/IBIS_behav_dataframe_demographics_AnotB_Flanker_DCCS.csv')
 
 #Write to file all subject numbers with missing DoB
 rows_no_dob = IBIS_demograph_behavior_df[IBIS_demograph_behavior_df['DoB'].isna()]
+
+rows_no_dob.to_csv(f'{working_dir}/IBIS_subjects_with_not_DOB.csv')
 
 mystop=1
 
