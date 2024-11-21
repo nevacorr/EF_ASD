@@ -43,8 +43,7 @@ brief1_cols_to_remove = ['TestDate', 'TestDescription', 'Grade', 'Relationship',
 
 ####### ---- Dx -----#######
 # Make list of dx columns to remove
-dx_cols_to_remove = ['VSA demographics,ASD_DX', 'VSA-CVD demographics,ASD_DX', 'VSA demographics,Project',
-                     'VSA-CVD demographics,Project']
+dx_cols_to_remove = ['VSA demographics,ASD_DX', 'VSA-CVD demographics,ASD_DX']
 
 ####### ---- Dx2 -----#######
 # Make list of dx2 columns to keep
@@ -63,7 +62,7 @@ nihtoolbox_cols_to_keep.extend([col for col in nihtoolbox.columns if any(sub in 
 ####### ---- DOB-Risk_Sex -----#######
 # Combine columns to create one dataframe with one Sex, one Risk and on DoB column for all study subjects
 # Replace '.' with NaN for easier handling
-dob_risk_sex.replace('.', pd.NA, inplace=True)
+dob_risk_sex.replace('.', np.nan, inplace=True)
 # Find all columns that have DOB (there are ones for different ages)
 dob_cols = [col for col in dob_risk_sex.columns if 'DoB' in col]
 dob_df = dob_risk_sex[dob_cols].copy()
@@ -87,6 +86,13 @@ nihtoolbox = nihtoolbox.loc[:, nihtoolbox.columns.isin(nihtoolbox_cols_to_keep)]
 
 # Function to combine columns with 'VSA' and 'VSA-CVD'
 def combine_vsa_columns(df):
+    # Replace '.' with NaN so fillna() can handle it
+    df = df.replace('.', np.nan)
+    df = df.replace('#NULL!', np.nan)
+    df = df.replace('nan', np.nan)
+    df = df.replace('NaN', np.nan)
+    df = df.replace('Unknown', np.nan)
+    columns_to_drop = []
     # Iterate through all column names
     for col in df.columns:
         if 'VSA-CVD' in col:
@@ -94,7 +100,9 @@ def combine_vsa_columns(df):
             if vsa_col in df.columns:
                 new_col = col.replace('VSA-CVD', 'VSD-All')
                 df[new_col] = df[vsa_col].fillna(df[col])
-                df = df.drop(columns=[vsa_col, col])
+                # Mark the original columns for removal
+                columns_to_drop.extend([vsa_col, col])
+    df = df.drop(columns=columns_to_drop)
     return df
 
 # Combine VSA and VSA-CD columns
@@ -124,6 +132,8 @@ merged_demograph_behavior_df = (dob_df_final.merge(dx, on='Identifiers', how='ou
 merged_demograph_behavior_df.replace('#NULL!', np.nan, inplace=True)
 merged_demograph_behavior_df.replace('.', np.nan, inplace=True)
 merged_demograph_behavior_df.replace('nan', np.nan, inplace=True)
+merged_demograph_behavior_df.replace('NaN', np.nan, inplace=True)
+merged_demograph_behavior_df.replace('Unknown', np.nan, inplace=True)
 
 # Remove all rows that have Down Syndrome Infant or Fragile X for VXX demographics,Project
 proj_columns = [col for col in merged_demograph_behavior_df.columns if 'Project' in col]
@@ -138,7 +148,9 @@ IBIS_demograph_behavior_df.to_csv('IBIS_merged_df_full.csv', index=None)
 
 # Remove columns that I won't use in the first analysis
 dx_col_to_keep = ['Identifiers', 'VSD-All demographics,ASD_Ever_DSMIV']
-dx_cols_to_remove = list(dx.columns.difference(dx_col_to_keep))
+dx_already_removed = ['VSD-All demographics,Project']
+dx_cols_to_ignore = dx_col_to_keep + dx_already_removed
+dx_cols_to_remove = list(dx.columns.difference(dx_cols_to_ignore))
 dx2_cols_to_keep = ['Identifiers', 'V06 demographics,Risk', 'V06 demographics,Sex','V12 demographics,Risk',
                     'V12 demographics,Sex','V24 demographics,Risk', 'V24 demographics,Sex',
                     'V06 demographics,Project', 'V12 demographics,Project', 'V24 demographics,Project']
@@ -242,8 +254,10 @@ IBIS_demograph_behavior_df.to_csv(f'{working_dir}/IBIS_behav_dataframe_demograph
 
 #Write to file all subject numbers with missing DoB
 rows_no_dob = IBIS_demograph_behavior_df[IBIS_demograph_behavior_df['DoB'].isna()]
+rows_no_asddx = IBIS_demograph_behavior_df[IBIS_demograph_behavior_df['ASD_Ever_DSMIV'].isna()]
 
-rows_no_dob.to_csv(f'{working_dir}/IBIS_subjects_with_not_DOB.csv')
+rows_no_dob['Identifiers'].to_csv(f'{working_dir}/IBIS_subjects_with_no_DOB.csv', index=False)
+rows_no_asddx['Identifiers'].to_csv(f'{working_dir}/IBIS_subjects_with_no_ASD.csv', index=False)
 
 mystop=1
 
