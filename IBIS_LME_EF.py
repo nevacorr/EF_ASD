@@ -2,10 +2,15 @@
 import pandas as pd
 import os
 import numpy as np
+
+from Utility_Functions import simplify_dob_df, combine_vsa_columns, remove_invalid_anotb_data
+from Utility_Functions import replace_missing_with_nan, remove_fragx_downsyndrome_subj
+from Utility_Functions import remove_extra_ASD_DX_text, remove_extra_text_eftasks, convert_numeric_columns_to_numeric_type
+from Utility_Functions import remove_subj_no_behav_data, make_flanker_dccs_columns
+from Utility_Functions import make_and_plot_missing_data_map, write_missing_to_file
+from Utility_Functions import remove_Brief2_columns
 from plot_data_histograms import plot_data_histograms
-from matplotlib import pyplot as plt
-import seaborn as sns
-from matplotlib.colors import LinearSegmentedColormap
+
 
 working_dir = os.getcwd()
 
@@ -60,21 +65,8 @@ nihtoolbox_substrings_to_keep = ['Date_taken', 'Inst_24', 'Inst_25', 'Age_Correc
 nihtoolbox_cols_to_keep.extend([col for col in nihtoolbox.columns if any(sub in col for sub in nihtoolbox_substrings_to_keep)])
 
 ####### ---- DOB-Risk_Sex -----#######
-# Combine columns to create one dataframe with one Sex, one Risk and on DoB column for all study subjects
-# Replace '.' with NaN for easier handling
-dob_risk_sex.replace('.', np.nan, inplace=True)
-# Find all columns that have DOB (there are ones for different ages)
-dob_cols = [col for col in dob_risk_sex.columns if 'DoB' in col]
-dob_df = dob_risk_sex[dob_cols].copy()
-# Collapse DoB values from all DoB columns into one column. Do the same for Risk and Sex
-dob_df_final = dob_risk_sex['Identifiers'].to_frame().copy()
-dob_df_final['DoB'] = dob_df.apply(lambda row: row.dropna().iloc[0] if row.dropna().nunique() == 1 else pd.NA, axis=1)
-risk_cols = [col for col in dob_risk_sex.columns if 'Risk' in col]
-tmp_df = dob_risk_sex[risk_cols].copy()
-dob_df_final['Risk'] = tmp_df.apply(lambda row: row.dropna().iloc[0] if row.dropna().nunique() == 1 else pd.NA, axis=1)
-sex_cols = [col for col in dob_risk_sex.columns if 'Sex' in col]
-tmp_df = dob_risk_sex[sex_cols].copy()
-dob_df_final['Sex'] = tmp_df.apply(lambda row: row.dropna().iloc[0] if row.dropna().nunique() == 1 else pd.NA, axis=1)
+# Combine columns from dob/risk/sex dataframe
+dob_df_final = simplify_dob_df(dob_risk_sex)
 
 # Remove or keep columns specified in lists created above
 anotb = anotb.drop(columns=anotb_cols_to_remove)
@@ -84,44 +76,13 @@ dx = dx.drop(columns=dx_cols_to_remove)
 dx2 = dx2.loc[:, dx2.columns.isin(dx2_cols_to_keep)]
 nihtoolbox = nihtoolbox.loc[:, nihtoolbox.columns.isin(nihtoolbox_cols_to_keep)]
 
-# Function to combine columns with 'VSA' and 'VSA-CVD'
-def combine_vsa_columns(df):
-    # Replace '.' with NaN so fillna() can handle it
-    df = df.replace('.', np.nan)
-    df = df.replace('#NULL!', np.nan)
-    df = df.replace('nan', np.nan)
-    df = df.replace('NaN', np.nan)
-    df = df.replace('Unknown', np.nan)
-    columns_to_drop = []
-    # Iterate through all column names
-    for col in df.columns:
-        if 'VSA-CVD' in col:
-            vsa_col = col.replace('VSA-CVD', 'VSA')
-            if vsa_col in df.columns:
-                new_col = col.replace('VSA-CVD', 'VSD-All')
-                df[new_col] = df[vsa_col].fillna(df[col])
-                # Mark the original columns for removal
-                columns_to_drop.extend([vsa_col, col])
-    df = df.drop(columns=columns_to_drop)
-    return df
-
 # Combine VSA and VSA-CD columns
 brief2 = combine_vsa_columns(brief2)
 dx = combine_vsa_columns(dx)
 nihtoolbox = combine_vsa_columns(nihtoolbox)
 
-# For anotb, change all scores to NaN that have validitycode=3
-# Columns are type object. Convert validity codes to integer type
-anotb['V12_AB_validitycode'] = pd.to_numeric(anotb['V12_AB_validitycode'], errors='coerce')
-anotb['V24_AB_validitycode'] = pd.to_numeric(anotb['V24_AB_validitycode'], errors='coerce')
-anotb['V12_AB_validitycode'] = anotb['V12_AB_validitycode'].astype('Int64')
-anotb['V24_AB_validitycode'] = anotb['V24_AB_validitycode'].astype('Int64')
-# If validity code is 3, replace score with nan
-anotb.loc[anotb['V12_AB_validitycode'] == 3, 'AB_12_Percent'] = np.nan
-anotb.loc[anotb['V24_AB_validitycode'] == 3, 'AB_24_Percent'] = np.nan
-
-# Remove validity code columns
-anotb.drop(columns=['V12_AB_validitycode', 'V24_AB_validitycode'], inplace=True)
+# Change anotb invalid scores (indicated by validity score = 3) to NaN
+anotb = remove_invalid_anotb_data(anotb)
 
 # Merge all dataframes
 merged_demograph_behavior_df = (dob_df_final.merge(dx, on='Identifiers', how='outer').merge(dx2, on='Identifiers',
@@ -129,19 +90,10 @@ merged_demograph_behavior_df = (dob_df_final.merge(dx, on='Identifiers', how='ou
                         how='outer').merge(brief2, on='Identifiers', how='outer'))
 
 # Replace missing values with NaN
-merged_demograph_behavior_df.replace('#NULL!', np.nan, inplace=True)
-merged_demograph_behavior_df.replace('.', np.nan, inplace=True)
-merged_demograph_behavior_df.replace('nan', np.nan, inplace=True)
-merged_demograph_behavior_df.replace('NaN', np.nan, inplace=True)
-merged_demograph_behavior_df.replace('Unknown', np.nan, inplace=True)
+merged_demograph_behavior_df = replace_missing_with_nan(merged_demograph_behavior_df)
 
 # Remove all rows that have Down Syndrome Infant or Fragile X for VXX demographics,Project
-proj_columns = [col for col in merged_demograph_behavior_df.columns if 'Project' in col]
-IBIS_demograph_behavior_df = merged_demograph_behavior_df[~merged_demograph_behavior_df[proj_columns]
-    .applymap(lambda cell: 'Fragile' in cell or 'Down' in cell if pd.notna(cell) else False)
-    .any(axis=1)].copy()
-
-IBIS_demograph_behavior_df.drop(columns=proj_columns, inplace=True)
+IBIS_demograph_behavior_df = remove_fragx_downsyndrome_subj(merged_demograph_behavior_df)
 
 # Save this dataframe
 IBIS_demograph_behavior_df.to_csv('IBIS_merged_df_full.csv', index=None)
@@ -159,105 +111,41 @@ all_cols_to_remove = dx_cols_to_remove + dx2_cols_to_remove
 IBIS_demograph_behavior_df.drop(columns=all_cols_to_remove, inplace=True)
 
 # Remove extra text in columns that have ASD diagnostic category
-IBIS_demograph_behavior_df['test'] = np.where(IBIS_demograph_behavior_df['VSD-All demographics,ASD_Ever_DSMIV'].fillna('').str.contains('ASD+', regex=False), 'ASD+',
-                                                                    np.where(IBIS_demograph_behavior_df['VSD-All demographics,ASD_Ever_DSMIV'].fillna('').str.contains('ASD-', regex=False), 'ASD-',
-                                                                    np.nan))
-test=IBIS_demograph_behavior_df.pop('test')
-IBIS_demograph_behavior_df.insert(2, 'test',test)
-IBIS_demograph_behavior_df.rename(columns={'test': 'ASD_Ever_DSMIV', 'VSD-All NIHToolBox,Inst_24': 'NIHToolBox,TestName1',
-                                           'VSD-All NIHToolBox,Inst_25': 'NIHToolBox,TestName2',
-                                           'VSD-All NIHToolBox,Date_taken': 'NIHToolBox,Date_taken'}, inplace=True)
+IBIS_demograph_behavior_df = remove_extra_ASD_DX_text(IBIS_demograph_behavior_df)
 
 # Remove extra text in columns that have name of executive function task at older ages
-IBIS_demograph_behavior_df['NIHToolBox,TestName1'] = np.where(IBIS_demograph_behavior_df['NIHToolBox,TestName1'].fillna('').str.contains('Flanker', regex=False), 'Flanker',
-                                                    np.where(IBIS_demograph_behavior_df['NIHToolBox,TestName1'].fillna('').str.contains('Dimensional', regex=False), 'DCCS',
-                                                    np.nan))
-IBIS_demograph_behavior_df['NIHToolBox,TestName2'] = np.where(IBIS_demograph_behavior_df['NIHToolBox,TestName2'].fillna('').str.contains('Flanker', regex=False), 'Flanker',
-                                                    np.where(IBIS_demograph_behavior_df['NIHToolBox,TestName2'].fillna('').str.contains('Dimensional', regex=False), 'DCCS',
-                                                    np.nan))
+IBIS_demograph_behavior_df = remove_extra_text_eftasks(IBIS_demograph_behavior_df)
 
 # Remove ever diagnosis column. We want to keep only last diagnosis
 IBIS_demograph_behavior_df.drop(columns=['VSD-All demographics,ASD_Ever_DSMIV'], inplace=True)
 
-# Get list of columns with data type 'object'. Convert the ones that should be numeric to numeric type
-object_columns = IBIS_demograph_behavior_df.select_dtypes(include='object').columns.tolist()
-categorical_columns = ['DoB','Identifiers', 'ASD_Ever_DSMIV', 'Risk', 'Sex', 'NIHToolBox,TestName1', 'NIHToolBox,TestName2',
-                       'V06 demographics,Risk', 'V12 demographics,Risk', 'V24 demographics,Risk', 'V06 demographics,Sex',
-                       'V12 demographics,Sex', 'V24 demographics,Sex', 'NIHToolBox,Date_taken', 'V06 demographics,Project',
-                       'V12 demographics,Project', 'V24 demographics,Project', 'V12_AB_validitycode', 'V24_AB_validitycode']
-cols_convert_to_numeric = [col for col in object_columns if col not in categorical_columns]
-IBIS_demograph_behavior_df[cols_convert_to_numeric] = IBIS_demograph_behavior_df[cols_convert_to_numeric].apply(pd.to_numeric, errors='coerce')
+# Convert numeric values to numeric type
+IBIS_demograph_behavior_df = convert_numeric_columns_to_numeric_type(IBIS_demograph_behavior_df)
 
 # Remove rows that have all nans in non-demographic columns
-cols_demographic = ['Identifiers', 'Risk', 'Sex', 'DoB', 'ASD_Ever_DSMIV', 'V12prefrontal_taskCandidate_Age',
-                    'V24prefrontal_taskCandidate_Age']
-cols_not_demographic = [col for col in IBIS_demograph_behavior_df.columns if col not in cols_demographic]
-ctest = IBIS_demograph_behavior_df.loc[:, cols_not_demographic].copy()
-ctest = ctest.replace(['nan', 'NaN'], np.nan)
-IBIS_demograph_behavior_df.replace(['nan', 'NaN'], np.nan, inplace=True)
-all_nan_rows = ctest[ctest.isna().all(axis=1)]
-all_nan_rows_IBIS = IBIS_demograph_behavior_df[IBIS_demograph_behavior_df.loc[:, cols_not_demographic].isna().all(axis=1)]
-ctest.dropna( how='all', inplace=True, ignore_index=True)
-IBIS_demograph_behavior_df.dropna(subset=cols_not_demographic, how='all', inplace=True, ignore_index=True)
+IBIS_demograph_behavior_df = remove_subj_no_behav_data(IBIS_demograph_behavior_df)
 
 # Make columns for Flanker and DCCS score
-IBIS_demograph_behavior_df['Flanker_Standard_Age_Corrected'] = IBIS_demograph_behavior_df.apply(lambda row:
-                        row['VSD-All NIHToolBox,Score_Age_Corrected_Standard_Score_1'] if row['NIHToolBox,TestName1'] == 'Flanker'
-                        else (row['VSD-All NIHToolBox,Score_Age_Corrected_Standard_Score_2'] if row['NIHToolBox,TestName1'] == 'DCCS'
-                        else np.nan), axis=1)
-
-IBIS_demograph_behavior_df['DCCS_Standard_Age_Corrected'] = IBIS_demograph_behavior_df.apply(lambda row:
-                        row['VSD-All NIHToolBox,Score_Age_Corrected_Standard_Score_1'] if row['NIHToolBox,TestName1'] == 'DCCS'
-                        else (row['VSD-All NIHToolBox,Score_Age_Corrected_Standard_Score_2'] if row['NIHToolBox,TestName1'] == 'Flanker'
-                        else np.nan), axis=1)
-
-IBIS_demograph_behavior_df.drop(columns=['VSD-All NIHToolBox,Score_Age_Corrected_Standard_Score_1',
-                                         'VSD-All NIHToolBox,Score_Age_Corrected_Standard_Score_2',
-                                         'NIHToolBox,TestName1', 'NIHToolBox,TestName2'], inplace=True)
+IBIS_demograph_behavior_df = make_flanker_dccs_columns(IBIS_demograph_behavior_df)
 
 # Plot histograms of all data
 # plot_data_histograms(working_dir, IBIS_demograph_behavior_df.drop(columns=['Identifiers']))
 
-# Make binary map indicating presence or absence of data
-df_nan_nonnan = IBIS_demograph_behavior_df.applymap(lambda x: 1 if pd.notna(x) else 0).astype(int)
-df_nan_nonnan.drop(columns=['Identifiers'], inplace=True)
-cmap = LinearSegmentedColormap.from_list('bwcmap', ['white','blue'])
-
-# Plot heatmap indicating which measures are present and which are missing for all subjects
-fig, ax = plt.subplots(figsize=(20, 20))
-sns.heatmap(df_nan_nonnan, cmap=cmap, xticklabels=True, cbar=False, linewidths=0.5, ax=ax)
-plt.xticks(rotation=45, ha='right')
-plt.title('IBIS data set  white=missing  blue=available')
-plt.gcf().subplots_adjust(bottom=0.8)
-fig.tight_layout(rect=[0, 0.05, 1, 1])
-plt.savefig(f'{working_dir}/All_Behaviors_Missing_Data_Heatmap.png')
-plt.show(block=False)
+# Make binary map indicating presence or absence of data and plot as heatmap and save to file
+make_and_plot_missing_data_map(IBIS_demograph_behavior_df, working_dir, 'All_Behaviors_Missing_Data_Heatmap',
+                               figsize=(20, 20))
 
 # Remove Brief2 columns
-brief2_cols = [col for col in IBIS_demograph_behavior_df.columns if 'BRIEF2' in col]
-IBIS_demograph_behavior_df.drop(columns=brief2_cols, inplace=True)
+IBIS_demograph_behavior_df = remove_Brief2_columns(IBIS_demograph_behavior_df)
 
-# Make heatmap again of missing or non-missing values, this time without BRIEF2 measures
-df_nan_nonnan = IBIS_demograph_behavior_df.applymap(lambda x: 1 if pd.notna(x) else 0).astype(int)
-df_nan_nonnan.drop(columns=['Identifiers'], inplace=True)
-
-fig, ax = plt.subplots(figsize=(10, 20))
-sns.heatmap(df_nan_nonnan, cmap=cmap, xticklabels=True, cbar=False, linewidths=0.5, ax=ax)
-plt.xticks(rotation=45, ha='right')
-plt.title('IBIS data set  white=missing  blue=available')
-plt.gcf().subplots_adjust(bottom=0.8)
-fig.tight_layout(rect=[0, 0.05, 1, 1])
-plt.savefig(f'{working_dir}/AnotB_NIHToolbox_Missing_Data_Heatmap.png')
-plt.show(block=False)
-
+# Make binary map indicating presence or absence of data and plot as heatmap, without Brief2 and save
+make_and_plot_missing_data_map(IBIS_demograph_behavior_df, working_dir, 'AnotB_NIHToolbox_Missing_Data_Heatmap',
+                               figsize=(10,20))
+# Write dataframe to file
 IBIS_demograph_behavior_df.to_csv(f'{working_dir}/IBIS_behav_dataframe_demographics_AnotB_Flanker_DCCS.csv')
 
-#Write to file all subject numbers with missing DoB
-rows_no_dob = IBIS_demograph_behavior_df[IBIS_demograph_behavior_df['DoB'].isna()]
-rows_no_asddx = IBIS_demograph_behavior_df[IBIS_demograph_behavior_df['ASD_Ever_DSMIV'].isna()]
-
-rows_no_dob['Identifiers'].to_csv(f'{working_dir}/IBIS_subjects_with_no_DOB.csv', index=False)
-rows_no_asddx['Identifiers'].to_csv(f'{working_dir}/IBIS_subjects_with_no_ASD.csv', index=False)
+#Write to file all subject numbers with missing DoB or missing ASD Dx
+write_missing_to_file(IBIS_demograph_behavior_df)
 
 mystop=1
 
