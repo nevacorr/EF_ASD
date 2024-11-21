@@ -4,6 +4,7 @@ from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+
 # Take DOB data frame and create a single data frame with one Sex, one Risk,a nd one Dob columns for all Identifiers
 
 def simplify_dob_df(dob_risk_sex):
@@ -78,7 +79,15 @@ def remove_fragx_downsyndrome_subj(df):
     IBIS_demograph_behavior_df.drop(columns=proj_columns, inplace=True)
     return IBIS_demograph_behavior_df
 
-# Remove extra text in columns that have ASD diagnostic category
+# Remove extra text in columns that have ASD diagnostic category at later age than 24 months
+def remove_24mo_extra_ASD_DX_text(df):
+    df['V24 demographics,ASD_DX'] = np.where(df['V24 demographics,ASD_DX'].fillna('').str.contains('NO', regex=False), 'ASD-',
+                 np.where(df['V24 demographics,ASD_DX'].fillna('').str.contains('YES', regex=False), 'ASD+',
+                 np.nan))
+
+    return df
+
+# Remove extra text in columns that have ASD diagnostic category at 24 months
 def remove_extra_ASD_DX_text(df):
     df['test'] = np.where(df['VSD-All demographics,ASD_Ever_DSMIV'].fillna('').str.contains('ASD+', regex=False), 'ASD+',
                  np.where(df['VSD-All demographics,ASD_Ever_DSMIV'].fillna('').str.contains('ASD-', regex=False), 'ASD-',
@@ -114,7 +123,7 @@ def convert_numeric_columns_to_numeric_type(df):
                            'V12 demographics,Sex', 'V24 demographics,Sex', 'NIHToolBox,Date_taken',
                            'V06 demographics,Project',
                            'V12 demographics,Project', 'V24 demographics,Project', 'V12_AB_validitycode',
-                           'V24_AB_validitycode']
+                           'V24_AB_validitycode', 'V24 demographics,ASD_DX', 'Combined_ASD_DX']
     cols_convert_to_numeric = [col for col in object_columns if col not in categorical_columns]
     df[cols_convert_to_numeric] = df[cols_convert_to_numeric].apply(
         pd.to_numeric, errors='coerce')
@@ -122,7 +131,7 @@ def convert_numeric_columns_to_numeric_type(df):
 
 def remove_subj_no_behav_data(df):
     cols_demographic = ['Identifiers', 'Risk', 'Sex', 'DoB', 'ASD_Ever_DSMIV', 'V12prefrontal_taskCandidate_Age',
-                        'V24prefrontal_taskCandidate_Age']
+                        'V24prefrontal_taskCandidate_Age', 'V24 demographics,ASD_DX', 'Combined_ASD_DX']
     cols_not_demographic = [col for col in df.columns if col not in cols_demographic]
     ctest = df.loc[:, cols_not_demographic].copy()
     ctest = ctest.replace(['nan', 'NaN'], np.nan)
@@ -181,3 +190,25 @@ def write_missing_to_file(df, working_dir):
 
     rows_no_dob['Identifiers'].to_csv(f'{working_dir}/IBIS_subjects_with_no_DOB.csv', index=False)
     rows_no_asddx['Identifiers'].to_csv(f'{working_dir}/IBIS_subjects_with_no_ASD.csv', index=False)
+
+def calculate_nihtoolbox_age(df):
+    date_df = pd.DataFrame()
+    date_df['start_date'] = pd.to_datetime(df['DoB'], format='%m/%d/%y')
+    date_df['end_date'] = pd.to_datetime(df['NIHToolBox,Date_taken'], format='%m/%d/%y')
+
+    date_df['days_diff'] = (date_df['end_date'] - date_df['start_date']).dt.days
+
+    date_df['diff_in_months'] = date_df['days_diff']/30.44
+    date_df['diff_in_months'] = date_df['diff_in_months'].where(date_df['start_date'].notna()
+                                 & date_df['end_date'].notna(), np.nan)
+
+    df['Age_Taken_Calculated'] = date_df['diff_in_months'].copy()
+    return df
+
+def combine_asd_dx(df_orig):
+    df = df_orig.copy()
+    df = replace_missing_with_nan(df)
+    df['Combined_ASD_DX'] = df['ASD_Ever_DSMIV'].fillna(df['V24 demographics,ASD_DX'])
+    combined=df.pop('Combined_ASD_DX')
+    df.insert(2, 'Combined_ASD_DX', combined)
+    return df

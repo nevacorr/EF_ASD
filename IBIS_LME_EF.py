@@ -3,12 +3,13 @@ import pandas as pd
 import os
 import numpy as np
 
-from Utility_Functions import simplify_dob_df, combine_vsa_columns, remove_invalid_anotb_data
+from Utility_Functions import simplify_dob_df, combine_vsa_columns, remove_invalid_anotb_data, \
+    remove_24mo_extra_ASD_DX_text
 from Utility_Functions import replace_missing_with_nan, remove_fragx_downsyndrome_subj
 from Utility_Functions import remove_extra_ASD_DX_text, remove_extra_text_eftasks, convert_numeric_columns_to_numeric_type
 from Utility_Functions import remove_subj_no_behav_data, make_flanker_dccs_columns
 from Utility_Functions import make_and_plot_missing_data_map, write_missing_to_file
-from Utility_Functions import remove_Brief2_columns
+from Utility_Functions import remove_Brief2_columns, calculate_nihtoolbox_age, combine_asd_dx
 from plot_data_histograms import plot_data_histograms
 
 
@@ -54,9 +55,12 @@ dx_cols_to_remove = ['VSA demographics,ASD_DX', 'VSA-CVD demographics,ASD_DX']
 # Make list of dx2 columns to keep
 dx2_substrings_to_keep = ['CandID', 'Cohort', 'Family_CandID1', 'Family_CandID2', 'Project', 'Relationship_type',
                           'Site', 'Status', 'ethnicity', 'race']
-dx2_cols_to_keep = ['Identifiers']
+dx2_cols_to_keep = ['Identifiers', 'V24 demographics,ASD_DX']
 ####### Keep column if any of ths substrings is in each column name
 dx2_cols_to_keep.extend([col for col in dx2.columns if any(sub in col for sub in dx2_substrings_to_keep)])
+
+# Remove extra text from ASD_DX at 24months column
+dx2 = remove_24mo_extra_ASD_DX_text(dx2)
 
 ####### ---- NIH Toolbox -----#######
 #Make a list of nih toolbox columns to keep
@@ -105,7 +109,8 @@ dx_cols_to_ignore = dx_col_to_keep + dx_already_removed
 dx_cols_to_remove = list(dx.columns.difference(dx_cols_to_ignore))
 dx2_cols_to_keep = ['Identifiers', 'V06 demographics,Risk', 'V06 demographics,Sex','V12 demographics,Risk',
                     'V12 demographics,Sex','V24 demographics,Risk', 'V24 demographics,Sex',
-                    'V06 demographics,Project', 'V12 demographics,Project', 'V24 demographics,Project']
+                    'V06 demographics,Project', 'V12 demographics,Project', 'V24 demographics,Project',
+                    'V24 demographics,ASD_DX']
 dx2_cols_to_remove = list(dx2.columns.difference(dx2_cols_to_keep))
 all_cols_to_remove = dx_cols_to_remove + dx2_cols_to_remove
 IBIS_demograph_behavior_df.drop(columns=all_cols_to_remove, inplace=True)
@@ -119,6 +124,9 @@ IBIS_demograph_behavior_df = remove_extra_text_eftasks(IBIS_demograph_behavior_d
 # Remove ever diagnosis column. We want to keep only last diagnosis
 IBIS_demograph_behavior_df.drop(columns=['VSD-All demographics,ASD_Ever_DSMIV'], inplace=True)
 
+# Combine ASD diagnoses from two different sources
+IBIS_demograph_behavior_df = combine_asd_dx(IBIS_demograph_behavior_df)
+
 # Convert numeric values to numeric type
 IBIS_demograph_behavior_df = convert_numeric_columns_to_numeric_type(IBIS_demograph_behavior_df)
 
@@ -131,10 +139,12 @@ IBIS_demograph_behavior_df = make_flanker_dccs_columns(IBIS_demograph_behavior_d
 # Plot histograms of all data
 # plot_data_histograms(working_dir, IBIS_demograph_behavior_df.drop(columns=['Identifiers']))
 
+# Add column with NIH toolbox test age
+IBIS_demograph_behavior_df = calculate_nihtoolbox_age(IBIS_demograph_behavior_df)
+
 # Make binary map indicating presence or absence of data and plot as heatmap and save to file
 make_and_plot_missing_data_map(IBIS_demograph_behavior_df, working_dir, 'All_Behaviors_Missing_Data_Heatmap',
                                figsize=(20, 20))
-
 # Remove Brief2 columns
 IBIS_demograph_behavior_df = remove_Brief2_columns(IBIS_demograph_behavior_df)
 
@@ -145,7 +155,7 @@ make_and_plot_missing_data_map(IBIS_demograph_behavior_df, working_dir, 'AnotB_N
 IBIS_demograph_behavior_df.to_csv(f'{working_dir}/IBIS_behav_dataframe_demographics_AnotB_Flanker_DCCS.csv')
 
 #Write to file all subject numbers with missing DoB or missing ASD Dx
-write_missing_to_file(IBIS_demograph_behavior_df)
+write_missing_to_file(IBIS_demograph_behavior_df, working_dir)
 
 mystop=1
 
