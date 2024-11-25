@@ -4,14 +4,14 @@ import os
 import numpy as np
 
 from Utility_Functions import simplify_dob_df, combine_vsa_columns, remove_invalid_anotb_data, \
-    remove_24mo_extra_ASD_DX_text
+    remove_24mo_extra_ASD_DX_text, remove_extra_text_eftasks, remove_extra_ASD_DX_text
 from Utility_Functions import replace_missing_with_nan, remove_fragx_downsyndrome_subj
 from Utility_Functions import remove_extra_ASD_DX_text, remove_extra_text_eftasks, convert_numeric_columns_to_numeric_type
 from Utility_Functions import remove_subj_no_behav_data, make_flanker_dccs_columns
 from Utility_Functions import make_and_plot_missing_data_map, write_missing_to_file
 from Utility_Functions import remove_Brief2_columns, calculate_nihtoolbox_age, combine_asd_dx
+from Utility_Functions import make_lists_of_columns_needed
 from plot_data_histograms import plot_data_histograms
-
 
 working_dir = os.getcwd()
 
@@ -27,46 +27,12 @@ dx2 = pd.read_csv(os.path.join(datadir, 'New-11-22-21_data-2021-11-23T07_39_34.4
 nihtoolbox = pd.read_csv(os.path.join(datadir, 'NIH Toolbox_7-1-24_data-2024-07-01T19_40_36.204Z.csv'))
 dob_risk_sex = pd.read_csv(os.path.join(datadir, 'DOB_sex_risk_11-8-24.csv'))
 
-####### ---- A not B-----#######
-# Make a list of anotb columns to keep
-anotb_cols_to_keep = ['Identifiers', 'V12prefrontal_taskCandidate_Age', 'V24prefrontal_taskCandidate_Age',
-                      'AB_12_Percent', 'AB_24_Percent', 'V12_AB_validitycode', 'V24_AB_validitycode',
-                      'AB_Reversals_12_Percent', 'AB_Reversals_24_Percent']
-anotb_cols_to_remove = list(anotb.columns.difference(anotb_cols_to_keep))
-
-####### ---- BRIEF2-----#######
-# Make a list of brief 2 columns to keep
-brief2_cols_to_keep = ['Identifiers', 'VSA BRIEF2_Parent,Candidate_Age', 'VSA-CVD BRIEF2_Parent,Candidate_Age']
-brief2_cols_to_keep.extend([col for col in brief2.columns.tolist() if 'raw_score' in col or 'T_score' in col])
-remove_list = ['VSA BRIEF2_Parent,T_score', 'VSA-CVD BRIEF2_Parent,T_score','VSA BRIEF2_Parent,raw_score',
-               'VSA-CVD BRIEF2_Parent,raw_score']
-brief2_cols_to_keep = [col for col in brief2_cols_to_keep if col not in remove_list]
-
-####### ---- Brief1-----#######
-# Make a list of brief1 columns to remove
-brief1_cols_to_remove = ['TestDate', 'TestDescription', 'Grade', 'Relationship', 'TestFormTorP',
-                         'Howwellknownteacheronly', 'Durationofrelationshipteacheronly', 'MissingItems']
-
-####### ---- Dx -----#######
-# Make list of dx columns to remove
-dx_cols_to_remove = ['VSA demographics,ASD_DX', 'VSA-CVD demographics,ASD_DX']
-
-####### ---- Dx2 -----#######
-# Make list of dx2 columns to keep
-dx2_substrings_to_keep = ['CandID', 'Cohort', 'Family_CandID1', 'Family_CandID2', 'Project', 'Relationship_type',
-                          'Site', 'Status', 'ethnicity', 'race']
-dx2_cols_to_keep = ['Identifiers', 'V24 demographics,ASD_DX']
-####### Keep column if any of ths substrings is in each column name
-dx2_cols_to_keep.extend([col for col in dx2.columns if any(sub in col for sub in dx2_substrings_to_keep)])
+# Make lists of columns to keep or remove
+(anotb_cols_to_remove, brief2_cols_to_keep, brief1_cols_to_remove, dx_cols_to_remove, dx2_cols_to_keep,
+            nihtoolbox_cols_to_keep) = make_lists_of_columns_needed(anotb, brief2, dx2, nihtoolbox)
 
 # Remove extra text from ASD_DX at 24months column
 dx2 = remove_24mo_extra_ASD_DX_text(dx2)
-
-####### ---- NIH Toolbox -----#######
-#Make a list of nih toolbox columns to keep
-nihtoolbox_cols_to_keep = ['Identifiers']
-nihtoolbox_substrings_to_keep = ['Date_taken', 'Inst_24', 'Inst_25', 'Age_Corrected_Standard_Score', 'Candidate_Age']
-nihtoolbox_cols_to_keep.extend([col for col in nihtoolbox.columns if any(sub in col for sub in nihtoolbox_substrings_to_keep)])
 
 ####### ---- DOB-Risk_Sex -----#######
 # Combine columns from dob/risk/sex dataframe
@@ -113,28 +79,18 @@ dx2_cols_to_keep = ['Identifiers', 'V06 demographics,Risk', 'V06 demographics,Se
                     'V24 demographics,ASD_DX']
 dx2_cols_to_remove = list(dx2.columns.difference(dx2_cols_to_keep))
 all_cols_to_remove = dx_cols_to_remove + dx2_cols_to_remove
-IBIS_demograph_behavior_df.drop(columns=all_cols_to_remove, inplace=True)
 
-# Remove extra text in columns that have ASD diagnostic category
-IBIS_demograph_behavior_df = remove_extra_ASD_DX_text(IBIS_demograph_behavior_df)
-
-# Remove extra text in columns that have name of executive function task at older ages
-IBIS_demograph_behavior_df = remove_extra_text_eftasks(IBIS_demograph_behavior_df)
-
-# Remove ever diagnosis column. We want to keep only last diagnosis
-IBIS_demograph_behavior_df.drop(columns=['VSD-All demographics,ASD_Ever_DSMIV'], inplace=True)
-
-# Combine ASD diagnoses from two different sources
-IBIS_demograph_behavior_df = combine_asd_dx(IBIS_demograph_behavior_df)
-
-# Convert numeric values to numeric type
-IBIS_demograph_behavior_df = convert_numeric_columns_to_numeric_type(IBIS_demograph_behavior_df)
-
-# Remove rows that have all nans in non-demographic columns
-IBIS_demograph_behavior_df = remove_subj_no_behav_data(IBIS_demograph_behavior_df)
-
-# Make columns for Flanker and DCCS score
-IBIS_demograph_behavior_df = make_flanker_dccs_columns(IBIS_demograph_behavior_df)
+IBIS_demograph_behavior_df = (
+    IBIS_demograph_behavior_df
+    .drop(columns=all_cols_to_remove)
+    .pipe(remove_extra_ASD_DX_text)
+    .pipe(remove_extra_text_eftasks)
+    .drop(columns=['VSD-All demographics,ASD_Ever_DSMIV'])
+    .pipe(combine_asd_dx)
+    .pipe(convert_numeric_columns_to_numeric_type)
+    .pipe(remove_subj_no_behav_data)
+    .pipe(make_flanker_dccs_columns)
+)
 
 # Plot histograms of all data
 # plot_data_histograms(working_dir, IBIS_demograph_behavior_df.drop(columns=['Identifiers']))
