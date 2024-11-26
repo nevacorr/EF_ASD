@@ -4,8 +4,8 @@ from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+def make_lists_of_columns_needed(anotb, brief2, dx2, nihtoolbox, asd_diagnosis):
 
-def make_lists_of_columns_needed(anotb, brief2, dx2, nihtoolbox):
     ####### ---- A not B-----#######
     anotb_cols_to_keep = ['Identifiers', 'V12prefrontal_taskCandidate_Age', 'V24prefrontal_taskCandidate_Age',
                           'AB_12_Percent', 'AB_24_Percent', 'V12_AB_validitycode', 'V24_AB_validitycode',
@@ -30,7 +30,7 @@ def make_lists_of_columns_needed(anotb, brief2, dx2, nihtoolbox):
     # Make list of dx2 columns to keep
     dx2_substrings_to_keep = ['CandID', 'Cohort', 'Family_CandID1', 'Family_CandID2', 'Project', 'Relationship_type',
                               'Site', 'Status', 'ethnicity', 'race']
-    dx2_cols_to_keep = ['Identifiers', 'V24 demographics,ASD_DX']
+    dx2_cols_to_keep = ['Identifiers']
     ####### Keep column if any of ths substrings is in each column name
     dx2_cols_to_keep.extend([col for col in dx2.columns if any(sub in col for sub in dx2_substrings_to_keep)])
 
@@ -42,8 +42,12 @@ def make_lists_of_columns_needed(anotb, brief2, dx2, nihtoolbox):
     nihtoolbox_cols_to_keep.extend(
         [col for col in nihtoolbox.columns if any(sub in col for sub in nihtoolbox_substrings_to_keep)])
 
+    ####### ---- ASD Diagnosis ---- #######
+    asd_cols_to_keep = ['Identifiers']
+    asd_cols_to_keep.extend([col for col in asd_diagnosis if 'Ever_DSMIV' in col])
+
     return (anotb_cols_to_remove, brief2_cols_to_keep, brief1_cols_to_remove, dx_cols_to_remove, dx2_cols_to_keep,
-            nihtoolbox_cols_to_keep)
+            nihtoolbox_cols_to_keep, asd_cols_to_keep)
 
 # Take DOB data frame and create a single data frame with one Sex, one Risk,a nd one Dob columns for all Identifiers
 def simplify_dob_df(dob_risk_sex):
@@ -118,7 +122,7 @@ def remove_fragx_downsyndrome_subj(df):
     IBIS_demograph_behavior_df.drop(columns=proj_columns, inplace=True)
     return IBIS_demograph_behavior_df
 
-# Remove extra text in columns that have ASD diagnostic category at later age than 24 months
+# Remove extra text in columns that have ASD diagnostic at 24 months
 def remove_24mo_extra_ASD_DX_text(df):
     df['V24 demographics,ASD_DX'] = np.where(df['V24 demographics,ASD_DX'].fillna('').str.contains('NO', regex=False), 'ASD-',
                  np.where(df['V24 demographics,ASD_DX'].fillna('').str.contains('YES', regex=False), 'ASD+',
@@ -126,7 +130,7 @@ def remove_24mo_extra_ASD_DX_text(df):
 
     return df
 
-# Remove extra text in columns that have ASD diagnostic category at 24 months
+# Remove extra text in columns that have ASD diagnostic category in Ever column
 def remove_extra_ASD_DX_text(df):
     df['test'] = np.where(df['VSD-All demographics,ASD_Ever_DSMIV'].fillna('').str.contains('ASD+', regex=False), 'ASD+',
                  np.where(df['VSD-All demographics,ASD_Ever_DSMIV'].fillna('').str.contains('ASD-', regex=False), 'ASD-',
@@ -138,6 +142,27 @@ def remove_extra_ASD_DX_text(df):
                                                'VSD-All NIHToolBox,Inst_25': 'NIHToolBox,TestName2',
                                                'VSD-All NIHToolBox,Date_taken': 'NIHToolBox,Date_taken'}, inplace=True)
     return df
+
+def remove_extra_text_asd_diagnosis(df):
+    Identifiers = df['Identifiers'].copy()
+
+    for col in df.columns:
+        df[col] = np.where(df[col].fillna('').str.contains('ASD+', regex=False), 'ASD+',
+               np.where(df[col].fillna('').str.contains('ASD-', regex=False), 'ASD-',
+               np.nan))
+    df['Identifiers'] = Identifiers
+    df.replace('nan', np.nan, inplace=True)
+    df['ASD_Ever_DSMIV_infant'] = (
+         df['VSD-All demographics,ASD_Ever_DSMIV']
+        .fillna(df['V37Plus demographics,ASD_Ever_DSMIV'])
+        .fillna(df['V36 demographics,ASD_Ever_DSMIV'])
+        .fillna(df['V24 demographics,ASD_Ever_DSMIV'])
+    )
+    df.drop(columns=['VSD-All demographics,ASD_Ever_DSMIV','V37Plus demographics,ASD_Ever_DSMIV',
+                     'V36 demographics,ASD_Ever_DSMIV', 'V24 demographics,ASD_Ever_DSMIV'], inplace=True)
+    mystop=1
+    return df
+
 
 def remove_extra_text_eftasks(df):
     df['NIHToolBox,TestName1'] = np.where(
@@ -162,7 +187,8 @@ def convert_numeric_columns_to_numeric_type(df):
                            'V12 demographics,Sex', 'V24 demographics,Sex', 'NIHToolBox,Date_taken',
                            'V06 demographics,Project',
                            'V12 demographics,Project', 'V24 demographics,Project', 'V12_AB_validitycode',
-                           'V24_AB_validitycode', 'V24 demographics,ASD_DX', 'Combined_ASD_DX']
+                           'V24_AB_validitycode', 'V24 demographics,ASD_DX', 'Combined_ASD_DX',
+                           'ASD_Ever_DSMIV_infant']
     cols_convert_to_numeric = [col for col in object_columns if col not in categorical_columns]
     df[cols_convert_to_numeric] = df[cols_convert_to_numeric].apply(
         pd.to_numeric, errors='coerce')
@@ -170,7 +196,8 @@ def convert_numeric_columns_to_numeric_type(df):
 
 def remove_subj_no_behav_data(df):
     cols_demographic = ['Identifiers', 'Risk', 'Sex', 'DoB', 'ASD_Ever_DSMIV', 'V12prefrontal_taskCandidate_Age',
-                        'V24prefrontal_taskCandidate_Age', 'V24 demographics,ASD_DX', 'Combined_ASD_DX']
+                        'V24prefrontal_taskCandidate_Age', 'V24 demographics,ASD_DX', 'Combined_ASD_DX',
+                        'ASD_Ever_DSMIV_infant']
     cols_not_demographic = [col for col in df.columns if col not in cols_demographic]
     ctest = df.loc[:, cols_not_demographic].copy()
     ctest = ctest.replace(['nan', 'NaN'], np.nan)
@@ -247,7 +274,8 @@ def calculate_nihtoolbox_age(df):
 def combine_asd_dx(df_orig):
     df = df_orig.copy()
     df = replace_missing_with_nan(df)
-    df['Combined_ASD_DX'] = df['ASD_Ever_DSMIV'].fillna(df['V24 demographics,ASD_DX'])
+    df['Combined_ASD_DX'] = df['ASD_Ever_DSMIV'].fillna(df['ASD_Ever_DSMIV_infant'])
     combined=df.pop('Combined_ASD_DX')
     df.insert(2, 'Combined_ASD_DX', combined)
+    df.drop(columns=['ASD_Ever_DSMIV', 'ASD_Ever_DSMIV_infant'], inplace=True)
     return df
