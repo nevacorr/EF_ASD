@@ -197,7 +197,7 @@ def convert_numeric_columns_to_numeric_type(df):
 def remove_subj_no_behav_data(df):
     cols_demographic = ['Identifiers', 'Risk', 'Sex', 'DoB', 'ASD_Ever_DSMIV', 'V12prefrontal_taskCandidate_Age',
                         'V24prefrontal_taskCandidate_Age', 'V24 demographics,ASD_DX', 'Combined_ASD_DX',
-                        'ASD_Ever_DSMIV_infant']
+                        'ASD_Ever_DSMIV_infant', 'NIHToolBox,Date_taken']
     cols_not_demographic = [col for col in df.columns if col not in cols_demographic]
     ctest = df.loc[:, cols_not_demographic].copy()
     ctest = ctest.replace(['nan', 'NaN'], np.nan)
@@ -278,4 +278,41 @@ def combine_asd_dx(df_orig):
     combined=df.pop('Combined_ASD_DX')
     df.insert(2, 'Combined_ASD_DX', combined)
     df.drop(columns=['ASD_Ever_DSMIV', 'ASD_Ever_DSMIV_infant'], inplace=True)
+    return df
+
+def combine_age_nihtoolbox(df_orig):
+    df = df_orig.copy()
+    df['Age_SchoolAge'] = df['Age_Taken_Calculated'].fillna(df['VSD-All NIHToolBox,Candidate_Age'])
+    df.drop(columns=['Age_Taken_Calculated', 'VSD-All NIHToolBox,Candidate_Age', 'NIHToolBox,Date_taken', 'DoB'],inplace=True)
+    return df
+
+def create_combined_dx_risk_column(df):
+    # Standardize missing values
+    df = df.replace({pd.NA: np.nan, None: np.nan})
+
+    # Ensure consistent types
+    df['Risk'] = df['Risk'].astype('object')
+    df['Combined_ASD_DX'] = df['Combined_ASD_DX'].astype('object')
+
+    # Fill missing values with default
+    df['Risk'] = df['Risk'].fillna('Unknown')
+    df['Combined_ASD_DX'] = df['Combined_ASD_DX'].fillna('Unknown')
+
+    # Define conditions with explicit handling for 'Unknown'
+    conditions = [
+        (df['Risk'] == 'HR') & (df['Combined_ASD_DX'] == 'ASD+'),
+        (df['Risk'] == 'HR') & (df['Combined_ASD_DX'] == 'ASD-'),
+        (df['Risk'] == 'LR') & (df['Combined_ASD_DX'] == 'ASD+'),
+        (df['Risk'] == 'LR') & (df['Combined_ASD_DX'] == 'ASD-')
+    ]
+    choices = ['HR+', 'HR-', 'LR+', 'LR-']
+
+    # Use np.select to create the 'Group' column
+    df['Group'] = np.select(conditions, choices, default=np.nan)
+
+    group_col = df.pop('Group')
+    df.insert(3, 'Group', group_col)
+
+    df = replace_missing_with_nan(df)
+
     return df

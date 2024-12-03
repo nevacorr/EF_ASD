@@ -5,13 +5,14 @@ import os
 import numpy as np
 
 from Utility_Functions import simplify_dob_df, combine_vsa_columns, remove_invalid_anotb_data, \
-    remove_24mo_extra_ASD_DX_text, remove_extra_text_eftasks, remove_extra_ASD_DX_text, remove_extra_text_asd_diagnosis
+    remove_24mo_extra_ASD_DX_text, remove_extra_text_eftasks, remove_extra_ASD_DX_text, remove_extra_text_asd_diagnosis, \
+    combine_age_nihtoolbox, create_combined_dx_risk_column
 from Utility_Functions import replace_missing_with_nan, remove_fragx_downsyndrome_subj
 from Utility_Functions import remove_extra_ASD_DX_text, remove_extra_text_eftasks, convert_numeric_columns_to_numeric_type
 from Utility_Functions import remove_subj_no_behav_data, make_flanker_dccs_columns
 from Utility_Functions import make_and_plot_missing_data_map, write_missing_to_file
 from Utility_Functions import remove_Brief2_columns, calculate_nihtoolbox_age, combine_asd_dx
-from Utility_Functions import make_lists_of_columns_needed
+from Utility_Functions import make_lists_of_columns_needed, combine_age_nihtoolbox
 from plot_data_histograms import plot_data_histograms
 
 working_dir = os.getcwd()
@@ -95,20 +96,24 @@ all_cols_to_remove = dx_cols_to_remove + dx2_cols_to_remove
 IBIS_demograph_behavior_df = (
     IBIS_demograph_behavior_df
     .drop(columns=all_cols_to_remove)
-    .pipe(remove_extra_ASD_DX_text)
-    .pipe(remove_extra_text_eftasks)
+    .pipe(remove_extra_ASD_DX_text)  # Remove extra text in  ASD dx value in Ever DSMIV column
+    .pipe(remove_extra_text_eftasks) # Remove extra text in TestName column so that value is 'Flanker' or 'DCCS'
     .drop(columns=['VSD-All demographics,ASD_Ever_DSMIV'])
-    .pipe(combine_asd_dx)
-    .pipe(convert_numeric_columns_to_numeric_type)
-    .pipe(remove_subj_no_behav_data)
-    .pipe(make_flanker_dccs_columns)
+    .pipe(combine_asd_dx)  # If ASD dx is not available in ASD_Ever_DSMIV value, use value in ASD_Ever_DSMIV_infant value
+    .pipe(convert_numeric_columns_to_numeric_type) # Convert type of all columns that are not categorical to numeric
+    .pipe(remove_subj_no_behav_data) # Remove subjects that have no behavioral data at any age
+    .pipe(make_flanker_dccs_columns) # Make columns with Flanker and DCCS scores
 )
 
-# Plot histograms of all data
-# plot_data_histograms(working_dir, IBIS_demograph_behavior_df.drop(columns=['Identifiers']))
+#Write to file all subject numbers with missing DoB or missing ASD Dx
+write_missing_to_file(IBIS_demograph_behavior_df, working_dir)
 
-# Add column with NIH toolbox test age
-IBIS_demograph_behavior_df = calculate_nihtoolbox_age(IBIS_demograph_behavior_df)
+IBIS_demograph_behavior_df = (
+    IBIS_demograph_behavior_df
+    .pipe(calculate_nihtoolbox_age)  # Add column with NIH toolbox test age
+    .pipe(combine_age_nihtoolbox)    # Combine age calculated and Candidate Age for NIH toolbox data
+    .pipe(create_combined_dx_risk_column)
+)
 
 # Make binary map indicating presence or absence of data and plot as heatmap and save to file
 make_and_plot_missing_data_map(IBIS_demograph_behavior_df, working_dir, 'All_Behaviors_Missing_Data_Heatmap',
@@ -116,14 +121,15 @@ make_and_plot_missing_data_map(IBIS_demograph_behavior_df, working_dir, 'All_Beh
 # Remove Brief2 columns
 IBIS_demograph_behavior_df = remove_Brief2_columns(IBIS_demograph_behavior_df)
 
+# Plot histograms of all data
+plot_data_histograms(working_dir, IBIS_demograph_behavior_df.drop(columns=['Identifiers']))
+
 # Make binary map indicating presence or absence of data and plot as heatmap, without Brief2 and save
 make_and_plot_missing_data_map(IBIS_demograph_behavior_df, working_dir, 'AnotB_NIHToolbox_Missing_Data_Heatmap',
                                figsize=(10,20))
 # Write dataframe to file
 IBIS_demograph_behavior_df.to_csv(f'{working_dir}/IBIS_behav_dataframe_demographics_AnotB_Flanker_DCCS.csv')
 
-#Write to file all subject numbers with missing DoB or missing ASD Dx
-write_missing_to_file(IBIS_demograph_behavior_df, working_dir)
 
 mystop=1
 
