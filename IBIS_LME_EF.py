@@ -4,9 +4,9 @@ import pandas as pd
 import os
 import numpy as np
 
-from Utility_Functions import simplify_dob_df, combine_vsa_columns, remove_invalid_anotb_data, \
-    remove_24mo_extra_ASD_DX_text, remove_extra_text_eftasks, remove_extra_ASD_DX_text, remove_extra_text_asd_diagnosis, \
-    combine_age_nihtoolbox, create_combined_dx_risk_column
+from Utility_Functions import simplify_dob_df, combine_vsa_columns, remove_invalid_anotb_data
+from Utility_Functions import remove_24mo_extra_ASD_DX_text, remove_extra_text_eftasks, remove_extra_ASD_DX_text
+from Utility_Functions import remove_extra_text_asd_diagnosis, combine_age_nihtoolbox, create_combined_dx_risk_column
 from Utility_Functions import replace_missing_with_nan, remove_fragx_downsyndrome_subj
 from Utility_Functions import remove_extra_ASD_DX_text, remove_extra_text_eftasks, convert_numeric_columns_to_numeric_type
 from Utility_Functions import remove_subj_no_behav_data, make_flanker_dccs_columns
