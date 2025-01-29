@@ -247,6 +247,8 @@ def make_and_plot_missing_data_map(df, working_dir, filename, figsize):
 
 def remove_Brief2_columns(df):
     brief2_cols = [col for col in df.columns if 'BRIEF2' in col]
+    brief2_cols.remove("VSD-All BRIEF2_Parent,GEC_T_score")
+    brief2_cols.remove("VSD-All BRIEF2_Parent,GEC_raw_score")
     df.drop(columns=brief2_cols, inplace=True)
     return df
 
