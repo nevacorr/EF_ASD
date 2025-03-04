@@ -9,7 +9,6 @@ output_to_predict = "Flanker_Standard_Age_Corrected"
 
 working_dir = os.getcwd()
 
-
 df = pd.read_csv(f"{working_dir}/final_df_for_xgboost.csv")
 
 # Remove rows where the response variable is NA
