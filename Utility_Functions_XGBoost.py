@@ -35,4 +35,21 @@ def plot_correlations(df, target, title):
     plt.tight_layout()
     plt.show()
 
+def remove_collinearity(df, threshold):
+    # Calculate the correlation matrix
+    correlation_matrix = df.corr().abs()
+
+    # Get the upper triangle of the correlation matrix
+    upper_triangle = correlation_matrix.where(
+        pd.np.triu(pd.np.ones(correlation_matrix.shape), k=1).astype(bool)
+    )
+
+    # Identify columns to drop
+    to_drop = [column for column in upper_triangle.columns if any(upper_triangle[column] > threshold)]
+
+    # Drop the correlated features
+    df_reduced = df.drop(columns=to_drop)
+
+    return df_reduced
+
 
