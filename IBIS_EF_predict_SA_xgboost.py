@@ -14,7 +14,7 @@ import pickle
 from sklearn.metrics import mean_squared_error,r2_score
 import logging
 
-target = "Flanker_Standard_Age_Corrected"
+target = "BRIEF2_GEC_T_score"
 run_training = 1
 
 working_dir = os.getcwd()
@@ -25,17 +25,15 @@ datafilename = "final_df_for_xgboost.csv"
 df = load_and_clean_data(working_dir, datafilename, target)
 
 # plot feature correlation heatmap
-# plot_title="Correlation between regional volume measures after dividing by totTissue"
-# corr_matrix = plot_correlations(df, target, plot_title)
-# plt.show()
+plot_title="Correlation between regional volume measures after dividing by totTissue"
+corr_matrix = plot_correlations(df, target, plot_title)
+plt.show()
 
-df = remove_collinearity(df, 0.9)
+# remove features so that none have more than 0.9 correlation with other
+# df = remove_collinearity(df, 0.9)
 # plot_title="After removing colinear features"
 # corr_matrix = plot_correlations(df, target, plot_title)
 # plt.show()
-
-
-# remove features so that none have more than 0.9 correlation with other
 
 if run_training:
 
@@ -62,16 +60,20 @@ if run_training:
     for i, (train_index, test_index) in enumerate(kf.split(X, y)):
         print(f"Split {i + 1} - Training on {len(train_index)} samples, Testing on {len(test_index)} samples")
 
+        # Fit model to train set
         print("fitting")
         opt.fit(X[train_index], y[train_index])
+
+        # Use model to predict on test set
         print("predicting")
         predictions[test_index] = opt.predict(X[test_index])
 
+        # Calculate and print elapsed time since program start
         end_time = time.time()
         elapsed_time = (end_time - start_time) / 60.0
         print(f"Elapsed time for fold {i+1}: {elapsed_time:.2f} minutes")
 
-        # Compute metrics
+        # Compute performance metrics
         mse = mean_squared_error(y[test_index], predictions[test_index], squared=False)
         r2 = r2_score(y[test_index], predictions[test_index])
 
@@ -88,27 +90,30 @@ if run_training:
         except Exception as e:
             logging.warning(f"An error occurred: {e}")  # Logs error but continues execution
 
-
+    # Save predictions to file
     df["Predictions"]  = predictions
 
+    # Calculate time it took to complete all predictions across all cv splits
     end_time = time.time()
     elapsed_time = (end_time - start_time)  / 60.0
     print(f"Computations complete. Time to run all 10 folds: {elapsed_time:.2f} minutes")
 
+    # Save predictions to file
     df.to_csv(f"{target}_cv_predictions.csv", index=False)
 
 else:
 
+    # Read predictions from file
     df = pd.read_csv(f"{target}_cv_predictions.csv")
 
 # Plot actual vs. predicted values
 plt.figure(figsize=(10,8))
 sns.scatterplot(x=df[target] , y=df["Predictions"])
 
+# Plot line where actual-predicted
 y=df[target]
 # plot y = x line
 plt.plot([min(y), max(y)], [min(y), max(y)], linestyle = "--", color="red")
-
 plt.xlabel(f"Actual {target}")
 plt.ylabel(f"Predicted {target}")
 plt.title(f"Predicted vs. Actual {target}")
