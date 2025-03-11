@@ -36,8 +36,6 @@ if run_training:
         corr_matrix = plot_correlations(df, target, plot_title)
         plt.show()
 
-
-
         X = df.drop(columns=[target]).values
         y = df[target].values
 
