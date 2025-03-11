@@ -15,7 +15,7 @@ from sklearn.metrics import mean_squared_error,r2_score
 import logging
 
 target = "BRIEF2_GEC_T_score"
-run_training = 1
+run_training = 0
 
 working_dir = os.getcwd()
 
@@ -80,17 +80,12 @@ if run_training:
         print(f"Best Parameters for Split {i + 1}: {opt.best_params_}")
         print(f"Performance for Split {i + 1}: R² = {r2:.4f}, MSE = {mse:.4f}")
 
-        try:
-            # Save model
-            with open(f"{target}_{i+1}_trained_model.pkl", "wb") as f:
-                pickle.dump(opt, f)
+        # Save model to file
+        with open(f"{target}_{i+1}_trained_model.pkl", "wb") as f:
+            pickle.dump(opt, f)
+        print(f"Trained model saved to {target}_{i+1}_trained_model.pkl")
 
-            print(f"Trained model saved to {target}_{i+1}_trained_model.pkl")
-
-        except Exception as e:
-            logging.warning(f"An error occurred: {e}")  # Logs error but continues execution
-
-    # Save predictions to file
+    # Put predictions in a dataframe column
     df["Predictions"]  = predictions
 
     # Calculate time it took to complete all predictions across all cv splits
