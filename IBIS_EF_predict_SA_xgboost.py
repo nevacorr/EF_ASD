@@ -52,7 +52,9 @@ if run_training:
 
     kf = KFold(n_splits=10, shuffle=True, random_state=42)
 
-    predictions = np.zeros_like(y, dtype=np.float64)
+    train_predictions = np.zeros_like(y, dtype=np.float64)
+    test_predictions = np.zeros_like(y, dtype=np.float64)
+    train_counts = np.zeros_like(y, dtype=np.int64)
 
     start_time = time.time()
     for i, (train_index, test_index) in enumerate(kf.split(X, y)):
@@ -63,8 +65,13 @@ if run_training:
         opt.fit(X[train_index], y[train_index])
 
         # Use model to predict on test set
-        print("predicting")
-        predictions[test_index] = opt.predict(X[test_index])
+        print("predicting for test set")
+        test_predictions[test_index] = opt.predict(X[test_index])
+
+        # Predict for train set
+        print("predicting for train set")
+        train_predictions[train_index] += opt.predict(X[train_index])
+        train_counts[train_index] += 1
 
         # Calculate and print elapsed time since program start
         end_time = time.time()
@@ -72,8 +79,8 @@ if run_training:
         print(f"Elapsed time for fold {i+1}: {elapsed_time:.2f} minutes")
 
         # Compute performance metrics
-        mse = mean_squared_error(y[test_index], predictions[test_index], squared=False)
-        r2 = r2_score(y[test_index], predictions[test_index])
+        mse = mean_squared_error(y[test_index], test_predictions[test_index], squared=False)
+        r2 = r2_score(y[test_index], test_predictions[test_index])
 
         print(f"Best Parameters for Split {i + 1}: {opt.best_params_}")
         print(f"Performance for Split {i + 1}: R² = {r2:.4f}, MSE = {mse:.4f}")
@@ -83,20 +90,24 @@ if run_training:
             pickle.dump(opt, f)
         print(f"Trained model saved to {target}_{i+1}_trained_model.pkl")
 
-    # Put predictions in a dataframe column
-    df["Predictions"]  = predictions
+    # Correct the predictions for teh train set by the number of times they appeared in the train set
+    train_predictions /= train_counts
 
-    # Calculate time it took to complete all predictions across all cv splits
+    # Put test_predictions in a dataframe column
+    df["test_predictions"]  = test_predictions
+    df["train_predictions"] = train_predictions
+
+    # Calculate time it took to complete all model creations and predictions across all cv splits
     end_time = time.time()
     elapsed_time = (end_time - start_time)  / 60.0
     print(f"Computations complete. Time to run all 10 folds: {elapsed_time:.2f} minutes")
 
-    # Save predictions to file
+    # Save data and predictions to file
     df.to_csv(f"{target}_cv_predictions.csv", index=False)
 
 else:
 
-    # Read predictions from file
+    # Read data and predictions from file
     df = pd.read_csv(f"{target}_cv_predictions.csv")
 
     # Read model from first split from file
@@ -105,20 +116,28 @@ else:
     with open(model_filename, "rb") as f:
         loaded_model = pickle.load(f)
 
-# Compute R²
-r2_final = r2_score(df[target], df["Predictions"])
+# Compute R2
+r2_test = r2_score(df[target], df["test_predictions"])
+r2_train = r2_score(df[target], df["train_predictions"])
 
-# Plot actual vs. predicted values
-plt.figure(figsize=(10,8))
-sns.scatterplot(x=df[target] , y=df["Predictions"])
+# Create subplots with 2 rows and 1 column
+fig, axes = plt.subplots(2, 1, figsize=(10, 12))
 
-# Plot line where actual-predicted
-y=df[target]
-# plot y = x line
-plt.plot([min(y), max(y)], [min(y), max(y)], linestyle = "--", color="red")
-plt.xlabel(f"Actual {target}")
-plt.ylabel(f"Predicted {target}")
-plt.title(f"Predicted vs. Actual {target}\n Coefficient of Determination: {r2_final:.2f}")
+# Define a list of prediction types and corresponding R2 values
+prediction_data = [
+    ("test", r2_test, df["test_predictions"]),
+    ("train", r2_train, df["train_predictions"])
+]
+
+for i, (data_type, r2, predictions) in enumerate(prediction_data):
+    sns.scatterplot(x=df[target], y=predictions, ax=axes[i])
+    axes[i].plot([min(df[target]), max(df[target])], [min(df[target]), max(df[target])], linestyle="--", color="red")
+    axes[i].set_xlabel(f"Actual {target}")
+    axes[i].set_ylabel(f"Predicted {target}")
+    axes[i].set_title(f"{data_type.capitalize()} Predictions\nR2: {r2:.2f}")
+
+# Show the plot
+plt.tight_layout()
 plt.show()
 
 
