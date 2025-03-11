@@ -49,7 +49,6 @@ if run_training:
     xgb = XGBRegressor(objective="reg:squarederror", nthread=16)
     opt = BayesSearchCV(xgb, params, n_iter=100, n_jobs=-1)
 
-    # kf = KFold(n_splits=2, shuffle=True, random_state=42)
     kf = KFold(n_splits=10, shuffle=True, random_state=42)
 
     predictions = np.zeros_like(y, dtype=np.float64)
