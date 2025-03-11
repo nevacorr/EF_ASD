@@ -11,8 +11,9 @@ import time
 import pickle
 from sklearn.metrics import mean_squared_error,r2_score
 
-target = "BRIEF2_GEC_T_score"
+target = "Flanker_Standard_Age_Corrected"
 run_training = 0
+set_parameters_manually = 1
 remove_collinear_features = 0
 
 working_dir = os.getcwd()
@@ -47,8 +48,23 @@ if run_training:
               "colsample_bytree": (0.2, 1.0),
               "max_depth": (2, 6), }
 
-    xgb = XGBRegressor(objective="reg:squarederror", nthread=16)
-    opt = BayesSearchCV(xgb, params, n_iter=100, n_jobs=-1)
+    if set_parameters_manually == 0:
+
+        xgb = XGBRegressor(objective="reg:squarederror", n_jobs=16)
+        opt = BayesSearchCV(xgb, params, n_iter=100, n_jobs=16)
+
+    else:
+        xgb = XGBRegressor(
+            objective="reg:squarederror",
+            n_jobs=16,
+            colsample_bytree=1.0,
+            eta=0.05,  # Adjusted learning rate
+            gamma=0.1,  # Reduced from 5 to avoid underfitting
+            max_depth=4,
+            min_child_weight=1,
+            n_estimators=200,  # Increased from 50 to allow better fitting
+            subsample=0.8  # Slightly reduced to help generalization
+        )
 
     kf = KFold(n_splits=10, shuffle=True, random_state=42)
 
@@ -60,17 +76,25 @@ if run_training:
     for i, (train_index, test_index) in enumerate(kf.split(X, y)):
         print(f"Split {i + 1} - Training on {len(train_index)} samples, Testing on {len(test_index)} samples")
 
-        # Fit model to train set
-        print("fitting")
-        opt.fit(X[train_index], y[train_index])
+        if set_parameters_manually == 0:
+            # Fit model to train set
+            print("fitting")
+            opt.fit(X[train_index], y[train_index])
 
-        # Use model to predict on test set
-        print("predicting for test set")
-        test_predictions[test_index] = opt.predict(X[test_index])
+            # Use model to predict on test set
+            print("predicting for test set")
+            test_predictions[test_index] = opt.predict(X[test_index])
 
-        # Predict for train set
-        print("predicting for train set")
-        train_predictions[train_index] += opt.predict(X[train_index])
+            # Predict for train set
+            print("predicting for train set")
+            train_predictions[train_index] += opt.predict(X[train_index])
+
+        else:
+
+            xgb.fit(X[train_index], y[train_index])
+            test_predictions[test_index] = xgb.predict(X[test_index])
+            train_predictions[train_index] += xgb.predict(X[train_index])
+
         train_counts[train_index] += 1
 
         # Calculate and print elapsed time since program start
