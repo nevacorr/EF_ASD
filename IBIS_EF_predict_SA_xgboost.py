@@ -12,8 +12,8 @@ import pickle
 from sklearn.metrics import mean_squared_error,r2_score
 
 target = "Flanker_Standard_Age_Corrected"
-run_training = 0
-set_parameters_manually = 1
+run_training = 1
+set_parameters_manually = 0
 remove_collinear_features = 0
 
 working_dir = os.getcwd()
@@ -40,13 +40,30 @@ if run_training:
     X = df.drop(columns=[target]).values
     y = df[target].values
 
-    params = {"n_estimators": (50, 2001),
-              "min_child_weight": (1, 11),
-              "gamma": (0.01, 5.0, "log-uniform"),
-              "eta": (0.005, 0.5, "log-uniform"),
-              "subsample": (0.2, 1.0),
+    params = {"n_estimators": (100, 500),
+              "min_child_weight": (1,5),
+              "gamma": (0.01, 2.0, "log-uniform"),
+              "eta": (0.05, 0.2, "log-uniform"),
+              "subsample": (0.2, 0.8),
               "colsample_bytree": (0.2, 1.0),
-              "max_depth": (2, 6), }
+              "max_depth": (3, 5), }
+
+    # params = {"n_estimators": (50, 2001),
+    #           "min_child_weight": (1, 11),
+    #           "gamma": (0.01, 5.0, "log-uniform"),
+    #           "eta": (0.005, 0.5, "log-uniform"),
+    #           "subsample": (0.2, 1.0),
+    #           "colsample_bytree": (0.2, 1.0),
+    #           "max_depth": (2, 6), }
+
+    #For Flanker standard age corrected, best parameters are something like: but performs really poorly on train data
+    #colsample - bytree = 1.0, eta = 0.005, gamma = 5, max_depth = 4, min_child_weight = 1,
+    # n_estimators = 50, subsample = 1.0
+
+    #This overfits the data: performs well on training
+    # colsample_bytree = 1.0, eta = 0.05, gamma = 0.1, max_depth = 4, min_child_weight = 1,
+    # n_estimators = 200, subsample = 0.8
+
 
     if set_parameters_manually == 0:
 
@@ -102,12 +119,17 @@ if run_training:
         elapsed_time = (end_time - start_time) / 60.0
         print(f"Elapsed time for fold {i+1}: {elapsed_time:.2f} minutes")
 
-        # Compute performance metrics
-        mse = mean_squared_error(y[test_index], test_predictions[test_index], squared=False)
-        r2 = r2_score(y[test_index], test_predictions[test_index])
+        # Compute performance metrics for train set
+        mse_train = mean_squared_error(y[train_index], test_predictions[train_index], squared=False)
+        r2_train = r2_score(y[train_index], test_predictions[train_index])
+
+        # Compute performance metrics for test set
+        mse_test = mean_squared_error(y[test_index], test_predictions[test_index], squared=False)
+        r2_test = r2_score(y[test_index], test_predictions[test_index])
 
         print(f"Best Parameters for Split {i + 1}: {opt.best_params_}")
-        print(f"Performance for Split {i + 1}: R² = {r2:.4f}, MSE = {mse:.4f}")
+        print(f"Performance train set performance for Split {i + 1}: R² = {r2_train:.4f}, MSE = {mse_train:.4f}")
+        print(f"Performance test set performance for Split {i + 1}: R² = {r2_test:.4f}, MSE = {mse_test:.4f}")
 
         # Save model to file
         with open(f"{target}_{i+1}_trained_model.pkl", "wb") as f:
