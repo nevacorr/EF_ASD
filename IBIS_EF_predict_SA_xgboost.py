@@ -24,7 +24,7 @@ datafilename = "final_df_for_xgboost.csv"
 if run_training:
 
     # load and clean data
-    df = load_and_clean_data(working_dir, datafilename, target)
+    df = load_and_clean_data("/Users/nevao/R_Projects/IBIS_EF/", datafilename, target)
 
     if show_correlation_heatmap:
         # plot feature correlation heatmap
