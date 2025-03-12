@@ -13,7 +13,8 @@ from sklearn.metrics import mean_squared_error,r2_score
 
 target = "Flanker_Standard_Age_Corrected"
 run_training = 1
-set_parameters_manually = 0
+set_parameters_manually = 1
+show_correlation_heatmap = 0
 remove_collinear_features = 0
 
 working_dir = os.getcwd()
@@ -25,10 +26,11 @@ if run_training:
     # load and clean data
     df = load_and_clean_data(working_dir, datafilename, target)
 
-    # plot feature correlation heatmap
-    plot_title="Correlation between regional volume measures after dividing by totTissue"
-    corr_matrix = plot_correlations(df, target, plot_title)
-    plt.show()
+    if show_correlation_heatmap:
+        # plot feature correlation heatmap
+        plot_title="Correlation between regional volume measures after dividing by totTissue"
+        corr_matrix = plot_correlations(df, target, plot_title)
+        plt.show()
 
     if remove_collinear_features:
         # remove features so that none have more than 0.9 correlation with other
@@ -40,13 +42,13 @@ if run_training:
     X = df.drop(columns=[target]).values
     y = df[target].values
 
-    params = {"n_estimators": (100, 500),
-              "min_child_weight": (1,5),
-              "gamma": (0.01, 2.0, "log-uniform"),
-              "eta": (0.05, 0.2, "log-uniform"),
-              "subsample": (0.2, 0.8),
-              "colsample_bytree": (0.2, 1.0),
-              "max_depth": (3, 5), }
+    params = {"n_estimators": (100, 500),# Number of trees to create during training
+              "min_child_weight": (1,5), # the number of samples required in each child node before attempting to split further
+              "gamma": (0.01, 2.0, "log-uniform"),# regularization. Low values allow splits as long as they improve the loss function, no matter how small
+              "eta": (0.05, 0.2, "log-uniform"),# learning rate
+              "subsample": (0.2, 0.8),# Fraction of training dta that is sampled for each boosting round
+              "colsample_bytree": (0.2, 1.0),#the fraction of features to be selected for each tree
+              "max_depth": (3, 5), }#maximum depth of each decision tree
 
     # params = {"n_estimators": (50, 2001),
     #           "min_child_weight": (1, 11),
@@ -55,15 +57,6 @@ if run_training:
     #           "subsample": (0.2, 1.0),
     #           "colsample_bytree": (0.2, 1.0),
     #           "max_depth": (2, 6), }
-
-    #For Flanker standard age corrected, best parameters are something like: but performs really poorly on train data
-    #colsample - bytree = 1.0, eta = 0.005, gamma = 5, max_depth = 4, min_child_weight = 1,
-    # n_estimators = 50, subsample = 1.0
-
-    #This overfits the data: performs well on training
-    # colsample_bytree = 1.0, eta = 0.05, gamma = 0.1, max_depth = 4, min_child_weight = 1,
-    # n_estimators = 200, subsample = 0.8
-
 
     if set_parameters_manually == 0:
 
@@ -74,13 +67,13 @@ if run_training:
         xgb = XGBRegressor(
             objective="reg:squarederror",
             n_jobs=16,
-            colsample_bytree=1.0,
-            eta=0.05,  # Adjusted learning rate
-            gamma=0.1,  # Reduced from 5 to avoid underfitting
-            max_depth=4,
-            min_child_weight=1,
-            n_estimators=200,  # Increased from 50 to allow better fitting
-            subsample=0.8  # Slightly reduced to help generalization
+            colsample_bytree=1.0,#the fraction of features to be selected for each tree
+            eta=0.05,  # learning rate
+            gamma=0.1,  # regularization. Low values allow splits as long as they improve the loss function, no matter how small
+            max_depth=6,#maximum depth of each decision tree
+            min_child_weight=1,# the number of samples required in each child node before attempting to split further
+            n_estimators=200,  # Number of trees to create during training
+            subsample=0.8  # Fraction of training dta that is sampled for each boosting round
         )
 
     kf = KFold(n_splits=10, shuffle=True, random_state=42)
@@ -121,20 +114,26 @@ if run_training:
 
         # Compute performance metrics for train set
         mse_train = mean_squared_error(y[train_index], test_predictions[train_index], squared=False)
-        r2_train = r2_score(y[train_index], test_predictions[train_index])
+        r2_train = r2_score(y[train_index], train_predictions[train_index])
 
         # Compute performance metrics for test set
         mse_test = mean_squared_error(y[test_index], test_predictions[test_index], squared=False)
         r2_test = r2_score(y[test_index], test_predictions[test_index])
 
-        print(f"Best Parameters for Split {i + 1}: {opt.best_params_}")
+        if set_parameters_manually == 0:
+            print(f"Best Parameters for Split {i + 1}: {opt.best_params_}")
         print(f"Performance train set performance for Split {i + 1}: R² = {r2_train:.4f}, MSE = {mse_train:.4f}")
         print(f"Performance test set performance for Split {i + 1}: R² = {r2_test:.4f}, MSE = {mse_test:.4f}")
 
-        # Save model to file
-        with open(f"{target}_{i+1}_trained_model.pkl", "wb") as f:
-            pickle.dump(opt, f)
-        print(f"Trained model saved to {target}_{i+1}_trained_model.pkl")
+        if set_parameters_manually == 0:
+            # Save model to file
+            with open(f"{target}_{i+1}_trained_model.pkl", "wb") as f:
+                pickle.dump(opt, f)
+            print(f"Trained model saved to {target}_{i+1}_trained_model.pkl")
+        else:
+            with open(f"{target}_{i+1}_trained_model.pkl", "wb") as f:
+                pickle.dump(xgb, f)
+            print(f"Trained model saved to {target}_{i+1}_trained_model.pkl")
 
     # Correct the predictions for teh train set by the number of times they appeared in the train set
     train_predictions /= train_counts
@@ -156,11 +155,11 @@ else:
     # Read data and predictions from file
     df = pd.read_csv(f"{target}_cv_predictions.csv")
 
-    # Read model from first split from file
-    model_filename = f"{target}_1_trained_model.pkl"
+# Read model from first split from file
+model_filename = f"{target}_1_trained_model.pkl"
 
-    with open(model_filename, "rb") as f:
-        loaded_model = pickle.load(f)
+with open(model_filename, "rb") as f:
+    loaded_model = pickle.load(f)
 
 # Compute R2
 r2_test = r2_score(df[target], df["test_predictions"])
@@ -175,16 +174,26 @@ prediction_data = [
     ("train", r2_train, df["train_predictions"])
 ]
 
+colsample_bytree=loaded_model.colsample_bytree
+n_estimators = loaded_model.n_estimators
+min_child_weight = loaded_model.min_child_weight
+gamma = loaded_model.gamma
+eta = loaded_model.kwargs['eta']
+subsample = loaded_model.subsample
+max_depth = loaded_model.max_depth
+
 for i, (data_type, r2, predictions) in enumerate(prediction_data):
     sns.scatterplot(x=df[target], y=predictions, ax=axes[i])
     axes[i].plot([min(df[target]), max(df[target])], [min(df[target]), max(df[target])], linestyle="--", color="red")
     axes[i].set_xlabel(f"Actual {target}")
     axes[i].set_ylabel(f"Predicted {target}")
-    axes[i].set_title(f"{data_type.capitalize()} Predictions\nR2: {r2:.2f}")
+    axes[i].set_title(f"{data_type.capitalize()} Predictions\nR2: {r2:.2f}\n colsample_by_tree={colsample_bytree} "
+                      f"n_estimators={n_estimators} min_child_weight={min_child_weight} gamma={gamma}\n eta={eta} "
+                      f"subsample={subsample} max_depth={max_depth}")
 
 # Show the plot
 plt.tight_layout()
-plt.show()
+plt.show(block=False)
 
 
 
