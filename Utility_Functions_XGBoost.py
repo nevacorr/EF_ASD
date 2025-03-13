@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import numpy as np
 
 def load_and_clean_data(filepath, filename, target, include_group):
 
@@ -61,4 +62,52 @@ def remove_collinearity(df, threshold):
 
     return df_reduced
 
+def load_and_clean_dti_data(dir, datafilename, vol_dir, voldatafile, target, include_group):
 
+    dti_df = pd.read_csv(f"{dir}/{datafilename}")
+
+    vol_df = pd.read_csv(f"{vol_dir}/{voldatafile}")
+
+    vol_df = vol_df[vol_df['CandID'].notna()]
+
+    vol_df['CandID'] = vol_df['CandID'].astype('int64')
+
+    vol_df = vol_df.loc[:, ~vol_df.columns.str.contains('GM|WM|ICV|totTiss', regex=True)]
+
+    vol_df.drop(columns=['Identifiers'], inplace=True)
+
+    dti_df.drop(columns=['Visit_label', 'CandID_Visit', 'dMRI_protocol', 'FileID'], inplace=True)
+
+    dti_df = dti_df.loc[:, ~dti_df.columns.str.contains('Optic|Motor|Fornix|CorticoSpinal|UNC|Reticular|Arc|ILF|CT|CF', regex=True)]
+
+    dti_df.replace({'.': np.nan, '': np.nan}, inplace=True)
+
+    dti_df[dti_df.columns.difference(['CandID'])] = (
+        dti_df[dti_df.columns.difference(['CandID'])].apply(pd.to_numeric, errors='coerce'))
+
+    merged_df = vol_df.merge(dti_df, on="CandID", how="left")
+
+    merged_df.drop(columns=['CandID'], inplace=True)
+
+    # Keep only rows where the response variable is not NA
+    merged_df = merged_df[merged_df[target].notna()]
+
+    # Encode Sex column Female = 0 Male = 1
+    merged_df["Sex"] = merged_df["Sex"].replace({"Female": 0, "Male": 1})
+
+    if include_group:
+        columns_to_exclude = ["Combined_ASD_DX", "Risk", "AB_12_Percent", "AB_24_Percent",
+                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected"]
+    else:
+        columns_to_exclude = ["Combined_ASD_DX","Group", "Risk", "AB_12_Percent", "AB_24_Percent",
+                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected"]
+
+    merged_df.drop(columns=columns_to_exclude, inplace=True)
+
+    if include_group:
+        # One-hot encode the 'Group' column
+        merged_df = pd.get_dummies(merged_df, columns=['Group'], drop_first=False)
+
+    merged_df = merged_df.dropna(subset=[col for col in merged_df.columns if col not in ['Sex', target]], how='all')
+
+    return merged_df
