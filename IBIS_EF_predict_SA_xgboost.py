@@ -16,6 +16,7 @@ run_training = 1
 set_parameters_manually = 1
 show_correlation_heatmap = 0
 remove_collinear_features = 0
+include_group_feature = 0
 
 working_dir = os.getcwd()
 
@@ -24,7 +25,7 @@ datafilename = "final_df_for_xgboost.csv"
 if run_training:
 
     # load and clean data
-    df = load_and_clean_data("/Users/nevao/R_Projects/IBIS_EF/", datafilename, target)
+    df = load_and_clean_data("/Users/nevao/R_Projects/IBIS_EF/", datafilename, target, include_group_feature)
 
     if show_correlation_heatmap:
         # plot feature correlation heatmap
@@ -194,7 +195,6 @@ for i, (data_type, r2, predictions) in enumerate(prediction_data):
 # Show the plot
 plt.tight_layout()
 plt.show(block=False)
-
 
 
 mystop = 1
