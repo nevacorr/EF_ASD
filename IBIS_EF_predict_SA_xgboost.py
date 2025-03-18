@@ -15,7 +15,7 @@ from sklearn.metrics import mean_squared_error,r2_score
 target = "Flanker_Standard_Age_Corrected"
 metric = "fa"
 run_training = 1
-set_parameters_manually = 0
+set_parameters_manually = 1
 show_correlation_heatmap = 1
 remove_collinear_features = 0
 include_group_feature = 0
@@ -66,21 +66,21 @@ for metric in ["fa", "md", "ad", "rd"]:
         X = df.drop(columns=[target]).values
         y = df[target].values
 
-        # params = {"n_estimators": (100, 500),# Number of trees to create during training
-        #           "min_child_weight": (1,5), # the number of samples required in each child node before attempting to split further
-        #           "gamma": (0.01, 2.0, "log-uniform"),# regularization. Low values allow splits as long as they improve the loss function, no matter how small
-        #           "eta": (0.05, 0.2, "log-uniform"),# learning rate
-        #           "subsample": (0.2, 0.8),# Fraction of training dta that is sampled for each boosting round
-        #           "colsample_bytree": (0.2, 1.0),#the fraction of features to be selected for each tree
-        #           "max_depth": (3, 5), }#maximum depth of each decision tree
+        params = {"n_estimators": (100, 500),# Number of trees to create during training
+                  "min_child_weight": (1,5), # the number of samples required in each child node before attempting to split further
+                  "gamma": (0.01, 2.0, "log-uniform"),# regularization. Low values allow splits as long as they improve the loss function, no matter how small
+                  "eta": (0.05, 0.2, "log-uniform"),# learning rate
+                  "subsample": (0.2, 0.8),# Fraction of training dta that is sampled for each boosting round
+                  "colsample_bytree": (0.2, 1.0),#the fraction of features to be selected for each tree
+                  "max_depth": (3, 5), }#maximum depth of each decision tree
 
-        params = {"n_estimators": (50, 2001),
-                  "min_child_weight": (1, 11),
-                  "gamma": (0.01, 5.0, "log-uniform"),
-                  "eta": (0.005, 0.5, "log-uniform"),
-                  "subsample": (0.2, 1.0),
-                  "colsample_bytree": (0.2, 1.0),
-                  "max_depth": (2, 6), }
+        # params = {"n_estimators": (50, 2001),
+        #           "min_child_weight": (1, 11),
+        #           "gamma": (0.01, 5.0, "log-uniform"),
+        #           "eta": (0.005, 0.5, "log-uniform"),
+        #           "subsample": (0.2, 1.0),
+        #           "colsample_bytree": (0.2, 1.0),
+        #           "max_depth": (2, 6), }
 
         if set_parameters_manually == 0:
 
@@ -92,12 +92,12 @@ for metric in ["fa", "md", "ad", "rd"]:
                 objective="reg:squarederror",
                 n_jobs=16,
                 colsample_bytree=1.0,#the fraction of features to be selected for each tree
-                eta=0.05,  # learning rate
-                gamma=0.1,  # regularization. Low values allow splits as long as they improve the loss function, no matter how small
-                max_depth=6,#maximum depth of each decision tree
+                eta=0.00847,  # learning rate
+                gamma=0.4,  # regularization. Low values allow splits as long as they improve the loss function, no matter how small
+                max_depth=2,#maximum depth of each decision tree
                 min_child_weight=1,# the number of samples required in each child node before attempting to split further
-                n_estimators=200,  # Number of trees to create during training
-                subsample=0.8  # Fraction of training dta that is sampled for each boosting round
+                n_estimators=50,  # Number of trees to create during training
+                subsample=1.0  # Fraction of training dta that is sampled for each boosting round
             )
 
         kf = KFold(n_splits=10, shuffle=True, random_state=42)
@@ -155,7 +155,7 @@ for metric in ["fa", "md", "ad", "rd"]:
                     pickle.dump(opt, f)
                 print(f"Trained model saved to {target}_{i+1}_trained_model.pkl")
             else:
-                with open(f"{target}_{i+1}_trained_model.pkl", "wb") as f:
+                with open(f"{target}_{metric}_trained_model.pkl", "wb") as f:
                     pickle.dump(xgb, f)
                 print(f"Trained model saved to {target}_{i+1}_trained_model.pkl")
 
@@ -188,7 +188,7 @@ for metric in ["fa", "md", "ad", "rd"]:
         df = pd.read_csv(f"{target}_cv_predictions.csv")
 
     # Read model from first split from file
-    model_filename = f"{target}_{metric}_1_trained_model.pkl"
+    model_filename = f"{target}_{metric}_trained_model.pkl"
 
     with open(model_filename, "rb") as f:
         loaded_model = pickle.load(f)
