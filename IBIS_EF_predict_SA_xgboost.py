@@ -14,7 +14,7 @@ from sklearn.metrics import mean_squared_error,r2_score
 target = "Flanker_Standard_Age_Corrected"
 metric = "md"
 run_training = 1
-set_parameters_manually = 0
+set_parameters_manually = 1
 show_correlation_heatmap = 0
 remove_collinear_features = 0
 include_group_feature = 0
@@ -60,21 +60,14 @@ if run_training:
     X = df.drop(columns=[target]).values
     y = df[target].values
 
-    # params = {"n_estimators": (100, 500),# Number of trees to create during training
-    #           "min_child_weight": (1,5), # the number of samples required in each child node before attempting to split further
-    #           "gamma": (0.01, 2.0, "log-uniform"),# regularization. Low values allow splits as long as they improve the loss function, no matter how small
-    #           "eta": (0.05, 0.2, "log-uniform"),# learning rate
-    #           "subsample": (0.2, 0.8),# Fraction of training dta that is sampled for each boosting round
-    #           "colsample_bytree": (0.2, 1.0),#the fraction of features to be selected for each tree
-    #           "max_depth": (3, 5), }#maximum depth of each decision tree
-
-    params = {"n_estimators": (50, 2001),
-              "min_child_weight": (1, 11),
-              "gamma": (0.01, 5.0, "log-uniform"),
-              "eta": (0.005, 0.5, "log-uniform"),
-              "subsample": (0.2, 1.0),
-              "colsample_bytree": (0.2, 1.0),
-              "max_depth": (2, 6), }
+    params = {"n_estimators": (50, 2001),          #(100, 500),# Number of trees to create during training
+              "min_child_weight": (1, 11),         #(1,5), # the number of samples required in each child node before attempting to split further
+              "gamma": (0.01, 5.0, "log-uniform"), #(0.01, 2.0, "log-uniform"),# regularization. Low values allow splits as long as they improve the loss function, no matter how small
+              "eta": (0.005, 0.5, "log-uniform"),   #(0.05, 0.2, "log-uniform"),# learning rate
+              "subsample": (0.2, 1.0),         #(0.2, 0.8),# Fraction of training dta that is sampled for each boosting round
+              "colsample_bytree": (0.2, 1.0),   # the fraction of features to be selected for each tree
+              "max_depth": (2, 6)               #(3, 5), }#maximum depth of each decision tree
+     }
 
     if set_parameters_manually == 0:
 
