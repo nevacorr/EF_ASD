@@ -14,7 +14,7 @@ from sklearn.metrics import mean_squared_error,r2_score
 target = "Flanker_Standard_Age_Corrected"
 metric = "md"
 run_training = 1
-set_parameters_manually = 1
+set_parameters_manually = 0
 show_correlation_heatmap = 0
 remove_collinear_features = 0
 include_group_feature = 0
@@ -103,11 +103,9 @@ if run_training:
             opt.fit(X[train_index], y[train_index])
 
             # Use model to predict on test set
-            print(f"predicting {metric} for test set")
             test_predictions[test_index] = opt.predict(X[test_index])
 
             # Predict for train set
-            print(f"predicting {metric} for train set")
             train_predictions[train_index] += opt.predict(X[train_index])
 
         else:
