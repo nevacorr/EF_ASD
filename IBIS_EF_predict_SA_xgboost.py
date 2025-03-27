@@ -21,10 +21,10 @@ include_group_feature = 0
 
 working_dir = os.getcwd()
 
-if metric == "volume":
-    vol_dir = "/Users/neva o/R_Projects/IBIS_EF/"
-    volume_datafilename = "final_df_for_xgboost.csv"  
-elif metric in {"fa", "md", "ad", "rd"}:
+vol_dir = "/Users/nevao/R_Projects/IBIS_EF/"
+volume_datafilename = "final_df_for_xgboost.csv"
+
+if metric in {"fa", "md", "ad", "rd"}:
     dti_dir = ("/Users/nevao/Documents/Genz/source_data/updated imaging_2-27-25/"
                "IBISandDS_VSA_DTI_Siemens_CMRR_v02.02_20250227/Siemens_CMRR/")
     ad_datafilename = "IBISandDS_VSA_DTI_SiemensAndCMRR_FiberAverage_AD_v02.02_20250227.csv"
@@ -127,20 +127,20 @@ if run_training:
         mse_test = mean_squared_error(y[test_index], test_predictions[test_index], squared=False)
         r2_test = r2_score(y[test_index], test_predictions[test_index])
 
-        print(f"Performance train set performance for Split {i + 1}: R² = {r2_train:.4f}, MSE = {mse_train:.4f}")
-        print(f"Performance test set performance for Split {i + 1}: R² = {r2_test:.4f}, MSE = {mse_test:.4f}")
+        print(f"    Performance train set : R² = {r2_train:.4f}, MSE = {mse_train:.4f}")
+        print(f"    Performance test set : R² = {r2_test:.4f}, MSE = {mse_test:.4f}")
 
         # Save model to file
-        if set_parameters_manually == 0:
+        if i == 0:
+            if set_parameters_manually == 0:
             # Save model to file
-            if i==1:
                 with open(f"{target}_{metric}_trained_model.pkl", "wb") as f:
                     pickle.dump(opt, f)
                 print(f"First trained model saved to {target}_{metric}_trained_model.pkl")
-        else:
-            with open(f"{target}_{metric}_trained_model.pkl", "wb") as f:
-                pickle.dump(xgb, f)
-            print(f"Trained model saved to {target}_{metric}_trained_model.pkl")
+            else:
+                with open(f"{target}_{metric}_trained_model.pkl", "wb") as f:
+                    pickle.dump(xgb, f)
+                print(f"Trained model saved to {target}_{metric}_trained_model.pkl")
 
     # Correct the predictions for teh train set by the number of times they appeared in the train set
     train_predictions /= train_counts
@@ -158,7 +158,8 @@ if run_training:
     df.to_csv(f"{target}_{metric}_cv_predictions.csv", index=False)
 
     if set_parameters_manually == 0:
-        print(f"Best Parameters for Final {metric} Model: {opt.best_params_}")
+        best_params = opt.best_params_
+        print(f"Best Parameters for Final {metric} Model: {best_params}")
         # Save best parameters for the final model to a text file
         with open(f"{target}_{metric}_best_params_final.txt", "w") as file:
             file.write(str(opt.best_params_))
@@ -179,7 +180,12 @@ with open(model_filename, "rb") as f:
 r2_test = r2_score(df[target], df["test_predictions"])
 r2_train = r2_score(df[target], df["train_predictions"])
 
-write_modeling_data_and_outcome_to_file(metric, params, set_parameters_manually, loaded_model, target, X, r2_train, r2_test)
+print(f"Final performance. R2train = {r2_train:.3f} R2test = {r2_test:.3f}")
+
+if set_parameters_manually ==1:
+    best_params = []
+write_modeling_data_and_outcome_to_file(metric, params, set_parameters_manually, loaded_model, target, df,
+                                        r2_train, r2_test, best_params)
 
 plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, loaded_model, df)
 

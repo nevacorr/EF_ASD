@@ -112,27 +112,34 @@ def load_and_clean_dti_data(dir, datafilename, vol_dir, voldatafile, target, inc
 
     return merged_df
 
-def write_modeling_data_and_outcome_to_file(metric, params, set_parameters_manually, loaded_model, target, X, r2_train, r2_test):
+def write_modeling_data_and_outcome_to_file(metric, params, set_parameters_manually, loaded_model, target,
+                                            df, r2_train, r2_test, best_params):
     with open(f"{target}_{metric}_features_and_target.txt", "a") as f:
         # Write featueres and targets used
-        f.write(f"####### Model performance summary ######")
+        f.write(f"####### Model performance summary ######\n")
         f.write(f"Metric: {metric}\n")
         f.write(f"Target: {target}\n")
-        feature_names = X.columns.tolist()
+        feature_names = df.drop(columns=[target, 'test_predictions', 'train_predictions']).columns.tolist()
         f.write(f"Features: {', '.join(feature_names)}\n")
-        if ~set_parameters_manually:
+        if set_parameters_manually==0:
             f.write("Parameter ranges specified\n")
             for key, value in params.items():
                 f.write(f"{key}: {value}\n")
             f.write("Used hyperparameter optimization\n")
-            f.write(f"Best Parameters: {loaded_model.best_params_}\n")
+            f.write(f"Best Parameters: {best_params}\n")
         else:
             f.write("Parameters set manually\n")
-            for key, value in params.items():
-                f.write(f"{key}: {value}\n")
+            f.write(f"n_estimators = {loaded_model.n_estimators}\n")
+            f.write(f"min_child_weight = {loaded_model.min_child_weight}\n")
+            f.write(f"gamma = {loaded_model.gamma}\n")
+            f.write(f"eta = {loaded_model.kwargs['eta']}\n")
+            f.write(f"subsample = {loaded_model.subsample}\n")
+            f.write(f"colsample_bytree = {loaded_model.colsample_bytree}\n")
+            f.write(f"max_depth = {loaded_model.max_depth}\n")
         f.write("Performance metrics:\n")
         f.write(f"R2 train = {r2_train:.4f}\n")
         f.write(f"R2 test = {r2_test:.4f}\n")
+
 def plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, loaded_model, df):
     # Create subplots with 2 rows and 1 column
     fig, axes = plt.subplots(2, 1, figsize=(10, 12))
