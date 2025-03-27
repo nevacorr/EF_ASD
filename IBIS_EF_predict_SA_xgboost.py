@@ -118,18 +118,7 @@ if run_training:
 
         # Keep track of the number of times that each subject is included in the train set
         train_counts[train_index] += 1
-
-        # Compute performance metrics for train set
-        mse_train = mean_squared_error(y[train_index], test_predictions[train_index], squared=False)
-        r2_train = r2_score(y[train_index], train_predictions[train_index])
-
-        # Compute performance metrics for test set
-        mse_test = mean_squared_error(y[test_index], test_predictions[test_index], squared=False)
-        r2_test = r2_score(y[test_index], test_predictions[test_index])
-
-        print(f"    Performance train set : R² = {r2_train:.4f}, MSE = {mse_train:.4f}")
-        print(f"    Performance test set : R² = {r2_test:.4f}, MSE = {mse_test:.4f}")
-
+        
         # Save model to file
         if i == 0:
             if set_parameters_manually == 0:
