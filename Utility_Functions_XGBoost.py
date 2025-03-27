@@ -78,7 +78,7 @@ def load_and_clean_dti_data(dir, datafilename, vol_dir, voldatafile, target, inc
 
     dti_df.drop(columns=['Visit_label', 'CandID_Visit', 'dMRI_protocol', 'FileID'], inplace=True)
 
-    dti_df = dti_df.loc[:, ~dti_df.columns.str.contains('Optic|Motor|Fornix|CorticoSpinal|UNC|Reticular|Arc|ILF|CT|CF', regex=True)]
+    dti_df = dti_df.loc[:, ~dti_df.columns.str.contains('Optic|Motor|Fornix|CorticoSpinal|UNC|Reticular|ILF|CT|CF|CC|Temporo|IFOF', regex=True)]
 
     dti_df.replace({'.': np.nan, '': np.nan}, inplace=True)
 
@@ -111,3 +111,58 @@ def load_and_clean_dti_data(dir, datafilename, vol_dir, voldatafile, target, inc
     merged_df = merged_df.dropna(subset=[col for col in merged_df.columns if col not in ['Sex', target]], how='all')
 
     return merged_df
+
+def write_modeling_data_and_outcome_to_file(metric, params, set_parameters_manually, loaded_model, target, X, r2_train, r2_test):
+    with open(f"{target}_{metric}_features_and_target.txt", "a") as f:
+        # Write featueres and targets used
+        f.write(f"####### Model performance summary ######")
+        f.write(f"Metric: {metric}\n")
+        f.write(f"Target: {target}\n")
+        feature_names = X.columns.tolist()
+        f.write(f"Features: {', '.join(feature_names)}\n")
+        if ~set_parameters_manually:
+            f.write("Parameter ranges specified\n")
+            for key, value in params.items():
+                f.write(f"{key}: {value}\n")
+            f.write("Used hyperparameter optimization\n")
+            f.write(f"Best Parameters: {loaded_model.best_params_}\n")
+        else:
+            f.write("Parameters set manually\n")
+            for key, value in params.items():
+                f.write(f"{key}: {value}\n")
+        f.write("Performance metrics:\n")
+        f.write(f"R2 train = {r2_train:.4f}\n")
+        f.write(f"R2 test = {r2_test:.4f}\n")
+def plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, loaded_model, df):
+    # Create subplots with 2 rows and 1 column
+    fig, axes = plt.subplots(2, 1, figsize=(10, 12))
+
+    # Define a list of prediction types and corresponding R2 values
+    prediction_data = [
+        ("test", r2_test, df["test_predictions"]),
+        ("train", r2_train, df["train_predictions"])
+    ]
+
+    colsample_bytree = loaded_model.colsample_bytree
+    n_estimators = loaded_model.n_estimators
+    min_child_weight = loaded_model.min_child_weight
+    gamma = loaded_model.gamma
+    eta = loaded_model.kwargs['eta']
+    subsample = loaded_model.subsample
+    max_depth = loaded_model.max_depth
+
+    for i, (data_type, r2, predictions) in enumerate(prediction_data):
+        sns.scatterplot(x=df[target], y=predictions, ax=axes[i])
+        axes[i].plot([min(df[target]), max(df[target])], [min(df[target]), max(df[target])], linestyle="--",
+                     color="red")
+        axes[i].set_xlabel(f"Actual {metric} {target}")
+        axes[i].set_ylabel(f"Predicted {metric} {target}")
+        axes[i].set_title(
+            f"{data_type.capitalize()} {metric} Predictions\nR2: {r2:.2f}\n colsample_by_tree={colsample_bytree} "
+            f"n_estimators={n_estimators} min_child_weight={min_child_weight} gamma={gamma}\n eta={eta} "
+            f"subsample={subsample} max_depth={max_depth}")
+
+        # Show the plot
+    plt.tight_layout()
+    plt.savefig(f"{target}_{metric}_xgboost_actual vs predicted")
+    plt.show(block=False)
