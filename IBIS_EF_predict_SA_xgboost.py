@@ -13,7 +13,7 @@ from sklearn.metrics import mean_squared_error,r2_score
 
 target = "Flanker_Standard_Age_Corrected"
 metric = "md"
-run_training = 1
+run_training = 0
 set_parameters_manually = 0
 show_correlation_heatmap = 0
 remove_collinear_features = 0
@@ -32,10 +32,14 @@ if metric in {"fa", "md", "ad", "rd"}:
     md_datafilename = "IBISandDS_VSA_DTI_SiemensAndCMRR_FiberAverage_MD_v02.02_20250227.csv"
     rd_datafilename = "IBISandDS_VSA_DTI_SiemensAndCMRR_FiberAverage_RD_v02.02_20250227.csv"
 
-if run_training:
-     # load and clean data
-    if metric == "volume":
-         df = load_and_clean_data(vol_dir, volume_datafilename, target, include_group_feature)
+params = {"n_estimators": (50, 2001),          #(100, 500),# Number of trees to create during training
+          "min_child_weight": (1, 11),         #(1,5), # the number of samples required in each child node before attempting to split further
+          "gamma": (0.01, 5.0, "log-uniform"), #(0.01, 2.0, "log-uniform"),# regularization. Low values allow splits as long as they improve the loss function, no matter how small                                      if run_training:
+          "eta": (0.005, 0.5, "log-uniform"),   #(0.05, 0.2, "log-uniform"),# learning rate                                                                                                                                   # load and clean data
+          "subsample": (0.2, 1.0),         #(0.2, 0.8),# Fraction of training dta that is sampled for each boosting round                                                                                                    if metric == "volume":
+          "colsample_bytree": (0.2, 1.0),   # the fraction of features to be selected for each tree                                                                                                                               df = load_and_clean_data(vol_dir, volume_datafilename, target, include_group_feature)
+          "max_depth": (2, 6)               #(3, 5), }#maximum depth of each decision tree
+          }
 
     if metric in {"fa", "md", "ad", "rd" }:
         data_filenames = {
@@ -59,15 +63,6 @@ if run_training:
 
     X = df.drop(columns=[target]).values
     y = df[target].values
-
-    params = {"n_estimators": (50, 2001),          #(100, 500),# Number of trees to create during training
-              "min_child_weight": (1, 11),         #(1,5), # the number of samples required in each child node before attempting to split further
-              "gamma": (0.01, 5.0, "log-uniform"), #(0.01, 2.0, "log-uniform"),# regularization. Low values allow splits as long as they improve the loss function, no matter how small
-              "eta": (0.005, 0.5, "log-uniform"),   #(0.05, 0.2, "log-uniform"),# learning rate
-              "subsample": (0.2, 1.0),         #(0.2, 0.8),# Fraction of training dta that is sampled for each boosting round
-              "colsample_bytree": (0.2, 1.0),   # the fraction of features to be selected for each tree
-              "max_depth": (2, 6)               #(3, 5), }#maximum depth of each decision tree
-     }
 
     if set_parameters_manually == 0:
 
