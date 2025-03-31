@@ -128,7 +128,7 @@ for i, (train_index, test_index) in enumerate(kf.split(X, y)):
     # Calculate time it took to run this fold
     fold_time = time.time()
     elapsed_time = (fold_time - start_time) / 60.0
-    print(f"{metric}  Time to run fold: {elapsed_time:.2f} minutes")
+    print(f"{metric}  Time elapsed: {elapsed_time:.2f} minutes")
 
 # Correct the predictions for teh train set by the number of times they appeared in the train set
 train_predictions /= train_counts
