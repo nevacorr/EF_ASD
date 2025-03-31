@@ -113,7 +113,7 @@ def load_and_clean_dti_data(dir, datafilename, vol_dir, voldatafile, target, inc
     return merged_df
 
 def write_modeling_data_and_outcome_to_file(metric, params, set_parameters_manually, loaded_model, target,
-                                            df, r2_train, r2_test, best_params):
+                                            df, r2_train, r2_test, best_params, elapsed_time):
     with open(f"{target}_{metric}_features_and_target.txt", "a") as f:
         # Write featueres and targets used
         f.write(f"####### Model performance summary ######\n")
@@ -139,6 +139,7 @@ def write_modeling_data_and_outcome_to_file(metric, params, set_parameters_manua
         f.write("Performance metrics:\n")
         f.write(f"R2 train = {r2_train:.4f}\n")
         f.write(f"R2 test = {r2_test:.4f}\n")
+        f.write(f"Run completion time: {elapsed_time:.2f}")
 
 def plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, loaded_model, df):
     # Create subplots with 2 rows and 1 column

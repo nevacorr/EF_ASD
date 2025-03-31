@@ -17,7 +17,7 @@ run_training = 0
 set_parameters_manually = 0
 show_correlation_heatmap = 0
 remove_collinear_features = 0
-include_group_feature = 0
+include_group_feature = 1
 
 working_dir = os.getcwd()
 
@@ -125,6 +125,11 @@ for i, (train_index, test_index) in enumerate(kf.split(X, y)):
                 pickle.dump(xgb, f)
             print(f"Trained model saved to {target}_{metric}_trained_model.pkl")
 
+    # Calculate time it took to run this fold
+    fold_time = time.time()
+    elapsed_time = (fold_time - start_time) / 60.0
+    print(f"{metric}  Time to run fold: {elapsed_time:.2f} minutes")
+
 # Correct the predictions for teh train set by the number of times they appeared in the train set
 train_predictions /= train_counts
 
@@ -168,7 +173,7 @@ if set_parameters_manually ==1:
     best_params = []
 
 write_modeling_data_and_outcome_to_file(metric, params, set_parameters_manually, loaded_model, target, df,
-                                        r2_train, r2_test, best_params)
+                                        r2_train, r2_test, best_params, elapsed_time)
 
 plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, loaded_model, df)
 
