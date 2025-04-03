@@ -6,6 +6,9 @@
 *.iml
 *.xml
 *.pkl
+*.txt
+*.png
+*.csv
 out
 gen
 
