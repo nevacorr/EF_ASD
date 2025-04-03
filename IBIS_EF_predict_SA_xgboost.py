@@ -8,9 +8,10 @@ from sklearn.model_selection import KFold
 import numpy as np
 import time
 from sklearn.metrics import mean_squared_error,r2_score
+from load_subcortical_data import load_subcortical_data
 
 target = "Flanker_Standard_Age_Corrected"
-metric = "volume"
+metric = "subcort"
 run_dummy_quick_fit = 0
 set_parameters_manually = 0
 show_correlation_heatmap = 0
@@ -25,7 +26,7 @@ working_dir = os.getcwd()
 vol_dir = "/Users/nevao/R_Projects/IBIS_EF/"
 volume_datafilename = "final_df_for_xgboost.csv"
 
-if metric in {"fa", "md", "ad", "rd" }:
+if metric in {"fa_VSA", "md_VSA", "ad_VSA", "rd_VSA" }:
     dti_dir = ("/Users/nevao/Documents/Genz/source_data/updated imaging_2-27-25/"
                "IBISandDS_VSA_DTI_Siemens_CMRR_v02.02_20250227/Siemens_CMRR/")
     ad_datafilename = "IBISandDS_VSA_DTI_SiemensAndCMRR_FiberAverage_AD_v02.02_20250227.csv"
@@ -33,13 +34,16 @@ if metric in {"fa", "md", "ad", "rd" }:
     md_datafilename = "IBISandDS_VSA_DTI_SiemensAndCMRR_FiberAverage_MD_v02.02_20250227.csv"
     rd_datafilename = "IBISandDS_VSA_DTI_SiemensAndCMRR_FiberAverage_RD_v02.02_20250227.csv"
     data_filenames = {
-        "fa": fa_datafilename,"ad": ad_datafilename,"md": md_datafilename,"rd": rd_datafilename
+        "fa_VSA": fa_datafilename,"ad_VSA": ad_datafilename,"md_VSA": md_datafilename,"rd_VSA": rd_datafilename
     }
     datafilename = data_filenames.get(metric)
     df = load_and_clean_dti_data(dti_dir, datafilename, vol_dir, volume_datafilename, target, include_group_feature)
 elif metric == "volume":
     datafilename = volume_datafilename
     df = load_and_clean_data(vol_dir, datafilename, 'Flanker_Standard_Age_Corrected', include_group_feature)
+elif metric == "subcort":
+    subcort_dir = '/Users/nevao/Documents/Genz/source_data/IBIS1&2_volumes_v3.13'
+    df = load_subcortical_data(subcort_dir)
 
 if run_dummy_quick_fit == 1:
     df = df.sample(frac=0.1, random_state=42)
@@ -66,19 +70,17 @@ y = df[target].values
 
 if set_parameters_manually == 0: #if search for best parameters
     # Define parameter ranges to be used if BayesCV will be used
-    params = {"n_estimators": (50, 2001),  # (100, 500),# Number of trees to create during training
-              "min_child_weight": (1, 11),
-              # (1,5), # the number of samples required in each child node before attempting to split further
-              "gamma": (0.01, 5.0, "log-uniform"),
+    params = {"n_estimators": (10, 500),  # (100, 500),# Number of trees to create during training
+              "min_child_weight": (1, 11),# (1,5), # the number of samples required in each child node before attempting to split further
+              "gamma": (4.0, 10.0, "log-uniform"),
               # (0.01, 2.0, "log-uniform"),# regularization. Low values allow splits as long as they improve the loss function, no matter how small
-              "eta": (0.005, 0.5, "log-uniform"),  # (0.05, 0.2, "log-uniform"),# learning rate
-              "subsample": (0.2, 1.0),
-              # (0.2, 0.8),# Fraction of training dta that is sampled for each boosting round
-              "colsample_bytree": (0.2, 1.0),  # the fraction of features to be selected for each tree
-              "max_depth": (2, 6)  # (3, 5), }#maximum depth of each decision tree
+              "eta": (0.0005, 0.05, "log-uniform"),  # (0.05, 0.2, "log-uniform"),# learning rate
+              "subsample": (0.2, 1.0), # (0.2, 0.8),# Fraction of training dta that is sampled for each boosting round
+              "colsample_bytree": (0.4, 1.0),  # the fraction of features to be selected for each tree
+              "max_depth": (2, 5)  # (3, 5), }#maximum depth of each decision tree
               }
-    xgb = XGBRegressor(objective="reg:squarederror", n_jobs=8)
-    opt = BayesSearchCV(xgb, params, n_iter=n_iter, n_jobs=8)
+    xgb = XGBRegressor(objective="reg:squarederror", n_jobs=-1)
+    opt = BayesSearchCV(xgb, params, n_iter=n_iter, n_jobs=-1)
 
 else:  # if parameters are to be set manually at fixed values
 
