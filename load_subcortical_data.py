@@ -11,9 +11,11 @@ def load_subcortical_data(filepath):
 
     # Load each CSV file into a separate dataframe
     for file in csv_files:
-        file_path = os.path.join(file_path, file)
+        file_name = os.path.join(filepath, file)
         # Read each CSV into a DataFrame and store it in the dictionary
-        dfs[file] = pd.read_csv(file_path)
+        dfs[file] = pd.read_csv(file_name)
+
+    mystop=1
 
     # Example: access a specific DataFrame
     # example_file = "IBIS_v3.13_Amygdala_2020May5_V12V24only.csv"
