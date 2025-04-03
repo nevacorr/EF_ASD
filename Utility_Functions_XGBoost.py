@@ -112,7 +112,7 @@ def load_and_clean_dti_data(dir, datafilename, vol_dir, voldatafile, target, inc
 
     return merged_df
 
-def write_modeling_data_and_outcome_to_file(metric, params, set_parameters_manually, loaded_model, target,
+def write_modeling_data_and_outcome_to_file(metric, params, set_parameters_manually, target,
                                             df, r2_train, r2_test, best_params, elapsed_time):
     with open(f"{target}_{metric}_features_and_target.txt", "a") as f:
         # Write featueres and targets used
@@ -121,27 +121,20 @@ def write_modeling_data_and_outcome_to_file(metric, params, set_parameters_manua
         f.write(f"Target: {target}\n")
         feature_names = df.drop(columns=[target, 'test_predictions', 'train_predictions']).columns.tolist()
         f.write(f"Features: {', '.join(feature_names)}\n")
-        if set_parameters_manually==0:
-            f.write("Parameter ranges specified\n")
-            for key, value in params.items():
-                f.write(f"{key}: {value}\n")
+        f.write("Parameter ranges specified\n")
+        for key, value in params.items():
+            f.write(f"{key}: {value}\n")
+        if set_parameters_manually == 0:
             f.write("Used hyperparameter optimization\n")
-            f.write(f"Best Parameters: {best_params}\n")
-        else:
-            f.write("Parameters set manually\n")
-            f.write(f"n_estimators = {loaded_model.n_estimators}\n")
-            f.write(f"min_child_weight = {loaded_model.min_child_weight}\n")
-            f.write(f"gamma = {loaded_model.gamma}\n")
-            f.write(f"eta = {loaded_model.kwargs['eta']}\n")
-            f.write(f"subsample = {loaded_model.subsample}\n")
-            f.write(f"colsample_bytree = {loaded_model.colsample_bytree}\n")
-            f.write(f"max_depth = {loaded_model.max_depth}\n")
+        elif set_parameters_manually ==1:
+            f.write("Set parameter manually\n")
+        f.write(f"Best Parameters: {best_params}\n")
         f.write("Performance metrics:\n")
         f.write(f"R2 train = {r2_train:.4f}\n")
         f.write(f"R2 test = {r2_test:.4f}\n")
-        f.write(f"Run completion time: {elapsed_time:.2f}")
+        f.write(f"Run completion time: {elapsed_time:.2f}\n")
 
-def plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, loaded_model, df):
+def plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, df, best_params):
     # Create subplots with 2 rows and 1 column
     fig, axes = plt.subplots(2, 1, figsize=(10, 12))
 
@@ -150,14 +143,13 @@ def plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, loaded_model, df)
         ("test", r2_test, df["test_predictions"]),
         ("train", r2_train, df["train_predictions"])
     ]
-
-    colsample_bytree = loaded_model.colsample_bytree
-    n_estimators = loaded_model.n_estimators
-    min_child_weight = loaded_model.min_child_weight
-    gamma = loaded_model.gamma
-    eta = loaded_model.kwargs['eta']
-    subsample = loaded_model.subsample
-    max_depth = loaded_model.max_depth
+    colsample_bytree = best_params['colsample_bytree']
+    n_estimators = best_params['n_estimators']
+    min_child_weight = best_params['min_child_weight']
+    gamma = best_params['gamma']
+    eta = best_params['kwargs']['eta']
+    subsample = best_params['subsample']
+    max_depth = best_params['max_depth']
 
     for i, (data_type, r2, predictions) in enumerate(prediction_data):
         sns.scatterplot(x=df[target], y=predictions, ax=axes[i])
@@ -172,5 +164,5 @@ def plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, loaded_model, df)
 
         # Show the plot
     plt.tight_layout()
-    plt.savefig(f"{target}_{metric}_xgboost_actual vs predicted")
+    plt.savefig(f"{target}_{metric}_xgboost_actual_vs_predicted")
     plt.show(block=False)

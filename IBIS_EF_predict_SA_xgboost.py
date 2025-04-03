@@ -10,28 +10,22 @@ import numpy as np
 import time
 import pickle
 from sklearn.metrics import mean_squared_error,r2_score
+import ast
+import json
+from collections import OrderedDict
 
 target = "Flanker_Standard_Age_Corrected"
 metric = "volume"
-run_training = 0
+run_dummy_quick_fit = 1
 set_parameters_manually = 0
 show_correlation_heatmap = 0
 remove_collinear_features = 0
 include_group_feature = 1
 
+# Define directories to be used
 working_dir = os.getcwd()
-
 vol_dir = "/Users/nevao/R_Projects/IBIS_EF/"
 volume_datafilename = "final_df_for_xgboost.csv"
-
-params = {"n_estimators": (50, 2001),          #(100, 500),# Number of trees to create during training
-          "min_child_weight": (1, 11),         #(1,5), # the number of samples required in each child node before attempting to split further
-          "gamma": (0.01, 5.0, "log-uniform"), #(0.01, 2.0, "log-uniform"),# regularization. Low values allow splits as long as they improve the loss function, no matter how small                                      if run_training:
-          "eta": (0.005, 0.5, "log-uniform"),   #(0.05, 0.2, "log-uniform"),# learning rate                                                                                                                                   # load and clean data
-          "subsample": (0.2, 1.0),         #(0.2, 0.8),# Fraction of training dta that is sampled for each boosting round                                                                                                    if metric == "volume":
-          "colsample_bytree": (0.2, 1.0),   # the fraction of features to be selected for each tree                                                                                                                               df = load_and_clean_data(vol_dir, volume_datafilename, target, include_group_feature)
-          "max_depth": (2, 6)               #(3, 5), }#maximum depth of each decision tree
-          }
 
 if metric in {"fa", "md", "ad", "rd" }:
     dti_dir = ("/Users/nevao/Documents/Genz/source_data/updated imaging_2-27-25/"
@@ -49,6 +43,9 @@ elif metric == "volume":
     datafilename = volume_datafilename
     df = load_and_clean_data(vol_dir, datafilename, 'Flanker_Standard_Age_Corrected', include_group_feature)
 
+if run_dummy_quick_fit == 1:
+    df_sample = df.sample(frac=0.1, random_state=42)
+
 if show_correlation_heatmap:
     # plot feature correlation heatmap
     plot_title = f"Correlation between regional {metric}"
@@ -62,34 +59,62 @@ if remove_collinear_features:
     corr_matrix = plot_correlations(df, target, plot_title)
     plt.show()
 
+# Make matrix of features
 X = df.drop(columns=[target]).values
+
+# Make vector with target value
 y = df[target].values
 
-if set_parameters_manually == 0:
-
+if set_parameters_manually == 0: #if search for best parameters
+    # Define parameter ranges to be used if BayesCV will be used
+    params = {"n_estimators": (50, 2001),  # (100, 500),# Number of trees to create during training
+              "min_child_weight": (1, 11),
+              # (1,5), # the number of samples required in each child node before attempting to split further
+              "gamma": (0.01, 5.0, "log-uniform"),
+              # (0.01, 2.0, "log-uniform"),# regularization. Low values allow splits as long as they improve the loss function, no matter how small
+              "eta": (0.005, 0.5, "log-uniform"),  # (0.05, 0.2, "log-uniform"),# learning rate
+              "subsample": (0.2, 1.0),
+              # (0.2, 0.8),# Fraction of training dta that is sampled for each boosting round
+              "colsample_bytree": (0.2, 1.0),  # the fraction of features to be selected for each tree
+              "max_depth": (2, 6)  # (3, 5), }#maximum depth of each decision tree
+              }
     xgb = XGBRegressor(objective="reg:squarederror", n_jobs=8)
     opt = BayesSearchCV(xgb, params, n_iter=100, n_jobs=8)
 
-else:
+else:  # if parameters are to be set manually at fixed values
+
+    params = {"n_estimators": 50,  # Number of trees to create during training
+              "min_child_weight": 1, # the number of samples required in each child node before attempting to split further
+              "gamma": 0.4, # regularization. Low values allow splits as long as they improve the loss function, no matter how small
+              "eta": 0.00847,  # learning rate
+              "subsample": 1.0, # Fraction of training dta that is sampled for each boosting round
+              "colsample_bytree": 1.0,  # the fraction of features to be selected for each tree
+              "max_depth": 2  #maximum depth of each decision tree
+              }
+
     xgb = XGBRegressor(
         objective="reg:squarederror",
         n_jobs=16,
-        colsample_bytree=1.0,#the fraction of features to be selected for each tree
-        eta=0.00847,  # learning rate
-        gamma=0.4,  # regularization. Low values allow splits as long as they improve the loss function, no matter how small
-        max_depth=2,#maximum depth of each decision tree
-        min_child_weight=1,# the number of samples required in each child node before attempting to split further
-        n_estimators=50,  # Number of trees to create during training
-        subsample=1.0  # Fraction of training dta that is sampled for each boosting round
+        colsample_bytree=params["colsample_bytree"],#the fraction of features to be selected for each tree
+        eta=params["eta"],  # learning rate
+        gamma=params['gamma'],  # regularization. Low values allow splits as long as they improve the loss function, no matter how small
+        max_depth=params["max_depth"],#maximum depth of each decision tree
+        min_child_weight=params["min_child_weight"],# the number of samples required in each child node before attempting to split further
+        n_estimators=params["n_estimators"],  # Number of trees to create during training
+        subsample=params["subsample"]  # Fraction of training dta that is sampled for each boosting round
     )
 
+# define cross validation scheme
 kf = KFold(n_splits=10, shuffle=True, random_state=42)
 
+# make variables to hold predictions for train and test run, as well as counts for how many times each subject appears in a train set
 train_predictions = np.zeros_like(y, dtype=np.float64)
 test_predictions = np.zeros_like(y, dtype=np.float64)
 train_counts = np.zeros_like(y, dtype=np.int64)
 
+# record start time
 start_time = time.time()
+# make indexes for train/test subjects for each fold
 for i, (train_index, test_index) in enumerate(kf.split(X, y)):
     print(f"{metric} Split {i + 1} - Training on {len(train_index)} samples, Testing on {len(test_index)} samples")
 
@@ -113,55 +138,28 @@ for i, (train_index, test_index) in enumerate(kf.split(X, y)):
     # Keep track of the number of times that each subject is included in the train set
     train_counts[train_index] += 1
 
-    # Save model to file
-    if i == 0:
-        if set_parameters_manually == 0:
-        # Save model to file
-            with open(f"{target}_{metric}_trained_model.pkl", "wb") as f:
-                pickle.dump(opt, f)
-            print(f"First trained model saved to {target}_{metric}_trained_model.pkl")
-        else:
-            with open(f"{target}_{metric}_trained_model.pkl", "wb") as f:
-                pickle.dump(xgb, f)
-            print(f"Trained model saved to {target}_{metric}_trained_model.pkl")
-
-    # Calculate time it took to run this fold
+    # Calculate and print time it took to run this fold
     fold_time = time.time()
     elapsed_time = (fold_time - start_time) / 60.0
     print(f"{metric}  Time elapsed: {elapsed_time:.2f} minutes")
 
-# Correct the predictions for teh train set by the number of times they appeared in the train set
+# Correct the predictions for the train set by the number of times they appeared in the train set
 train_predictions /= train_counts
 
-# Put test_predictions in a dataframe column
+# Put train and test_predictions in a dataframe
 df["test_predictions"]  = test_predictions
 df["train_predictions"] = train_predictions
 
-# Calculate time it took to complete all model creations and predictions across all cv splits
+# Calculate and print time it took to complete all model creations and predictions across all cv splits
 end_time = time.time()
 elapsed_time = (end_time - start_time)  / 60.0
 print(f"{metric} Computations complete. Time to run all 10 folds: {elapsed_time:.2f} minutes")
 
-# Save data and predictions to file
-df.to_csv(f"{target}_{metric}_cv_predictions.csv", index=False)
-
 if set_parameters_manually == 0:
     best_params = opt.best_params_
     print(f"Best Parameters for Final {metric} Model: {best_params}")
-    # Save best parameters for the final model to a text file
-    with open(f"{target}_{metric}_best_params_final.txt", "w") as file:
-        file.write(str(opt.best_params_))
-    print(f"{metric} Best parameters saved to {target}_best_params_final.txt")
-
-else:
-    # Read data and predictions from file
-    df = pd.read_csv(f"{target}_{metric}_cv_predictions.csv")
-
-# Read model from file
-model_filename = f"{target}_{metric}_trained_model.pkl"
-
-with open(model_filename, "rb") as f:
-    loaded_model = pickle.load(f)
+elif set_parameters_manually == 1:
+    best_params = params
 
 # Compute R2
 r2_test = r2_score(df[target], df["test_predictions"])
@@ -169,12 +167,9 @@ r2_train = r2_score(df[target], df["train_predictions"])
 
 print(f"Final performance. R2train = {r2_train:.3f} R2test = {r2_test:.3f}")
 
-if set_parameters_manually ==1:
-    best_params = []
-
-write_modeling_data_and_outcome_to_file(metric, params, set_parameters_manually, loaded_model, target, df,
+write_modeling_data_and_outcome_to_file(metric, params, set_parameters_manually, target, df,
                                         r2_train, r2_test, best_params, elapsed_time)
 
-plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, loaded_model, df)
+plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, df, best_params)
 
 mystop = 1
