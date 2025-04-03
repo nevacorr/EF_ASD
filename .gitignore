@@ -9,6 +9,7 @@
 out
 gen
 
+requirements.txt
 make_and_apply_normative_model.py
 make_model.py
 Normative_Model_IBIS_EF_Behav.py
