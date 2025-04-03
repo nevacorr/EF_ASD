@@ -11,8 +11,8 @@ from sklearn.metrics import mean_squared_error,r2_score
 
 target = "Flanker_Standard_Age_Corrected"
 metric = "volume"
-run_dummy_quick_fit = 1
-set_parameters_manually = 1
+run_dummy_quick_fit = 0
+set_parameters_manually = 0
 show_correlation_heatmap = 0
 remove_collinear_features = 0
 include_group_feature = 0
