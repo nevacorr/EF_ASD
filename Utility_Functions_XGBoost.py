@@ -119,17 +119,17 @@ def write_modeling_data_and_outcome_to_file(quick_run, metric, params, set_param
         f.write(f"####### Model performance summary ######\n")
         if quick_run == 1:
             f.write("This was a quick run to check code, not fit model\n")
-        f.write(f"Metric: {metric}\n")
-        f.write(f"Target: {target}\n")
-        feature_names = df.drop(columns=[target, 'test_predictions', 'train_predictions']).columns.tolist()
-        f.write(f"Features: {', '.join(feature_names)}\n")
-        f.write("Parameter ranges specified\n")
-        for key, value in params.items():
-            f.write(f"{key}: {value}\n")
         if set_parameters_manually == 0:
             f.write("Used hyperparameter optimization\n")
         elif set_parameters_manually ==1:
             f.write("Set parameter manually\n")
+        f.write(f"Metric: {metric}\n")
+        f.write(f"Target: {target}\n")
+        feature_names = df.drop(columns=[target, 'test_predictions', 'train_predictions']).columns.tolist()
+        f.write(f"Features: {', '.join(feature_names)}\n")
+        f.write("Parameter specified\n")
+        for key, value in params.items():
+            f.write(f"{key}: {value}\n")
         f.write(f"Best Parameters: {best_params}\n")
         f.write("Performance metrics:\n")
         f.write(f"R2 train = {r2_train:.4f}\n")
@@ -149,7 +149,7 @@ def plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, df, best_params):
     n_estimators = best_params['n_estimators']
     min_child_weight = best_params['min_child_weight']
     gamma = best_params['gamma']
-    eta = best_params['kwargs']['eta']
+    eta = best_params['eta']
     subsample = best_params['subsample']
     max_depth = best_params['max_depth']
 
@@ -160,9 +160,9 @@ def plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, df, best_params):
         axes[i].set_xlabel(f"Actual {metric} {target}")
         axes[i].set_ylabel(f"Predicted {metric} {target}")
         axes[i].set_title(
-            f"{data_type.capitalize()} {metric} Predictions\nR2: {r2:.2f}\n colsample_by_tree={colsample_bytree} "
-            f"n_estimators={n_estimators} min_child_weight={min_child_weight} gamma={gamma}\n eta={eta} "
-            f"subsample={subsample} max_depth={max_depth}")
+            f"{data_type.capitalize()} {metric} Predictions\nR2: {r2:.2f}\n colsample_by_tree={colsample_bytree:.2f} "
+            f"n_estimators={n_estimators} min_child_weight={min_child_weight} gamma={gamma:.2f}\n eta={eta:.2e} "
+            f"subsample={subsample:.2f} max_depth={max_depth}")
 
         # Show the plot
     plt.tight_layout()

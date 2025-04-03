@@ -15,7 +15,10 @@ run_dummy_quick_fit = 1
 set_parameters_manually = 0
 show_correlation_heatmap = 0
 remove_collinear_features = 0
-include_group_feature = 1
+include_group_feature = 0
+
+# set number of iterations for BayesCV
+n_iter = 100
 
 # Define directories to be used
 working_dir = os.getcwd()
@@ -39,7 +42,8 @@ elif metric == "volume":
     df = load_and_clean_data(vol_dir, datafilename, 'Flanker_Standard_Age_Corrected', include_group_feature)
 
 if run_dummy_quick_fit == 1:
-    df_sample = df.sample(frac=0.1, random_state=42)
+    df = df.sample(frac=0.1, random_state=42)
+    n_iter = 5
 
 if show_correlation_heatmap:
     # plot feature correlation heatmap
@@ -74,7 +78,7 @@ if set_parameters_manually == 0: #if search for best parameters
               "max_depth": (2, 6)  # (3, 5), }#maximum depth of each decision tree
               }
     xgb = XGBRegressor(objective="reg:squarederror", n_jobs=8)
-    opt = BayesSearchCV(xgb, params, n_iter=100, n_jobs=8)
+    opt = BayesSearchCV(xgb, params, n_iter=n_iter, n_jobs=8)
 
 else:  # if parameters are to be set manually at fixed values
 
