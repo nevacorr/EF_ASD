@@ -112,11 +112,13 @@ def load_and_clean_dti_data(dir, datafilename, vol_dir, voldatafile, target, inc
 
     return merged_df
 
-def write_modeling_data_and_outcome_to_file(metric, params, set_parameters_manually, target,
+def write_modeling_data_and_outcome_to_file(quick_run, metric, params, set_parameters_manually, target,
                                             df, r2_train, r2_test, best_params, elapsed_time):
     with open(f"{target}_{metric}_features_and_target.txt", "a") as f:
         # Write featueres and targets used
         f.write(f"####### Model performance summary ######\n")
+        if quick_run == 1:
+            f.write("This was a quick run to check code, not fit model\n")
         f.write(f"Metric: {metric}\n")
         f.write(f"Target: {target}\n")
         feature_names = df.drop(columns=[target, 'test_predictions', 'train_predictions']).columns.tolist()

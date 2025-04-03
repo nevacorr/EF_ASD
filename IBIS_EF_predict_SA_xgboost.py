@@ -162,7 +162,7 @@ r2_train = r2_score(df[target], df["train_predictions"])
 
 print(f"Final performance. R2train = {r2_train:.3f} R2test = {r2_test:.3f}")
 
-write_modeling_data_and_outcome_to_file(metric, params, set_parameters_manually, target, df,
+write_modeling_data_and_outcome_to_file(run_dummy_quick_fit, metric, params, set_parameters_manually, target, df,
                                         r2_train, r2_test, best_params, elapsed_time)
 
 plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, df, best_params)
