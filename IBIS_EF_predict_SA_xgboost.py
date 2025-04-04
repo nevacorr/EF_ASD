@@ -165,13 +165,14 @@ def predict_SA_xgboost(target, metric, params, include_group_feature, run_quick_
 
     plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, df, best_params, show_results_plot)
 
- ######## End of predict_SA_xgboost#######
+ ######## End of function predict_SA_xgboost#######
+ #####################################################################################################################
 
 targets = ["Flanker_Standard_Age_Corrected", "BRIEF2_GEC_raw_score","BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected"]
 metrics = ['subcort', 'volume', 'fa_VSA', 'md_VSA', 'rd_VSA']
 include_group_options = [0, 1]
 
-# Define parameter ranges to be used if BayesCV will be used
+# Define parameter ranges to be used (ranges if BayesCV will be used)
 params = {"n_estimators": (50, 2001),  # (50, 2001),# Number of trees to create during training
           "min_child_weight": (1, 11),
           # (1,11) # the number of samples required in each child node before attempting to split further
@@ -189,7 +190,7 @@ for target, metric, include_group in itertools.product(targets, metrics, include
         metric,
         params,
         include_group,
-        run_quick_fit=1,
+        run_quick_fit=0,
         set_params_man=0,
         show_heat_map=0,
         remove_colinear=0,
