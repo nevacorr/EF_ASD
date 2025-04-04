@@ -156,8 +156,6 @@ def load_and_clean_dti_data(dir, datafilename, vol_dir, voldatafile, target, inc
 
         columns_to_exclude.remove(target)
 
-        columns_to_exclude.remove(target)
-
     merged_df.drop(columns=columns_to_exclude, inplace=True)
 
     if include_group:
