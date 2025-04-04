@@ -16,7 +16,7 @@ run_dummy_quick_fit = 0
 set_parameters_manually = 0
 show_correlation_heatmap = 0
 remove_collinear_features = 0
-include_group_feature = 0
+include_group_feature = 1
 
 # set number of iterations for BayesCV
 n_iter = 100
@@ -42,8 +42,9 @@ elif metric == "volume":
     datafilename = volume_datafilename
     df = load_and_clean_data(vol_dir, datafilename, 'Flanker_Standard_Age_Corrected', include_group_feature)
 elif metric == "subcort":
+    datafilename = volume_datafilename
     subcort_dir = '/Users/nevao/Documents/Genz/source_data/IBIS1&2_volumes_v3.13'
-    df = load_subcortical_data(subcort_dir)
+    df = load_subcortical_data(subcort_dir, vol_dir, datafilename, 'Flanker_Standard_Age_Corrected',  include_group_feature)
 
 if run_dummy_quick_fit == 1:
     df = df.sample(frac=0.1, random_state=42)
