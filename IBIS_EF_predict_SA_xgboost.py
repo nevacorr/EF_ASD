@@ -12,7 +12,7 @@ from load_brain_data import load_subcortical_data, load_and_clean_volume_data, l
 import itertools
 
 # Main xgboost prediction code
-def predict_SA_xgboost(target, metric, include_group_feature, run_quick_fit, set_params_man, show_heat_map,
+def predict_SA_xgboost(target, metric, params, include_group_feature, run_quick_fit, set_params_man, show_heat_map,
                        remove_colinear, show_results_plot):
 
     print(f"Running with target = {target} metric = {metric} include_group = {include_group_feature} "
@@ -79,29 +79,11 @@ def predict_SA_xgboost(target, metric, include_group_feature, run_quick_fit, set
     y = df[target].values
 
     if set_parameters_manually == 0: #if search for best parameters
-        # Define parameter ranges to be used if BayesCV will be used
-        params = {"n_estimators": (50, 2001),  # (50, 2001),# Number of trees to create during training
-                  "min_child_weight": (1,11), # (1,11) # the number of samples required in each child node before attempting to split further
-                  "gamma": (0.01, 5.0, "log-uniform"),
-                  # (0.01, 5.0, "log-uniform"),# regularization. Low values allow splits as long as they improve the loss function, no matter how small
-                  "eta": (0.005, 0.5, "log-uniform"),  # (0.005, 0.5, "log-uniform"),# learning rate
-                  "subsample": (0.2, 1.0), # (0.2, 1.0),# Fraction of training dta that is sampled for each boosting round
-                  "colsample_bytree": (0.2, 1.0), #(0.2, 1.0)  the fraction of features to be selected for each tree
-                  "max_depth": (2, 6)  # (2, 6), }#maximum depth of each decision tree
-                  }
+
         xgb = XGBRegressor(objective="reg:squarederror", n_jobs=-1)
         opt = BayesSearchCV(xgb, params, n_iter=n_iter, n_jobs=-1)
 
     else:  # if parameters are to be set manually at fixed values
-
-        params = {"n_estimators": 50,  # Number of trees to create during training
-                  "min_child_weight": 1, # the number of samples required in each child node before attempting to split further
-                  "gamma": 0.4, # regularization. Low values allow splits as long as they improve the loss function, no matter how small
-                  "eta": 0.00847,  # learning rate
-                  "subsample": 1.0, # Fraction of training dta that is sampled for each boosting round
-                  "colsample_bytree": 1.0,  # the fraction of features to be selected for each tree
-                  "max_depth": 2  #maximum depth of each decision tree
-                  }
 
         xgb = XGBRegressor(
             objective="reg:squarederror",
@@ -185,15 +167,27 @@ def predict_SA_xgboost(target, metric, include_group_feature, run_quick_fit, set
 
  ######## End of predict_SA_xgboost#######
 
-targets = ["Flanker_Standard_Age_Corrected", "BRIEF2_GEC_raw_score","BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected",
-           "AB_12_Percent", "AB_24_Percent"]
+targets = ["Flanker_Standard_Age_Corrected", "BRIEF2_GEC_raw_score","BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected"]
 metrics = ['subcort', 'volume', 'fa_VSA', 'md_VSA', 'rd_VSA']
 include_group_options = [0, 1]
+
+# Define parameter ranges to be used if BayesCV will be used
+params = {"n_estimators": (50, 2001),  # (50, 2001),# Number of trees to create during training
+          "min_child_weight": (1, 11),
+          # (1,11) # the number of samples required in each child node before attempting to split further
+          "gamma": (0.01, 5.0, "log-uniform"),
+          # (0.01, 5.0, "log-uniform"),# regularization. Low values allow splits as long as they improve the loss function, no matter how small
+          "eta": (0.005, 0.5, "log-uniform"),  # (0.005, 0.5, "log-uniform"),# learning rate
+          "subsample": (0.2, 1.0),  # (0.2, 1.0),# Fraction of training dta that is sampled for each boosting round
+          "colsample_bytree": (0.2, 1.0),  # (0.2, 1.0)  the fraction of features to be selected for each tree
+          "max_depth": (2, 6)  # (2, 6), }#maximum depth of each decision tree
+          }
 
 for target, metric, include_group in itertools.product(targets, metrics, include_group_options):
     predict_SA_xgboost(
         target,
         metric,
+        params,
         include_group,
         run_quick_fit=1,
         set_params_man=0,
