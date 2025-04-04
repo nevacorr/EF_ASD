@@ -1,14 +1,14 @@
 import os
 import matplotlib.pyplot as plt
-from Utility_Functions_XGBoost import load_and_clean_data, plot_correlations, remove_collinearity, plot_xgb_actual_vs_pred
-from Utility_Functions_XGBoost import load_and_clean_dti_data, write_modeling_data_and_outcome_to_file
+from Utility_Functions_XGBoost import plot_correlations, remove_collinearity, plot_xgb_actual_vs_pred
+from Utility_Functions_XGBoost import write_modeling_data_and_outcome_to_file
 from skopt import BayesSearchCV
 from xgboost import XGBRegressor
 from sklearn.model_selection import KFold
 import numpy as np
 import time
 from sklearn.metrics import mean_squared_error,r2_score
-from load_subcortical_data import load_subcortical_data
+from load_brain_data import load_subcortical_data, load_and_clean_volume_data, load_and_clean_dti_data
 
 target = "Flanker_Standard_Age_Corrected"
 metric = "subcort"
@@ -40,7 +40,7 @@ if metric in {"fa_VSA", "md_VSA", "ad_VSA", "rd_VSA" }:
     df = load_and_clean_dti_data(dti_dir, datafilename, vol_dir, volume_datafilename, target, include_group_feature)
 elif metric == "volume":
     datafilename = volume_datafilename
-    df = load_and_clean_data(vol_dir, datafilename, 'Flanker_Standard_Age_Corrected', include_group_feature)
+    df = load_and_clean_volume_data(vol_dir, datafilename, 'Flanker_Standard_Age_Corrected', include_group_feature)
 elif metric == "subcort":
     datafilename = volume_datafilename
     subcort_dir = '/Users/nevao/Documents/Genz/source_data/IBIS1&2_volumes_v3.13'
