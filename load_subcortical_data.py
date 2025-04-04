@@ -49,12 +49,13 @@ def load_subcortical_data(filepath):
     merged_df = merged_df.loc[:, ~merged_df.columns.str.contains('Edited')]
 
     # Divide all columns with '_v12' by 'totTiss_v12'
-    v12_columns = [col for col in merged_df.columns if '_v12' in col]
+    v12_columns = [col for col in merged_df.columns if '_v12' in col and 'totTiss' not in col]
     for col in v12_columns:
         merged_df[col] = merged_df[col] / merged_df['totTiss_v12']
+        mystop=1
 
     # Divide all columns with '_v24' by 'totTiss_v24'
-    v24_columns = [col for col in merged_df.columns if '_v24' in col]
+    v24_columns = [col for col in merged_df.columns if '_v24' in col and 'totTiss' not in col]
     for col in v24_columns:
         merged_df[col] = merged_df[col] / merged_df['totTiss_v24']
 
