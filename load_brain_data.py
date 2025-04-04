@@ -2,6 +2,7 @@
 import os
 import pandas as pd
 import re
+import numpy as np
 
 def reshape_dataframe(df):
     df = df.drop(columns=["Combined_ID"])
@@ -86,10 +87,17 @@ def load_subcortical_data(filepath, vol_dir, voldatafile, target, include_group)
 
     if include_group:
         columns_to_exclude = ["Combined_ASD_DX", "Risk", "AB_12_Percent", "AB_24_Percent",
-                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected"]
+                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected",
+                              "Flanker_Standard_Age_Corrected"]
+
+        columns_to_exclude.remove(target)
+
     else:
-        columns_to_exclude = ["Combined_ASD_DX", "Group", "Risk", "AB_12_Percent", "AB_24_Percent",
-                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected"]
+        columns_to_exclude = ["Group", "Combined_ASD_DX", "Risk", "AB_12_Percent", "AB_24_Percent",
+                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected",
+                              "Flanker_Standard_Age_Corrected"]
+
+        columns_to_exclude.remove(target)
 
     merged_df.drop(columns=columns_to_exclude, inplace=True)
 
@@ -136,10 +144,19 @@ def load_and_clean_dti_data(dir, datafilename, vol_dir, voldatafile, target, inc
 
     if include_group:
         columns_to_exclude = ["Combined_ASD_DX", "Risk", "AB_12_Percent", "AB_24_Percent",
-                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected"]
+                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected",
+                              "Flanker_Standard_Age_Corrected"]
+
+        columns_to_exclude.remove(target)
+
     else:
-        columns_to_exclude = ["Combined_ASD_DX","Group", "Risk", "AB_12_Percent", "AB_24_Percent",
-                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected"]
+        columns_to_exclude = ["Group", "Combined_ASD_DX", "Risk", "AB_12_Percent", "AB_24_Percent",
+                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected",
+                              "Flanker_Standard_Age_Corrected"]
+
+        columns_to_exclude.remove(target)
+
+        columns_to_exclude.remove(target)
 
     merged_df.drop(columns=columns_to_exclude, inplace=True)
 

@@ -10,9 +10,9 @@ import time
 from sklearn.metrics import mean_squared_error,r2_score
 from load_brain_data import load_subcortical_data, load_and_clean_volume_data, load_and_clean_dti_data
 
-target = "Flanker_Standard_Age_Corrected"
+target = "BRIEF2_GEC_T_score"
 metric = "subcort"
-run_dummy_quick_fit = 0
+run_dummy_quick_fit = 1
 set_parameters_manually = 0
 show_correlation_heatmap = 1
 remove_collinear_features = 0
