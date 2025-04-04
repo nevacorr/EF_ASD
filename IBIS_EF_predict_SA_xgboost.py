@@ -71,14 +71,14 @@ y = df[target].values
 
 if set_parameters_manually == 0: #if search for best parameters
     # Define parameter ranges to be used if BayesCV will be used
-    params = {"n_estimators": (10, 500),  # (100, 500),# Number of trees to create during training
-              "min_child_weight": (1, 11),# (1,5), # the number of samples required in each child node before attempting to split further
-              "gamma": (4.0, 10.0, "log-uniform"),
-              # (0.01, 2.0, "log-uniform"),# regularization. Low values allow splits as long as they improve the loss function, no matter how small
-              "eta": (0.0005, 0.05, "log-uniform"),  # (0.05, 0.2, "log-uniform"),# learning rate
-              "subsample": (0.2, 1.0), # (0.2, 0.8),# Fraction of training dta that is sampled for each boosting round
-              "colsample_bytree": (0.4, 1.0),  # the fraction of features to be selected for each tree
-              "max_depth": (2, 5)  # (3, 5), }#maximum depth of each decision tree
+    params = {"n_estimators": (50, 2001),  # (50, 2001),# Number of trees to create during training
+              "min_child_weight": (1,11), # (1,11) # the number of samples required in each child node before attempting to split further
+              "gamma": (0.01, 5.0, "log-uniform"),
+              # (0.01, 5.0, "log-uniform"),# regularization. Low values allow splits as long as they improve the loss function, no matter how small
+              "eta": (0.005, 0.5, "log-uniform"),  # (0.005, 0.5, "log-uniform"),# learning rate
+              "subsample": (0.2, 1.0), # (0.2, 1.0),# Fraction of training dta that is sampled for each boosting round
+              "colsample_bytree": (0.2, 1.0), #(0.2, 1.0)  the fraction of features to be selected for each tree
+              "max_depth": (2, 6)  # (2, 6), }#maximum depth of each decision tree
               }
     xgb = XGBRegressor(objective="reg:squarederror", n_jobs=-1)
     opt = BayesSearchCV(xgb, params, n_iter=n_iter, n_jobs=-1)
