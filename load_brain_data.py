@@ -158,12 +158,17 @@ def load_and_clean_volume_data(filepath, filename, target, include_group):
 
     if include_group:
         columns_to_exclude = ["CandID", "Identifiers", "Combined_ASD_DX", "Risk", "AB_12_Percent", "AB_24_Percent",
-                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected", "ICV_V12",
-                              "ICV_V24", "totTiss_V12", "totTiss_V24"]
+                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected",
+                              "Flanker_Standard_Age_Corrected", "ICV_V12","ICV_V24", "totTiss_V12", "totTiss_V24"]
+
+        columns_to_exclude.remove(target)
+
     else:
         columns_to_exclude = ["CandID", "Group", "Identifiers", "Combined_ASD_DX", "Risk", "AB_12_Percent", "AB_24_Percent",
-                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected", "ICV_V12",
-                              "ICV_V24", "totTiss_V12", "totTiss_V24"]
+                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected",
+                              "Flanker_Standard_Age_Corrected","ICV_V12","ICV_V24", "totTiss_V12", "totTiss_V24"]
+
+        columns_to_exclude.remove(target)
 
     df.drop(columns=columns_to_exclude, inplace=True)
 
