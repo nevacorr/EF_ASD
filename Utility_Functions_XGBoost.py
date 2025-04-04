@@ -59,7 +59,7 @@ def write_modeling_data_and_outcome_to_file(quick_run, metric, params, set_param
         f.write(f"R2 test = {r2_test:.4f}\n")
         f.write(f"Run completion time: {elapsed_time:.2f}\n")
 
-def plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, df, best_params):
+def plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, df, best_params, show_plot):
     # Create subplots with 2 rows and 1 column
     fig, axes = plt.subplots(2, 1, figsize=(10, 12))
 
@@ -90,4 +90,5 @@ def plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, df, best_params):
         # Show the plot
     plt.tight_layout()
     plt.savefig(f"{target}_{metric}_xgboost_actual_vs_predicted")
-    plt.show(block=False)
+    if show_plot==1:
+        plt.show(block=False)
