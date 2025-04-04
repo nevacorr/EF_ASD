@@ -14,8 +14,18 @@ def reshape_dataframe(df):
 
     return df_pivot
 
-def load_subcortical_data(filepath):
-    # Get all the CSV filenames in the directory
+def load_subcortical_data(filepath, vol_dir, voldatafile, target, include_group):
+    vol_df = pd.read_csv(f"{vol_dir}/{voldatafile}")
+
+    vol_df = vol_df[vol_df['CandID'].notna()]
+
+    vol_df['CandID'] = vol_df['CandID'].astype('int64')
+
+    vol_df = vol_df.loc[:, ~vol_df.columns.str.contains('GM|WM|ICV|totTiss', regex=True)]
+
+    vol_df.drop(columns=['Identifiers'], inplace=True)
+
+    # Get all the suortical CSV filenames in the directory
     csv_files = [f for f in os.listdir(filepath) if f.endswith('.csv')]
 
     # Create an empty dictionary to store dataframes
@@ -41,26 +51,55 @@ def load_subcortical_data(filepath):
     dfs_to_merge = {key: df for key, df in dfs_transformed.items() if key != "ICV"}
 
     # Merge all dataframes on 'Combined_ID' and 'DCCID'
-    merged_df = list(dfs_to_merge.values())[0]
+    subcort_merged_df = list(dfs_to_merge.values())[0]
     for df in list(dfs_to_merge.values())[1:]:
-        merged_df = merged_df.merge(df, on='DCCID', how='outer')
+        subcort_merged_df = subcort_merged_df.merge(df, on='DCCID', how='outer')
 
     # Remove columns that contain the string "Edited"
-    merged_df = merged_df.loc[:, ~merged_df.columns.str.contains('Edited')]
+    subcort_merged_df = subcort_merged_df.loc[:, ~subcort_merged_df.columns.str.contains('Edited')]
 
     # Divide all columns with '_v12' by 'totTiss_v12'
-    v12_columns = [col for col in merged_df.columns if '_v12' in col and 'totTiss' not in col]
+    v12_columns = [col for col in subcort_merged_df.columns if '_v12' in col and 'totTiss' not in col]
     for col in v12_columns:
-        merged_df[col] = merged_df[col] / merged_df['totTiss_v12']
+        subcort_merged_df[col] = subcort_merged_df[col] / subcort_merged_df['totTiss_v12']
         mystop=1
 
     # Divide all columns with '_v24' by 'totTiss_v24'
-    v24_columns = [col for col in merged_df.columns if '_v24' in col and 'totTiss' not in col]
+    v24_columns = [col for col in subcort_merged_df.columns if '_v24' in col and 'totTiss' not in col]
     for col in v24_columns:
-        merged_df[col] = merged_df[col] / merged_df['totTiss_v24']
+        subcort_merged_df[col] = subcort_merged_df[col] / subcort_merged_df['totTiss_v24']
 
     # Drop the 'totTiss_v12' and 'totTiss_v24' columns
-    merged_df.drop(['totTiss_v12', 'totTiss_v24'], axis=1, inplace=True)
+    subcort_merged_df.drop(['totTiss_v12', 'totTiss_v24'], axis=1, inplace=True)
 
-    mystop=1
+    subcort_merged_df.rename(columns={'DCCID': 'CandID'}, inplace=True)
+
+    merged_df = vol_df.merge(subcort_merged_df, on='CandID', how='left')
+
+    merged_df.drop(columns=['CandID'], inplace=True)
+
+    # Keep only rows where the response variable is not NA
+    merged_df = merged_df[merged_df[target].notna()]
+
+    # Encode Sex column Female = 0 Male = 1
+    merged_df["Sex"] = merged_df["Sex"].replace({"Female": 0, "Male": 1})
+
+    if include_group:
+        columns_to_exclude = ["Combined_ASD_DX", "Risk", "AB_12_Percent", "AB_24_Percent",
+                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected"]
+    else:
+        columns_to_exclude = ["Combined_ASD_DX", "Group", "Risk", "AB_12_Percent", "AB_24_Percent",
+                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected"]
+
+    merged_df.drop(columns=columns_to_exclude, inplace=True)
+
+    if include_group:
+        # One-hot encode the 'Group' column
+        merged_df = pd.get_dummies(merged_df, columns=['Group'], drop_first=False)
+
+    merged_df = merged_df.dropna(subset=[col for col in merged_df.columns if col not in ['Sex', target]], how='all')
+
+    return merged_df
+
+
 
