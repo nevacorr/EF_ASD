@@ -6,7 +6,7 @@ import re
 def reshape_dataframe(df):
     df = df.drop(columns=["Combined_ID"])
     region_columns = [col for col in df.columns
-                      if '_VQC' not in col and '_ExcludeReason' not in col
+                      if '_VQC' not in col and '_ExcludeReason' not in col and '_Edited' not in col
                       and col not in ["DCCID", "Visit"]]
     df_pivot = df.pivot(index='DCCID', columns="Visit", values=region_columns)
     df_pivot.columns = [f'{col[0]}_{col[1].lower()}' for col in df_pivot.columns]
@@ -58,18 +58,8 @@ def load_subcortical_data(filepath):
     for col in v24_columns:
         merged_df[col] = merged_df[col] / merged_df['totTiss_v24']
 
-    # Check for missing or non-numeric values
-    print(f"NaN values in '_v12' columns:\n{merged_df[v12_columns].isna().sum()}")
-    print(f"NaN values in '_v24' columns:\n{merged_df[v24_columns].isna().sum()}")
-
-    # Check if all columns are numeric (this might help identify data type issues)
-    print(f"Data types:\n{merged_df[v12_columns + v24_columns].dtypes}")
-
     # Drop the 'totTiss_v12' and 'totTiss_v24' columns
     merged_df.drop(['totTiss_v12', 'totTiss_v24'], axis=1, inplace=True)
 
     mystop=1
 
-    # Example: access a specific DataFrame
-    # example_file = "IBIS_v3.13_Amygdala_2020May5_V12V24only.csv"
-    # df = dfs.get(example_file)
