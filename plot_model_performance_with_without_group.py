@@ -69,7 +69,7 @@ def plot_performance_scatter(df_with_group, df_without_group, title_str):
     # Add labels and title
     plt.xlabel('Model Number')
     plt.ylabel('R2 Score')
-    plt.title(f'{title_str}/nR2 Train vs R2 Test: With vs. Without Group Feature')
+    plt.title(f'{title_str}\nR2 Train vs R2 Test: With vs. Without Group Feature')
 
     # Add a legend to explain the colors, positioned outside the plot on the right
     plt.legend(loc='upper left', bbox_to_anchor=(1.05, 1), fontsize=10, borderpad=1, borderaxespad=1)
