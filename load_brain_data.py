@@ -18,6 +18,16 @@ def reshape_dataframe(df):
 def load_subcortical_data(filepath, vol_dir, voldatafile, target, include_group):
     vol_df = pd.read_csv(f"{vol_dir}/{voldatafile}")
 
+    # Extract first three characters of 'Identifiers' and create new column 'Site''
+    vol_df['Site'] = vol_df['Identifiers'].str[:3]
+
+    # Move 'Group' to be the third column
+    # First, drop and save the column
+    site_col = vol_df.pop('Site')
+
+    # Then insert it at position 2 (Python indexing starts at 0, so position 2 = third column)
+    vol_df.insert(2, 'Site', site_col)
+
     vol_df = vol_df[vol_df['CandID'].notna()]
 
     vol_df['CandID'] = vol_df['CandID'].astype('int64')
@@ -105,7 +115,8 @@ def load_subcortical_data(filepath, vol_dir, voldatafile, target, include_group)
         # One-hot encode the 'Group' column
         merged_df = pd.get_dummies(merged_df, columns=['Group'], drop_first=False)
 
-    merged_df = merged_df.dropna(subset=[col for col in merged_df.columns if col not in ['Sex', target]], how='all')
+    # Drop all rows where all columns except Sex, Site and target are nan
+    merged_df = merged_df.dropna(subset=[col for col in merged_df.columns if col not in ['Site', 'Sex', target]], how='all')
 
     return merged_df
 
