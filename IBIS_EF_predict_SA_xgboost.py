@@ -7,9 +7,11 @@ from xgboost import XGBRegressor
 from sklearn.model_selection import KFold
 import numpy as np
 import time
+import pandas as pd
 from sklearn.metrics import mean_squared_error,r2_score
 from load_brain_data import load_subcortical_data, load_and_clean_volume_data, load_and_clean_dti_data
 import itertools
+from neurocombat_sklearn import CombatModel
 
 # Main xgboost prediction code
 def predict_SA_xgboost(target, metric, params, include_group_feature, run_quick_fit, set_params_man, show_heat_map,
@@ -100,6 +102,9 @@ def predict_SA_xgboost(target, metric, params, include_group_feature, run_quick_
     # define cross validation scheme
     kf = KFold(n_splits=10, shuffle=True, random_state=42)
 
+    # initialize combat model
+    combat = CombatModel()
+
     # make variables to hold predictions for train and test run, as well as counts for how many times each subject appears in a train set
     train_predictions = np.zeros_like(y, dtype=np.float64)
     test_predictions = np.zeros_like(y, dtype=np.float64)
@@ -111,22 +116,42 @@ def predict_SA_xgboost(target, metric, params, include_group_feature, run_quick_
     for i, (train_index, test_index) in enumerate(kf.split(X, y)):
         print(f"{metric} Split {i + 1} - Training on {len(train_index)} samples, Testing on {len(test_index)} samples")
 
+        # Extract the sites for the current training and testing data
+        X_train_split = X.iloc[train_index]
+        X_test_split = X.iloc[test_index]
+
+        # Step 2: Create Categorical object for the training set sites
+        train_sites = pd.Categorical(X_train_split['site'])
+
+        # Step 3: Convert training sites to numeric codes (for harmonization)
+        sites_train = train_sites.codes
+
+        # Step 4: Apply the same categorical mapping to the test set sites
+        test_sites = pd.Categorical(X_test_split['site'], categories=train_sites.categories)
+        sites_test = test_sites.codes
+
+        # Step 5: Harmonize the training data
+        X_train_combat = combat.fit_transform(X_train_split.drop(columns='site'), sites_train)
+
+        # Step 6: Harmonize the test data (using the same harmonization model fitted on the training data)
+        X_test_combat = combat.transform(X_test_split.drop(columns='site'), sites_test)
+
         if set_parameters_manually == 0:
             # Fit model to train set
             print("fitting")
-            opt.fit(X[train_index], y[train_index])
+            opt.fit(X_train_combat, y[train_index])
 
             # Use model to predict on test set
-            test_predictions[test_index] = opt.predict(X[test_index])
+            test_predictions[test_index] = opt.predict(X_test_combat)
 
             # Predict for train set
-            train_predictions[train_index] += opt.predict(X[train_index])
+            train_predictions[train_index] += opt.predict(X_train_combat)
 
         else:
             # Fit xgboost model using specified parameters
-            xgb.fit(X[train_index], y[train_index])
-            test_predictions[test_index] = xgb.predict(X[test_index])
-            train_predictions[train_index] += xgb.predict(X[train_index])
+            xgb.fit(X_train_combat, y[train_index])
+            test_predictions[test_index] = xgb.predict(X_test_combat)
+            train_predictions[train_index] += xgb.predict(X_train_combat)
 
         # Keep track of the number of times that each subject is included in the train set
         train_counts[train_index] += 1
@@ -176,7 +201,7 @@ include_group_options = [0, 1]
 params = {"n_estimators": (50, 2001),  # (50, 2001),# Number of trees to create during training
           "min_child_weight": (1, 11),
           # (1,11) # the number of samples required in each child node before attempting to split further
-          "gamma": (0.01, 5.0, "log-uniform"),
+          "gamma": (0.01, 50.0, "log-uniform"),
           # (0.01, 5.0, "log-uniform"),# regularization. Low values allow splits as long as they improve the loss function, no matter how small
           "eta": (0.005, 0.5, "log-uniform"),  # (0.005, 0.5, "log-uniform"),# learning rate
           "subsample": (0.2, 1.0),  # (0.2, 1.0),# Fraction of training dta that is sampled for each boosting round
