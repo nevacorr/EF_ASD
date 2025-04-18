@@ -56,7 +56,7 @@ def predict_SA_xgboost(target, metric, params, include_group_feature, run_quick_
         datafilename = volume_datafilename
         subcort_dir = '/Users/nevao/Documents/Genz/source_data/IBIS1&2_volumes_v3.13'
         df = load_subcortical_data(subcort_dir, vol_dir, datafilename, target,  include_group_feature)
-
+        df = df.reset_index(drop=True)
     if run_dummy_quick_fit == 1:
         df = df.sample(frac=0.1, random_state=42)
         n_iter = 5
@@ -75,7 +75,7 @@ def predict_SA_xgboost(target, metric, params, include_group_feature, run_quick_
         plt.show()
 
     # Make matrix of features
-    X = df.drop(columns=[target]).values
+    X = df.drop(columns=[target])
 
     # Make vector with target value
     y = df[target].values
@@ -116,25 +116,51 @@ def predict_SA_xgboost(target, metric, params, include_group_feature, run_quick_
     for i, (train_index, test_index) in enumerate(kf.split(X, y)):
         print(f"{metric} Split {i + 1} - Training on {len(train_index)} samples, Testing on {len(test_index)} samples")
 
-        # Extract the sites for the current training and testing data
-        X_train_split = X.iloc[train_index]
-        X_test_split = X.iloc[test_index]
+        X_train = X.iloc[train_index].copy()
+        X_test = X.iloc[test_index].copy()
 
-        # Step 2: Create Categorical object for the training set sites
-        train_sites = pd.Categorical(X_train_split['site'])
+        # Create Categorical object for the training set sites
+        train_sites = pd.Categorical(X_train['Site'])
 
-        # Step 3: Convert training sites to numeric codes (for harmonization)
+        # Convert training sites to numeric codes (for harmonization)
         sites_train = train_sites.codes
 
-        # Step 4: Apply the same categorical mapping to the test set sites
-        test_sites = pd.Categorical(X_test_split['site'], categories=train_sites.categories)
+        # Replace the 'Site' column in X_train with the codes
+        X_train['Site'] = sites_train
+
+        # Apply the same categorical mapping to the test set sites
+        test_sites = pd.Categorical(X_test['Site'], categories=train_sites.categories)
         sites_test = test_sites.codes
 
-        # Step 5: Harmonize the training data
-        X_train_combat = combat.fit_transform(X_train_split.drop(columns='site'), sites_train)
+        # Replace the 'Site' column in X_test with the codes
+        X_test['Site'] = sites_test
 
-        # Step 6: Harmonize the test data (using the same harmonization model fitted on the training data)
-        X_test_combat = combat.transform(X_test_split.drop(columns='site'), sites_test)
+        #  Replace NaN values with column mean for harmonization
+        # Drop the 'Site' column because X_train and X_test after running combat will not have this column
+        nan_indices_train = X_train.isna().drop(columns=['Site','Sex'])
+        nan_indices_test = X_test.isna().drop(columns=['Site', 'Sex'])
+        X_train_temp = X_train.copy()  # Create a copy of the training data to avoid modifying original data
+        X_test_temp = X_test.copy()
+        X_train_temp = X_train_temp.fillna(X_train_temp.mean()) # Replace NaN with the column mean
+        X_test_temp = X_test_temp.fillna(X_train_temp.mean()) # Replace NaN with the column mean of the train set
+
+        # Keep a copy of Sex
+        sex_train = X_train_temp['Sex'].values.reshape(-1,1)
+        sex_test = X_test_temp['Sex'].values.reshape(-1, 1)
+
+        # Harmonize the training data
+        X_train_combat = combat.fit_transform(X_train_temp.drop(columns=['Site', 'Sex']), sites_train.reshape(-1, 1))
+        # Replace the original Nan values
+        X_train_combat[nan_indices_train] = np.nan
+
+        # Harmonize the test data (using the same harmonization model fitted on the training data)
+        X_test_combat = combat.transform(X_test_temp.drop(columns=['Site', 'Sex']), sites_test.reshape(-1, 1))
+        # Replace the original Nan values
+        X_test_combat[nan_indices_test] = np.nan
+
+        # Add sex values back into array for xgboost now that the brain measures have been harmonized
+        X_train_combat = np.hstack([sex_train,X_train_combat])
+        X_test_combat = np.hstack([sex_test, X_test_combat])
 
         if set_parameters_manually == 0:
             # Fit model to train set
@@ -194,7 +220,8 @@ def predict_SA_xgboost(target, metric, params, include_group_feature, run_quick_
  #####################################################################################################################
 
 targets = ["Flanker_Standard_Age_Corrected", "BRIEF2_GEC_raw_score","BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected"]
-metrics = ['subcort', 'volume', 'fa_VSA', 'md_VSA', 'rd_VSA']
+# metrics = ['subcort', 'volume', 'fa_VSA', 'md_VSA', 'rd_VSA']
+metrics = ['subcort']
 include_group_options = [0, 1]
 
 # Define parameter ranges to be used (ranges if BayesCV will be used)
