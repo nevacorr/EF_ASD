@@ -102,9 +102,6 @@ def predict_SA_xgboost(target, metric, params, include_group_feature, run_quick_
     # define cross validation scheme
     kf = KFold(n_splits=10, shuffle=True, random_state=42)
 
-    # initialize combat model
-    combat = CombatModel()
-
     # make variables to hold predictions for train and test run, as well as counts for how many times each subject appears in a train set
     train_predictions = np.zeros_like(y, dtype=np.float64)
     test_predictions = np.zeros_like(y, dtype=np.float64)
@@ -115,6 +112,9 @@ def predict_SA_xgboost(target, metric, params, include_group_feature, run_quick_
     # make indexes for train/test subjects for each fold
     for i, (train_index, test_index) in enumerate(kf.split(X, y)):
         print(f"{metric} Split {i + 1} - Training on {len(train_index)} samples, Testing on {len(test_index)} samples")
+
+        # initialize combat model
+        combat = CombatModel()
 
         X_train = X.iloc[train_index].copy()
         X_test = X.iloc[test_index].copy()
@@ -228,7 +228,7 @@ include_group_options = [0, 1]
 params = {"n_estimators": (50, 2001),  # (50, 2001),# Number of trees to create during training
           "min_child_weight": (1, 11),
           # (1,11) # the number of samples required in each child node before attempting to split further
-          "gamma": (0.01, 50.0, "log-uniform"),
+          "gamma": (0.01, 5.0, "log-uniform"),
           # (0.01, 5.0, "log-uniform"),# regularization. Low values allow splits as long as they improve the loss function, no matter how small
           "eta": (0.005, 0.5, "log-uniform"),  # (0.005, 0.5, "log-uniform"),# learning rate
           "subsample": (0.2, 1.0),  # (0.2, 1.0),# Fraction of training dta that is sampled for each boosting round
