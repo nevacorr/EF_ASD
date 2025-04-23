@@ -46,6 +46,7 @@ def write_modeling_data_and_outcome_to_file(quick_run, metric, params, set_param
             f.write("Used hyperparameter optimization\n")
         elif set_parameters_manually ==1:
             f.write("Set parameter manually\n")
+        f.write("Used harmonization by site\n")
         f.write(f"Metric: {metric}\n")
         f.write(f"Target: {target}\n")
         feature_names = df.drop(columns=[target, 'test_predictions', 'train_predictions']).columns.tolist()
@@ -85,7 +86,7 @@ def plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, df, best_params, 
         axes[i].set_title(
             f"{data_type.capitalize()} {metric} Predictions\nR2: {r2:.2f}\n colsample_by_tree={colsample_bytree:.2f} "
             f"n_estimators={n_estimators} min_child_weight={min_child_weight} gamma={gamma:.2f}\n eta={eta:.2e} "
-            f"subsample={subsample:.2f} max_depth={max_depth}")
+            f"subsample={subsample:.2f} max_depth={max_depth} harmonized by Site")
 
         # Show the plot
     plt.tight_layout()
