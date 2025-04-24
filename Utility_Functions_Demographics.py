@@ -319,3 +319,46 @@ def create_combined_dx_risk_column(df):
     df = replace_missing_with_nan(df)
 
     return df
+
+
+def compute_stats_conditioned_on_identifiers(df, categorical_columns=None):
+
+    if categorical_columns is None:
+        categorical_columns = []
+
+    result = {}
+
+    # Identify columns that start with 'Identifiers_' and store suffixes
+    identifier_cols = [col for col in df.columns if col.startswith('Identifiers_')]
+    suffixes = [col.replace('Identifiers_', '') for col in identifier_cols]
+
+    for suffix in suffixes:
+        id_col = f'Identifiers_{suffix}'
+        sub_df = df[df[id_col].notna()]  # Only keep rows where this identifier is not NaN
+
+        # Loop through other columns, excluding all Identifiers columns
+        for col in df.columns:
+            if col.startswith('Identifiers') or col == 'Identifiers':
+                continue
+
+            if col in sub_df.columns:
+                values = sub_df[col]
+
+                # Treat explicitly listed categorical columns as non-numeric
+                if col in categorical_columns or not pd.api.types.is_numeric_dtype(values):
+                    value_counts = values.value_counts(dropna=True).to_dict()
+                    stats = {
+                        'value_counts': value_counts,
+                        'n_nan': values.isna().sum()
+                    }
+                else:
+                    stats = {
+                        'mean': values.mean(),
+                        'std': values.std(),
+                        'count': values.count(),
+                        'n_nan': values.isna().sum()
+                    }
+
+                result[f"{col}__{suffix}"] = stats
+
+    return pd.DataFrame(result).T
