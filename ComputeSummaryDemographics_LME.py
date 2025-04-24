@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 from Utility_Functions_Demographics import compute_stats_conditioned_on_identifiers
+from Utility_Functions_Demographics import combine_redundant_columns
 
 working_dir = os.getcwd()
 
@@ -55,6 +56,13 @@ python_data.drop(columns=['DoB', 'VSD-All NIHToolBox,Date_taken', 'Risk', 'Sex',
                         'V06 tsi,father_education','VSD-All demographics,ASD_Ever_DSMIV',
                         'VSD-All NIHToolBox,Registration_Data_Fathers_Education',
                         'VSD-All NIHToolBox,Registration_Data_Guardians_Education'], inplace=True)
+
+column_groups = [['V06 demographics,candidate_ethnicity', 'V12 demographics,candidate_ethnicity'],
+    ['V06 demographics,candidate_race', 'V12 demographics,candidate_race']]
+
+new_column_names = ['V06V12candidate_ethnicity', 'V06V12candidate_race']
+
+python_data = combine_redundant_columns(python_data, column_groups, new_column_names)
 
 final_data = pd.merge(r_data_df, python_data, on='Identifiers', how='outer')
 final_data.drop(columns=["X"], inplace=True)

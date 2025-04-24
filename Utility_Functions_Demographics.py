@@ -362,3 +362,25 @@ def compute_stats_conditioned_on_identifiers(df, categorical_columns=None):
                 result[f"{col}__{suffix}"] = stats
 
     return pd.DataFrame(result).T
+
+def combine_redundant_columns(df, column_groups, new_column_names):
+    """
+    Combines multiple redundant columns into one by filling missing values in order,
+    and drops the original redundant columns.
+
+    Parameters:
+        df (pd.DataFrame): The input dataframe.
+        column_groups (list of list of str): Each inner list contains redundant column names to combine.
+        new_column_names (list of str): Names of the resulting combined columns (same length as column_groups).
+
+    Returns:
+        pd.DataFrame: Modified dataframe with new combined columns and original redundant columns dropped.
+    """
+    for group, new_col in zip(column_groups, new_column_names):
+        combined = df[group[0]].copy()
+        for col in group[1:]:
+            combined = combined.fillna(df[col])
+        df[new_col] = combined
+        df.drop(columns=group, inplace=True)
+
+    return df
