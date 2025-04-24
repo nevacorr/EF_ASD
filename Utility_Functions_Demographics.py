@@ -384,3 +384,23 @@ def combine_redundant_columns(df, column_groups, new_column_names):
         df.drop(columns=group, inplace=True)
 
     return df
+
+def convert_maternal_education_num_to_string(score):
+    if pd.isna(score):
+        return "nan"
+    elif score < 9:
+        return "some_hs"
+    elif score < 12:
+        return "some_hs"
+    elif score == 12:
+        return "high_school"
+    elif score <= 14:
+        return "some_college"
+    elif score == 16:
+        return "college_degree"
+    elif score <= 18:
+        return "some_grad_level"
+    elif score > 18:
+        return "grad_degree"
+    else:
+        return "nan"

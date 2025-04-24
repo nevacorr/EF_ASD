@@ -2,6 +2,7 @@ import os
 import pandas as pd
 from Utility_Functions_Demographics import compute_stats_conditioned_on_identifiers
 from Utility_Functions_Demographics import combine_redundant_columns
+from Utility_Functions_Demographics import convert_maternal_education_num_to_string
 
 working_dir = os.getcwd()
 
@@ -55,23 +56,32 @@ python_data = pd.read_csv(os.path.join(python_directory, python_filename))
 python_data.drop(columns=['DoB', 'VSD-All NIHToolBox,Date_taken', 'Risk', 'Sex',
                         'V06 tsi,father_education','VSD-All demographics,ASD_Ever_DSMIV',
                         'VSD-All NIHToolBox,Registration_Data_Fathers_Education',
-                        'VSD-All NIHToolBox,Registration_Data_Guardians_Education'], inplace=True)
+                        'VSD-All NIHToolBox,Registration_Data_Guardians_Education',
+                        'VSD-All NIHToolBox,Registration_Data_Education',
+                        'V06 tsi,child_ethnicity','V06 tsi,candidate_race'], inplace=True)
+
+vsa_me_col_name = 'VSD-All NIHToolBox,Registration_Data_Mothers_Education'
+python_data[vsa_me_col_name] = python_data[vsa_me_col_name].apply(convert_maternal_education_num_to_string)
 
 column_groups = [['V06 demographics,candidate_ethnicity', 'V12 demographics,candidate_ethnicity'],
-    ['V06 demographics,candidate_race', 'V12 demographics,candidate_race']]
+    ['V06 demographics,candidate_race', 'V12 demographics,candidate_race'],
+    ['V06 tsi,mother_education', 'VSD-All NIHToolBox,Registration_Data_Mothers_Education']]
 
-new_column_names = ['V06V12candidate_ethnicity', 'V06V12candidate_race']
+new_column_names = ['V06V12candidate_ethnicity', 'V06V12candidate_race', 'AllAges_MotherEducation']
 
 python_data = combine_redundant_columns(python_data, column_groups, new_column_names)
+
+# column_groups = [['V06V12candidate_ethnicity', 'VSD-All NIHToolBox,Registration_Data_Ethnicity'],
+#                  ['V06V12candidate_race', 'VSD-All NIHToolBox,Registration_Data_Race']]
+#
+# new_column_names = ['AllAges_Ethnicity', 'AllAges_Race']
+#
+# python_data = combine_redundant_columns(python_data, column_groups, new_column_names)
 
 final_data = pd.merge(r_data_df, python_data, on='Identifiers', how='outer')
 final_data.drop(columns=["X"], inplace=True)
 
-demo_stats = compute_stats_conditioned_on_identifiers(final_data,
-        categorical_columns=['VSD-All NIHToolBox,Registration_Data_Education',
-       'VSD-All NIHToolBox,Registration_Data_Ethnicity',
-       'VSD-All NIHToolBox,Registration_Data_Mothers_Education',
-       'VSD-All NIHToolBox,Registration_Data_Race'])
+demo_stats = compute_stats_conditioned_on_identifiers(final_data, categorical_columns=[])
 
 demo_stats.to_csv(os.path.join(working_dir, 'demographic_stats_summary.csv'))
 
