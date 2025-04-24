@@ -346,7 +346,7 @@ def compute_stats_conditioned_on_identifiers(df, categorical_columns=None):
 
                 # Treat explicitly listed categorical columns as non-numeric
                 if col in categorical_columns or not pd.api.types.is_numeric_dtype(values):
-                    value_counts = values.value_counts(dropna=True).to_dict()
+                    value_counts = values.value_counts(dropna=False).to_dict()
                     stats = {
                         'value_counts': value_counts,
                         'n_nan': values.isna().sum()
