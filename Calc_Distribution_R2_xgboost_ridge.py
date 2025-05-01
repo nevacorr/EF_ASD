@@ -75,7 +75,7 @@ def load_data(target, metric, include_group_feature, run_dummy_quick_fit, show_h
     return X, y, df
 
 # Main xgboost prediction code
-def predict_SA_xgboost(df, X, y, target, metric, params, run_dummy_quick_fit, set_params_man, show_results_plot, bootstrap):
+def predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit, set_params_man, show_results_plot, bootstrap):
 
     set_parameters_manually = set_params_man
     show_results_plot = show_results_plot
@@ -222,9 +222,9 @@ def predict_SA_xgboost(df, X, y, target, metric, params, run_dummy_quick_fit, se
  ######## End of function predict_SA_xgboost#######
  #####################################################################################################################
 
-targets = ["BRIEF2_GEC_T_score"]
-metrics = ['subcort']
-include_group_options = 1
+target = "BRIEF2_GEC_T_score"
+metric = 'subcort'
+include_group = 1
 
 # Define parameter ranges to be used (ranges if BayesCV will be used)
 params = {"n_estimators": 50,  # (50, 2001),# Number of trees to create during training
@@ -238,26 +238,24 @@ params = {"n_estimators": 50,  # (50, 2001),# Number of trees to create during t
           "max_depth": 5  # (2, 6), }#maximum depth of each decision tree
           }
 
-for target, metric, include_group in itertools.product(targets, metrics, include_group_options):
+run_dummy_quick_fit = 0
 
-    run_dummy_quick_fit = 0
-
-    X, y, df = load_data(
-                target,
-                metric,
-                include_group,
-                run_dummy_quick_fit,
-                show_heat_map=0,
-                remove_colinear=0,
+X, y, df = load_data(
+            target,
+            metric,
+            include_group,
+            run_dummy_quick_fit,
+            show_heat_map=0,
+            remove_colinear=0,
 )
-    predict_SA_xgboost(
-                X,
-                y,
-                df,
-                target,
-                metric,
-                params,
-                run_dummy_quick_fit,
-                set_params_man=1,
-                show_results_plot=0,
-                bootstrap=0)
+predict_SA_xgboost(
+            X,
+            y,
+            df,
+            target,
+            metric,
+            params,
+            run_dummy_quick_fit,
+            set_params_man=1,
+            show_results_plot=0,
+            bootstrap=0)
