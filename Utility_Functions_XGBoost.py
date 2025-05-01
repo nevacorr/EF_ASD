@@ -36,7 +36,7 @@ def remove_collinearity(df, threshold):
     return df_reduced
 
 def write_modeling_data_and_outcome_to_file(quick_run, metric, params, set_parameters_manually, target,
-                                            df, r2_train, r2_test, best_params, elapsed_time):
+                                            df, r2_train, r2_test, best_params, bootstrap, elapsed_time):
     with open(f"{target}_{metric}_xgboost_run_results_summary.txt", "a") as f:
         # Write featueres and targets used
         f.write(f"####### Model performance summary ######\n")
@@ -46,6 +46,8 @@ def write_modeling_data_and_outcome_to_file(quick_run, metric, params, set_param
             f.write("Used hyperparameter optimization\n")
         elif set_parameters_manually ==1:
             f.write("Set parameter manually\n")
+        if bootstrap ==1:
+            f.write("Bootstrapped")
         f.write("Used harmonization by site\n")
         f.write(f"Metric: {metric}\n")
         f.write(f"Target: {target}\n")
