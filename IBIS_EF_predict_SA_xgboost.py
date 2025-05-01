@@ -15,7 +15,7 @@ from neurocombat_sklearn import CombatModel
 
 # Main xgboost prediction code
 def predict_SA_xgboost(target, metric, params, include_group_feature, run_quick_fit, set_params_man, show_heat_map,
-                       remove_colinear, show_results_plot):
+                       remove_colinear, show_results_plot, bootstrap):
 
     print(f"Running with target = {target} metric = {metric} include_group = {include_group_feature} "
           f"quick fit = {run_quick_fit}")
@@ -141,7 +141,7 @@ def predict_SA_xgboost(target, metric, params, include_group_feature, run_quick_
         nan_indices_test = X_test.isna().drop(columns=['Site', 'Sex'])
         X_train_temp = X_train.copy()  # Create a copy of the training data to avoid modifying original data
         X_test_temp = X_test.copy()
-        X_train_temp = X_train_temp.fillna(X_train_temp.mean()) # Replace NaN with the column mean
+        X_train_temp = X_train_temp.fillna(X_train_temp.mean()) # Replace NaN with the column mean (change to use scikit learn)
         X_test_temp = X_test_temp.fillna(X_train_temp.mean()) # Replace NaN with the column mean of the train set
 
         # Keep a copy of Sex
@@ -212,7 +212,7 @@ def predict_SA_xgboost(target, metric, params, include_group_feature, run_quick_
     print(f"Final performance. R2train = {r2_train:.3f} R2test = {r2_test:.3f}")
 
     write_modeling_data_and_outcome_to_file(run_dummy_quick_fit, metric, params, set_parameters_manually, target, df,
-                                            r2_train, r2_test, best_params, elapsed_time)
+                                            r2_train, r2_test, best_params, bootstrap, elapsed_time)
 
     plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, df, best_params, show_results_plot)
 
@@ -246,4 +246,5 @@ for target, metric, include_group in itertools.product(targets, metrics, include
         set_params_man=0,
         show_heat_map=0,
         remove_colinear=0,
-        show_results_plot=0)
+        show_results_plot=0,
+        bootstrap=0)
