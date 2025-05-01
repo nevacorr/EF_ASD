@@ -4,17 +4,15 @@ from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-def make_lists_of_columns_needed(anotb, brief2, dx2, nihtoolbox, asd_diagnosis):
+def make_lists_of_columns_needed(anotb, brief2, dx2, nihtoolbox, asd_diagnosis, time1_demographics):
 
     ####### ---- A not B-----#######
-    anotb_cols_to_keep = ['Identifiers', 'V12prefrontal_taskCandidate_Age', 'V24prefrontal_taskCandidate_Age',
-                          'AB_12_Percent', 'AB_24_Percent', 'V12_AB_validitycode', 'V24_AB_validitycode',
-                          'AB_Reversals_12_Percent', 'AB_Reversals_24_Percent']
+    anotb_cols_to_keep = []
     anotb_cols_to_remove = list(anotb.columns.difference(anotb_cols_to_keep))
 
     ####### ---- BRIEF2-----#######
-    brief2_cols_to_keep = ['Identifiers', 'VSA BRIEF2_Parent,Candidate_Age', 'VSA-CVD BRIEF2_Parent,Candidate_Age']
-    brief2_cols_to_keep.extend([col for col in brief2.columns.tolist() if 'raw_score' in col or 'T_score' in col])
+    brief2_cols_to_keep = []
+
     remove_list = ['VSA BRIEF2_Parent,T_score', 'VSA-CVD BRIEF2_Parent,T_score','VSA BRIEF2_Parent,raw_score',
                    'VSA-CVD BRIEF2_Parent,raw_score']
     brief2_cols_to_keep = [col for col in brief2_cols_to_keep if col not in remove_list]
@@ -46,8 +44,14 @@ def make_lists_of_columns_needed(anotb, brief2, dx2, nihtoolbox, asd_diagnosis):
     asd_cols_to_keep = ['Identifiers']
     asd_cols_to_keep.extend([col for col in asd_diagnosis if 'Ever_DSMIV' in col])
 
+    ########------ Time 1 Demographics -------#########
+    demot1_cols_to_keep = ['Identifiers']
+    demot1_substrings_to_keep = ['ethnicity', 'race', 'education', 'ses']
+    demot1_cols_to_keep.extend(
+        [col for col in time1_demographics.columns if any(sub in col for sub in demot1_substrings_to_keep)])
+
     return (anotb_cols_to_remove, brief2_cols_to_keep, brief1_cols_to_remove, dx_cols_to_remove, dx2_cols_to_keep,
-            nihtoolbox_cols_to_keep, asd_cols_to_keep)
+            nihtoolbox_cols_to_keep, asd_cols_to_keep, demot1_cols_to_keep)
 
 # Take DOB data frame and create a single data frame with one Sex, one Risk,a nd one Dob columns for all Identifiers
 def simplify_dob_df(dob_risk_sex):
