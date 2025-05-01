@@ -95,3 +95,15 @@ def plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, df, best_params, 
     plt.savefig(f"{target}_{metric}_xgboost_actual_vs_predicted")
     if show_plot==1:
         plt.show(block=False)
+
+
+def generate_bootstrap_indices(n_rows, n_iterations=100):
+
+    np.random.seed(42)
+
+    indices_list = []
+    for _ in range(n_iterations):
+        bootstrap_indices = np.random.choice(n_rows, size=n_rows, replace=True)
+        indices_list.append(bootstrap_indices)
+
+    return indices_list
