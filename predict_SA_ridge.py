@@ -117,7 +117,7 @@ def predict_SA_ridge(X, y, df, target, alpha_value, n_bootstraps):
         r2_test = r2_score(y, test_predictions)
         r2_train = r2_score(y, train_predictions)
 
-        print(f"R2train = {r2_train:.3f}, R2test = {r2_test:.3f}")
+        print(f"R2test = {r2_test:.3f}")
 
         end_time = time.time()
         elapsed_time = (end_time - start_time) / 60.0

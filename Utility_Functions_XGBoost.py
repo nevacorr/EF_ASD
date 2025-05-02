@@ -136,7 +136,7 @@ def plot_r2_distribution(r2_test_array, result_text, percentile_value,
 
     # Add title and labels
     plt.title(
-        f'{target.capitalize()} predicted from {metric} with {alg}\nBootstrap r²test Distribution '
+        f'{target} predicted from {metric} with {alg}\nBootstrap r²test Distribution '
         f'with {alpha * 100:.0f}% Percentile Marked\n{result_text}\nnbootstraps={n_bootstraps}')
     plt.xlabel('r² test')
     plt.ylabel('Frequency')
