@@ -1,7 +1,8 @@
 import os
 import matplotlib.pyplot as plt
 from Utility_Functions_XGBoost import plot_correlations, remove_collinearity, plot_xgb_actual_vs_pred
-from Utility_Functions_XGBoost import write_modeling_data_and_outcome_to_file, generate_bootstrap_indices
+from Utility_Functions_XGBoost import write_modeling_data_and_outcome_to_file, calculate_percentile
+from Utility_Functions_XGBoost import plot_r2_distribution
 from skopt import BayesSearchCV
 from xgboost import XGBRegressor
 from sklearn.model_selection import KFold
@@ -109,7 +110,7 @@ def predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit, se
         )
     # record start time
     start_time = time.time()
-    rng = np.random.default_rng(42)  # Fixed seed for reproducibility
+    # rng = np.random.default_rng(42)  # Fixed seed for reproducibility
 
     for b in range(n_bootstraps):
         print(f"Bootstrap iteration {b + 1}/{n_bootstraps}")
@@ -135,7 +136,7 @@ def predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit, se
             y_test = y[test_index].copy()
 
             # Bootstrap the training data only
-            bootstrap_indices = rng.choice(len(train_index), size=len(train_index), replace=True)
+            bootstrap_indices = np.random.choice(len(train_index), size=len(train_index), replace=True)
             X_train_boot = X_train.iloc[bootstrap_indices].reset_index(drop=True)
             y_train_boot = y_train[bootstrap_indices]
 
@@ -236,7 +237,7 @@ def predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit, se
 target = "BRIEF2_GEC_raw_score"
 metric = 'subcort'
 include_group = 1
-n_bootstraps = 200
+n_bootstraps = 50
 
 # Define parameter ranges to be used (ranges if BayesCV will be used)
 params = {"n_estimators": 50,  # (50, 2001),# Number of trees to create during training
@@ -259,33 +260,11 @@ r2_test_xgboost = predict_SA_xgboost(X, y, df, target, metric, params, run_dummy
 
 r2_test_array_xgb = np.array(r2_test_xgboost)
 
-alpha=5
+alpha=0.05
 
-lower_bound = np.percentile(r2_test_array_xgb, alpha)
+result_text, percentile_value = calculate_percentile(r2_test_array_xgb, alpha)
 
-if lower_bound > 0:
-    print(f"R² is significantly greater than 0 at the 5% level (one-tailed)")
-else:
-    print(f"R² is NOT significant at the 5% level (one-tailed)")
+plot_r2_distribution(r2_test_array_xgb, result_text, percentile_value, target, metric,
+                     alpha, n_bootstraps, alg='XGBoost')
 
-print(f"{100 - alpha}% lower confidence bound: {lower_bound:.4f}")
-
-percentile_value = np.percentile(r2_test_array_xgb, alpha)
-
-# Plot the distribution
-plt.figure(figsize=(10, 6))
-sns.histplot(r2_test_array_xgb, bins=30, kde=True, color='skyblue')
-
-# Add vertical line at the 5th percentile
-plt.axvline(percentile_value, color='red', linestyle='--', linewidth=2, label=f'5th percentile = {percentile_value:.3f}')
-
-# Add title and labels
-plt.title(f'Bootstrap R² Distribution with {alpha}% Percentile Marked')
-plt.xlabel('R²')
-plt.ylabel('Frequency')
-
-# Add legend
-plt.legend()
-
-# Show plot
 plt.show()

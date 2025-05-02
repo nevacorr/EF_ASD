@@ -107,3 +107,42 @@ def generate_bootstrap_indices(n_rows, n_iterations=100):
         indices_list.append(bootstrap_indices)
 
     return indices_list
+
+def calculate_percentile(r2_test_array, alpha):
+
+    lower_bound = np.percentile(r2_test_array, alpha * 100)
+
+    if lower_bound > 0:
+        result_text = f"R² is significantly greater than 0 at the {int(alpha * 100)}% level (one-tailed)"
+    else:
+        result_text = f"R² is NOT significant at the 5% level (one-tailed)"
+
+    print(f"{(1 - alpha) * 100}% lower confidence bound: {lower_bound:.4f}")
+
+    # Get value below which alpha*100 % of the data fall
+    percentile_value = np.percentile(r2_test_array, alpha * 100)
+
+    return result_text, percentile_value
+
+def plot_r2_distribution(r2_test_array, result_text, percentile_value,
+                         target, metric, alpha, n_bootstraps, alg):
+    # Plot the distribution
+    plt.figure(figsize=(10, 8))
+    sns.histplot(r2_test_array, bins=30, kde=True, color='skyblue')
+
+    # Add vertical line at the 5th percentile
+    plt.axvline(percentile_value, color='red', linestyle='--', linewidth=2,
+                label=f'5th percentile = {percentile_value:.3f}')
+
+    # Add title and labels
+    plt.title(
+        f'{target}.capitalize() predicted from {metric} with {alg}\nBootstrap R² Distribution '
+        f'with {alpha * 100}% Percentile Marked\n{result_text}\nnbootstraps={n_bootstraps}')
+    plt.xlabel('R²')
+    plt.ylabel('Frequency')
+
+    # Add legend
+    plt.legend()
+
+    # Show plot
+    plt.show()
