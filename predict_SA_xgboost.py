@@ -4,10 +4,14 @@ from sklearn.model_selection import KFold
 import numpy as np
 import time
 import pandas as pd
-from sklearn.metrics import mean_squared_error,r2_score
+from sklearn.metrics import mean_squared_error, r2_score
 from neurocombat_sklearn import CombatModel
+import warnings
 
 def predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit, set_params_man, show_results_plot, n_bootstraps):
+
+    # Suppress all FutureWarnings
+    warnings.simplefilter(action='ignore', category=FutureWarning)
 
     set_parameters_manually = set_params_man
 
@@ -155,4 +159,6 @@ def predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit, se
         # plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, df, best_params, show_results_plot)
         r2_test_all_bootstraps.append(r2_test)
 
-    return r2_test_all_bootstraps
+    r2_test_array_xgb = np.array(r2_test_all_bootstraps)
+
+    return r2_test_array_xgb
