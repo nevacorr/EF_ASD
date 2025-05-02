@@ -3,18 +3,15 @@ from Utility_Functions_XGBoost import calculate_percentile
 from Utility_Functions_XGBoost import plot_r2_distribution
 from predict_SA_ridge import tune_ridge_alpha
 import numpy as np
-import warnings
 from load_data_for_ML import load_data
 from predict_SA_xgboost import predict_SA_xgboost
-
-# Suppress all FutureWarnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
+from predict_SA_ridge import predict_SA_ridge
 
 target = "BRIEF2_GEC_T_score"
 metric = 'subcort'
 include_group = 1
-n_bootstraps = 100
-run_dummy_quick_fit = 0
+n_bootstraps = 1000
+run_dummy_quick_fit_xgb = 0
 alpha=0.05
 
 # Define parameter ranges to be used (ranges if BayesCV will be used)
@@ -29,18 +26,33 @@ params = {"n_estimators": 353,  # (50, 2001),# Number of trees to create during 
           "max_depth": 3  # (2, 6), }#maximum depth of each decision tree
           }
 
-X, y, df = load_data(target, metric, include_group, run_dummy_quick_fit, show_heat_map=0, remove_colinear=0)
+# Load and clean data for selected target and metric
+X, y, df = load_data(target, metric, include_group, run_dummy_quick_fit_xgb, show_heat_map=0, remove_colinear=0)
 
-r2_test_xgboost = predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit, set_params_man=1,
-                show_results_plot=0, n_bootstraps=n_bootstraps)
+# # Use XGBoost to predict school age behavior from brain metric
+# r2_test_array_xgb = predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit_xgb, set_params_man=1,
+#                 show_results_plot=0, n_bootstraps=n_bootstraps)
+#
+# # Calculate_xgb_percentile for r2test
+# result_text_xgb, percentile_value_xgb = calculate_percentile(r2_test_array_xgb, alpha)
+#
+# # Plot distribution of r2 test
+# plot_r2_distribution(r2_test_array_xgb, result_text_xgb, percentile_value_xgb, target, metric,
+#                      alpha, n_bootstraps, alg='XGBoost')
+# plt.show()
 
-r2_test_array_xgb = np.array(r2_test_xgboost)
+# Get best alpha for ridge regression fit
+# best_ridge_alpha = tune_ridge_alpha(X, y)
 
-result_text, percentile_value = calculate_percentile(r2_test_array_xgb, alpha)
+best_ridge_alpha = 4.838
 
-plot_r2_distribution(r2_test_array_xgb, result_text, percentile_value, target, metric,
-                     alpha, n_bootstraps, alg='XGBoost')
+# Run ridge regression
+r2_test_array_ridge = predict_SA_ridge(X, y, df, target, best_ridge_alpha, n_bootstraps)
 
-tune_ridge_alpha(X, y)
+# Calculate ridge_percentile for r2test
+result_text_ridge, percentile_value_ridge = calculate_percentile(r2_test_array_ridge, alpha)
 
+# Plot distribution of r2 test
+plot_r2_distribution(r2_test_array_ridge, result_text_ridge, percentile_value_ridge, target, metric,
+                     alpha, n_bootstraps, alg='Ridge regression')
 plt.show()
