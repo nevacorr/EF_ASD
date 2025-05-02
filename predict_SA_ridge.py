@@ -6,8 +6,10 @@ import pandas as pd
 import time
 from neurocombat_sklearn import CombatModel
 from sklearn.model_selection import GridSearchCV
+import warnings
 
 def tune_ridge_alpha(X, y, site_column='Site', sex_column='Sex'):
+
     combat = CombatModel()
 
     X_no_site_sex = X.drop(columns=[site_column, sex_column])
@@ -25,7 +27,7 @@ def tune_ridge_alpha(X, y, site_column='Site', sex_column='Sex'):
     X_final = np.hstack([sex, X_combat])
 
     # Define grid
-    alphas = np.logspace(-4, 4, 20)
+    alphas = np.logspace(-4, 4, 1000)
     ridge = Ridge()
     grid = GridSearchCV(ridge, {'alpha': alphas}, cv=10, scoring='r2')
     grid.fit(X_final, y)
@@ -34,12 +36,15 @@ def tune_ridge_alpha(X, y, site_column='Site', sex_column='Sex'):
     return best_alpha
 
 def predict_SA_ridge(X, y, df, target, alpha_value, n_bootstraps):
+
+    # Suppress all FutureWarnings
+    warnings.simplefilter(action='ignore', category=FutureWarning)
+
     r2_test_all_bootstraps = []
 
     start_time = time.time()
 
     for b in range(n_bootstraps):
-        print(f"Bootstrap iteration {b + 1}/{n_bootstraps}")
 
         train_predictions = np.zeros_like(y, dtype=np.float64)
         test_predictions = np.zeros_like(y, dtype=np.float64)
@@ -61,10 +66,6 @@ def predict_SA_ridge(X, y, df, target, alpha_value, n_bootstraps):
             X_train_boot = X_train.iloc[bootstrap_indices].reset_index(drop=True)
             y_train_boot = y_train[bootstrap_indices]
 
-            # Fill NaNs (important for Ridge)
-            X_train_boot = X_train_boot.fillna(X_train_boot.mean())
-            X_test = X_test.fillna(X_train_boot.mean())
-
             # Create Categorical object for the training set sites
             train_sites = pd.Categorical(X_train_boot['Site'])
 
@@ -84,6 +85,10 @@ def predict_SA_ridge(X, y, df, target, alpha_value, n_bootstraps):
             # Keep a copy of Sex
             sex_train = X_train_boot['Sex'].values.reshape(-1,1)
             sex_test = X_test['Sex'].values.reshape(-1, 1)
+
+            # Fill NaNs (important for Ridge)
+            X_train_boot = X_train_boot.fillna(X_train_boot.mean())
+            X_test = X_test.fillna(X_train_boot.mean())
 
             # Harmonize the training data
             X_train_boot_combat = combat.fit_transform(X_train_boot.drop(columns=['Site', 'Sex']), sites_train.reshape(-1, 1))
@@ -112,12 +117,14 @@ def predict_SA_ridge(X, y, df, target, alpha_value, n_bootstraps):
         r2_test = r2_score(y, test_predictions)
         r2_train = r2_score(y, train_predictions)
 
-        print(f"Ridge regression final performance. R2train = {r2_train:.3f}, R2test = {r2_test:.3f}")
+        print(f"R2train = {r2_train:.3f}, R2test = {r2_test:.3f}")
 
         end_time = time.time()
         elapsed_time = (end_time - start_time) / 60.0
-        print(f"Bootstrap {b + 1}/{n_bootstraps} complete. Time to run this bootstrap: {elapsed_time:.2f} minutes")
+        print(f"Ridge Bootstrap {b + 1}/{n_bootstraps} complete. Time to run this bootstrap: {elapsed_time:.2f} minutes")
 
         r2_test_all_bootstraps.append(r2_test)
 
-    return r2_test_all_bootstraps
+    r2_test_array_ridge = np.array(r2_test_all_bootstraps)
+
+    return r2_test_array_ridge
