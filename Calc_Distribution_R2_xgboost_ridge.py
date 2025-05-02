@@ -83,7 +83,6 @@ def load_data(target, metric, include_group_feature, run_dummy_quick_fit, show_h
 def predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit, set_params_man, show_results_plot, n_bootstraps):
 
     set_parameters_manually = set_params_man
-    show_results_plot = show_results_plot
 
     r2_test_all_bootstraps=[]
 
@@ -110,20 +109,22 @@ def predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit, se
         )
     # record start time
     start_time = time.time()
+    rng = np.random.default_rng(42)  # Fixed seed for reproducibility
+
     for b in range(n_bootstraps):
         print(f"Bootstrap iteration {b + 1}/{n_bootstraps}")
-
-        # define cross validation scheme
-        kf = KFold(n_splits=10, shuffle=True, random_state=42)
 
         # make variables to hold predictions for train and test run, as well as counts for how many times each subject appears in a train set
         train_predictions = np.zeros_like(y, dtype=np.float64)
         test_predictions = np.zeros_like(y, dtype=np.float64)
         train_counts = np.zeros_like(y, dtype=np.int64)
 
+        # define cross validation scheme
+        kf = KFold(n_splits=10, shuffle=True, random_state=42)
+
         # make indexes for train/test subjects for each fold
         for i, (train_index, test_index) in enumerate(kf.split(X, y)):
-            print(f"bootstrap={b}/{n_bootstraps} {metric} Split {i + 1} - Training on {len(train_index)} samples, Testing on {len(test_index)} samples")
+            # print(f"bootstrap={b}/{n_bootstraps} {metric} Split {i + 1} - Training on {len(train_index)} samples, Testing on {len(test_index)} samples")
 
             # initialize combat model
             combat = CombatModel()
@@ -134,9 +135,9 @@ def predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit, se
             y_test = y[test_index].copy()
 
             # Bootstrap the training data only
-            bootstrap_indices = np.random.choice(len(train_index), size=len(train_index), replace=True)
+            bootstrap_indices = rng.choice(len(train_index), size=len(train_index), replace=True)
             X_train_boot = X_train.iloc[bootstrap_indices].reset_index(drop=True)
-            y_train_boot = y_train.iloc[bootstrap_indices].reset_index(drop=True)
+            y_train_boot = y_train[bootstrap_indices]
 
             # Create Categorical object for the training set sites
             train_sites = pd.Categorical(X_train_boot['Site'])
@@ -160,8 +161,8 @@ def predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit, se
             nan_indices_test = X_test.isna().drop(columns=['Site', 'Sex'])
             X_train_boot_temp = X_train_boot.copy()  # Create a copy of the training data to avoid modifying original data
             X_test_temp = X_test.copy()
-            X_train_temp = X_train_boot_temp.fillna(X_train_boot_temp.mean()) # Replace NaN with the column mean (change to use scikit learn)
-            X_test_temp = X_test_temp.fillna(X_train_temp.mean()) # Replace NaN with the column mean of the train set
+            X_train_boot_temp = X_train_boot_temp.fillna(X_train_boot_temp.mean()) # Replace NaN with the column mean (change to use scikit learn)
+            X_test_temp = X_test_temp.fillna(X_train_boot_temp.mean()) # Replace NaN with the column mean of the train set
 
             # Keep a copy of Sex
             sex_train = X_train_boot_temp['Sex'].values.reshape(-1,1)
@@ -211,15 +212,15 @@ def predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit, se
             best_params = params
 
         # Compute R2
-        r2_test = r2_score(y_test, test_predictions)
-        r2_train = r2_score(y_train_boot, train_predictions)
+        r2_test = r2_score(y, test_predictions)
+        r2_train = r2_score(y, train_predictions)
 
         print(f"Final performance. R2train = {r2_train:.3f} R2test = {r2_test:.3f}")
 
         # Calculate and print time it took to complete all model creations and predictions across all cv splits
         end_time = time.time()
         elapsed_time = (end_time - start_time) / 60.0
-        print(f"bootstrap{b}/{n_bootstraps} complete. Time to run this bootstrap: {elapsed_time:.2f} minutes")
+        print(f"bootstrap{b}/{n_bootstraps} complete. Time since beginning of program: {elapsed_time:.2f} minutes")
 
         # write_modeling_data_and_outcome_to_file(run_dummy_quick_fit, metric, params, set_parameters_manually, target, df,
         #                                         r2_train, r2_test, best_params, bootstrap, elapsed_time)
@@ -232,10 +233,10 @@ def predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit, se
  ######## End of function predict_SA_xgboost#######
  #####################################################################################################################
 
-target = "BRIEF2_GEC_T_score"
+target = "BRIEF2_GEC_raw_score"
 metric = 'subcort'
 include_group = 1
-n_bootstraps = 10
+n_bootstraps = 200
 
 # Define parameter ranges to be used (ranges if BayesCV will be used)
 params = {"n_estimators": 50,  # (50, 2001),# Number of trees to create during training
@@ -253,10 +254,8 @@ run_dummy_quick_fit = 0
 
 X, y, df = load_data(target, metric, include_group, run_dummy_quick_fit, show_heat_map=0, remove_colinear=0)
 
-r2_test_xgboost = []
-r2_test = predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit, set_params_man=1,
-                show_results_plot=0, bootstrap=1)
-r2_test_xgboost.append(r2_test)
+r2_test_xgboost = predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit, set_params_man=1,
+                show_results_plot=0, n_bootstraps=n_bootstraps)
 
 r2_test_array_xgb = np.array(r2_test_xgboost)
 
