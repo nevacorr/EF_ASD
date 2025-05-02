@@ -43,7 +43,6 @@ def predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit, se
     rng = np.random.default_rng(42)  # Fixed seed for reproducibility
 
     for b in range(n_bootstraps):
-        print(f"Bootstrap iteration {b + 1}/{n_bootstraps}")
 
         # make variables to hold predictions for train and test run, as well as counts for how many times each subject appears in a train set
         train_predictions = np.zeros_like(y, dtype=np.float64)
@@ -146,12 +145,12 @@ def predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit, se
         r2_test = r2_score(y, test_predictions)
         r2_train = r2_score(y, train_predictions)
 
-        print(f"Final performance. R2test = {r2_test:.3f}")
+        print(f"R2test = {r2_test:.3f}")
 
         # Calculate and print time it took to complete all model creations and predictions across all cv splits
         end_time = time.time()
         elapsed_time = (end_time - start_time) / 60.0
-        print(f"bootstrap {b + 1}/{n_bootstraps} complete. Time since beginning of program: {elapsed_time:.2f} minutes")
+        print(f"XGB Bootstrap {b + 1}/{n_bootstraps} complete. Time since beginning of program: {elapsed_time:.2f} minutes")
 
         # write_modeling_data_and_outcome_to_file(run_dummy_quick_fit, metric, params, set_parameters_manually, target, df,
         #                                         r2_train, r2_test, best_params, bootstrap, elapsed_time)
