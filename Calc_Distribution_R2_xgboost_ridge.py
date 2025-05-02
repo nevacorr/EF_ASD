@@ -14,6 +14,9 @@ n_bootstraps = 10
 run_dummy_quick_fit_xgb = 0
 alpha=0.05
 
+run_ridge_regression_fit = 1
+run_xgboost_fit = 1
+
 # Define parameter ranges to be used (ranges if BayesCV will be used)
 params = {"n_estimators": 353,  # (50, 2001),# Number of trees to create during training
           "min_child_weight": 11,
@@ -29,30 +32,32 @@ params = {"n_estimators": 353,  # (50, 2001),# Number of trees to create during 
 # Load and clean data for selected target and metric
 X, y, df = load_data(target, metric, include_group, run_dummy_quick_fit_xgb, show_heat_map=0, remove_colinear=0)
 
-# Use XGBoost to predict school age behavior from brain metric
-r2_test_array_xgb = predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit_xgb, set_params_man=1,
-                show_results_plot=0, n_bootstraps=n_bootstraps)
+if run_xgboost_fit:
+    # Use XGBoost to predict school age behavior from brain metric
+    r2_test_array_xgb = predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit_xgb, set_params_man=1,
+                    show_results_plot=0, n_bootstraps=n_bootstraps)
 
-# Calculate_xgb_percentile for r2test
-result_text_xgb, percentile_value_xgb = calculate_percentile(r2_test_array_xgb, alpha)
+    # Calculate_xgb_percentile for r2test
+    result_text_xgb, percentile_value_xgb = calculate_percentile(r2_test_array_xgb, alpha)
 
-# Plot distribution of r2 test
-plot_r2_distribution(r2_test_array_xgb, result_text_xgb, percentile_value_xgb, target, metric,
-                     alpha, n_bootstraps, alg='XGBoost')
-plt.show()
+    # Plot distribution of r2 test
+    plot_r2_distribution(r2_test_array_xgb, result_text_xgb, percentile_value_xgb, target, metric,
+                         alpha, n_bootstraps, alg='XGBoost')
+    plt.show()
 
-# Get best alpha for ridge regression fit
-best_ridge_alpha = tune_ridge_alpha(X, y)
+if run_ridge_regression_fit:
+    # Get best alpha for ridge regression fit
+    best_ridge_alpha = tune_ridge_alpha(X, y)
 
-# Run ridge regression
-r2_test_array_ridge, coef_summary_ridge = predict_SA_ridge(X, y, df, target, best_ridge_alpha, n_bootstraps)
+    # Run ridge regression
+    r2_test_array_ridge, coef_summary_ridge = predict_SA_ridge(X, y, df, target, best_ridge_alpha, n_bootstraps)
 
-# Calculate ridge_percentile for r2test
-result_text_ridge, percentile_value_ridge = calculate_percentile(r2_test_array_ridge, alpha)
+    # Calculate ridge_percentile for r2test
+    result_text_ridge, percentile_value_ridge = calculate_percentile(r2_test_array_ridge, alpha)
 
-# Plot distribution of r2 test
-plot_r2_distribution(r2_test_array_ridge, result_text_ridge, percentile_value_ridge, target, metric,
-                     alpha, n_bootstraps, alg='Ridge regression')
-plt.show()
+    # Plot distribution of r2 test
+    plot_r2_distribution(r2_test_array_ridge, result_text_ridge, percentile_value_ridge, target, metric,
+                         alpha, n_bootstraps, alg='Ridge regression')
+    plt.show()
 
-coef_summary_ridge.to_csv(f'Ridge_Regression_top_10_coefficients_{target}_{metric}_{n_bootstraps}.csv', index=False)
+    coef_summary_ridge.to_csv(f'Ridge_Regression_top_10_coefficients_{target}_{metric}_{n_bootstraps}.csv', index=False)
