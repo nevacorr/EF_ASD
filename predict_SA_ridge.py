@@ -7,8 +7,11 @@ import time
 from neurocombat_sklearn import CombatModel
 from sklearn.model_selection import GridSearchCV
 import warnings
+from summarize_ridge_coefficients import summarize_ridge_coefficients
 
 def tune_ridge_alpha(X, y, site_column='Site', sex_column='Sex'):
+
+    print("tuning ridge alpha")
 
     combat = CombatModel()
 
@@ -41,6 +44,7 @@ def predict_SA_ridge(X, y, df, target, alpha_value, n_bootstraps):
     warnings.simplefilter(action='ignore', category=FutureWarning)
 
     r2_test_all_bootstraps = []
+    coefs_bootstrap = np.zeros((n_bootstraps, X.shape[1]-1))
 
     start_time = time.time()
 
@@ -104,6 +108,9 @@ def predict_SA_ridge(X, y, df, target, alpha_value, n_bootstraps):
             ridge = Ridge(alpha=alpha_value)
             ridge.fit(X_train_boot_combat, y_train_boot)
 
+            # Get coefficients for this bootstrap run
+            coefs_bootstrap[b, :] = ridge.coef_
+
             # Predict
             test_predictions[test_index] = ridge.predict(X_test_combat)
             train_predictions[train_index] += ridge.predict(X_train_boot_combat)
@@ -126,5 +133,8 @@ def predict_SA_ridge(X, y, df, target, alpha_value, n_bootstraps):
         r2_test_all_bootstraps.append(r2_test)
 
     r2_test_array_ridge = np.array(r2_test_all_bootstraps)
+    colnames = X.columns.tolist()
+    colnames.remove('Site')
+    summary_df = summarize_ridge_coefficients(coefs_bootstrap, colnames, top_n=10)
 
-    return r2_test_array_ridge
+    return r2_test_array_ridge, summary_df
