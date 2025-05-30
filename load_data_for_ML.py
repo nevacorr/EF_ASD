@@ -19,7 +19,7 @@ def load_data(target, metric, include_group_feature, run_dummy_quick_fit, show_h
     volume_datafilename = "final_df_for_xgboost.csv"
 
     if metric in {"fa_VSA", "md_VSA", "ad_VSA", "rd_VSA" }:
-        dti_dir = ("/Users/nevao/Documents/Genz/source_data/updated imaging_2-27-25/"
+        dti_dir = ("/Users/nevao/Documents/IBIS_EF/source_data/Brain_Data/updated imaging_2-27-25/"
                    "IBISandDS_VSA_DTI_Siemens_CMRR_v02.02_20250227/Siemens_CMRR/")
         ad_datafilename = "IBISandDS_VSA_DTI_SiemensAndCMRR_FiberAverage_AD_v02.02_20250227.csv"
         fa_datafilename = "IBISandDS_VSA_DTI_SiemensAndCMRR_FiberAverage_FA_v02.02_20250227.csv"
