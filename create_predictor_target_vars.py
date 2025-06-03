@@ -21,10 +21,10 @@ def create_predictor_target_vars(df, target, metric, include_group, run_dummy_qu
         pred_brain_cols = df.columns[df.columns.str.contains(
             "Amygdala|Putamen|Caudate|Thalamus|GlobusPall|Hippocampus",
             case=False, regex=True
-        )]
+        )].tolist()
     elif metric in {"fa_VSA", "rd_VSA", "md_VSA", "ad_VSA"}:
         prefix = metric.split('_')[0]  # Extracts the prefix (e.g., "fa" from "fa_VSA")
-        pred_brain_cols = df.columns[df.columns.str.startswith(prefix.upper() + '_')]
+        pred_brain_cols = df.columns[df.columns.str.startswith(prefix.upper() + '_')].tolist()
 
     if include_group:
         pred_non_brain_cols = ["Site", "Sex","Group_HR+", "Group_HR-", "Group_LR-"]
