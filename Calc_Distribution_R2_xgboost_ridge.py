@@ -8,11 +8,13 @@ from predict_SA_ridge import predict_SA_ridge
 from create_predictor_target_vars import create_predictor_target_vars
 
 target = "BRIEF2_GEC_T_score"
-metric = 'volume_infant'
+metric = 'ad_VSA'
 #options 'volume_infant', 'volume_VSA', 'subcort_VSA', 'subcort_infant', 'ad_VSA', 'rd_VSA', 'md_VSA', 'fa_VSA'
 #        'surface_area_infant
 include_group = 0
 n_bootstraps = 1
+show_heat_map = 0
+remove_colinear = 0
 run_dummy_quick_fit_xgb = 0
 alpha=0.05
 
@@ -33,9 +35,12 @@ params = {"n_estimators": 353,  # (50, 2001),# Number of trees to create during 
 
 # Load and clean data for selected target and metric
 df = load_all_data()
-# X, y, df = load_all_data(target, metric, include_group, run_dummy_quick_fit_xgb)
 
-X, y = create_predictor_target_vars(df, target, metric, include_group, run_dummy_quick_fit_xgb)
+X, y = create_predictor_target_vars(df, target, metric, include_group, run_dummy_quick_fit_xgb,
+                                    show_heat_map, remove_colinear)
+
+print(f"Running with target = {target} metric = {metric} include_group = {include_group} "
+      f"quick fit = {run_dummy_quick_fit_xgb}")
 
 if run_xgboost_fit:
     # Use XGBoost to predict school age behavior from brain metric

@@ -3,9 +3,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 
-def plot_correlations(df, target, title):
-    df_features = df.drop(columns=[target])
-    correlation_matrix = df_features.corr()
+def plot_correlations(df, title):
+    correlation_matrix = df.corr()
 
     # Plot heatmap of correlation coefficients
     plt.figure(figsize=(11, 8))
