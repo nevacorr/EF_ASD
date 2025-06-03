@@ -15,14 +15,14 @@ def load_all_data():
     #### Load infant lobe volume data and all age behavioral data ######
     #############################
     datafilename = volume_infant_datafilename
-    df = load_and_clean_infant_volume_data_and_all_behavior(vol_infant_dir, datafilename)
+    df_dem_lobe = load_and_clean_infant_volume_data_and_all_behavior(vol_infant_dir, datafilename)
 
     #############################
     #### Load infant subcort volume data ######
     #############################
     subcort_dir = '/Users/nevao/Documents/IBIS_EF/source data/Brain_Data/IBIS1&2_volumes_v3.13'
     df = load_infant_subcortical_data(subcort_dir)
-    df = df.reset_index(drop=True)
+    df_subcort = df.reset_index(drop=True)
 
     #############################
     #### Load VSA DTI data ######
@@ -47,6 +47,31 @@ def load_all_data():
     dfs = [dfs[0]] + [df.drop(columns='CandID', errors='ignore') for df in dfs[1:]]
 
     # Concatenate all DataFrames column-wise
-    df_concat = pd.concat(dfs, axis=1)
+    df_dti = pd.concat(dfs, axis=1)
 
-    return df_concat
+    dfs_list= [df_dem_lobe, df_subcort, df_dti]
+
+    dfs_list[1:] = [df.drop(columns='CandID') for df in dfs_list[1:]]
+
+    dfs_combined = pd.concat(dfs_list, axis=1)
+
+    dfs_combined['CandID'] = pd.to_numeric(dfs_combined['CandID'], errors="coerce").astype("Int64")
+
+    # remove rows that have Nan values for all brain measures
+    non_brain_cols = [
+        "CandID", "Identifiers", "Combined_ASD_DX", "Risk", "Sex",
+        "AB_12_Percent", "AB_24_Percent",
+        "BRIEF2_GEC_T_score", "BRIEF2_GEC_raw_score",
+        "Flanker_Standard_Age_Corrected", "DCCS_Standard_Age_Corrected",
+        "Group_HR+", "Group_HR-", "Group_LR-"
+    ]
+
+    cols_to_check = dfs_combined.columns.difference(non_brain_cols)
+
+    dfs_all = dfs_combined[~dfs_combined[cols_to_check].isna().all(axis=1)]
+
+    # Determine which rows had no brain data and were removed
+    diff = dfs_combined.merge(dfs_all, how='outer', indicator=True)
+    rows_only_in_df1 = diff[diff['_merge'] == 'left_only'].drop(columns=['_merge'])
+
+    return dfs_all

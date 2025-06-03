@@ -2,20 +2,22 @@ import matplotlib.pyplot as plt
 from Utility_Functions_XGBoost import calculate_percentile
 from Utility_Functions_XGBoost import plot_r2_distribution
 from predict_SA_ridge import tune_ridge_alpha
-import numpy as np
-from load_data_for_ML import load_data
+from load_data_for_ML import load_all_data
 from predict_SA_xgboost import predict_SA_xgboost
 from predict_SA_ridge import predict_SA_ridge
+from create_predictor_target_vars import create_predictor_target_vars
 
 target = "BRIEF2_GEC_T_score"
-metric = 'subcort'
+metric = 'volume_infant'
+#options 'volume_infant', 'volume_VSA', 'subcort_VSA', 'subcort_infant', 'ad_VSA', 'rd_VSA', 'md_VSA', 'fa_VSA'
+#        'surface_area_infant
 include_group = 0
-n_bootstraps = 10
+n_bootstraps = 1
 run_dummy_quick_fit_xgb = 0
 alpha=0.05
 
 run_ridge_regression_fit = 1
-run_xgboost_fit = 1
+run_xgboost_fit = 0
 
 # Define parameter ranges to be used (ranges if BayesCV will be used)
 params = {"n_estimators": 353,  # (50, 2001),# Number of trees to create during training
@@ -30,7 +32,10 @@ params = {"n_estimators": 353,  # (50, 2001),# Number of trees to create during 
           }
 
 # Load and clean data for selected target and metric
-X, y, df = load_data(target, metric, include_group, run_dummy_quick_fit_xgb, show_heat_map=0, remove_colinear=0)
+df = load_all_data()
+# X, y, df = load_all_data(target, metric, include_group, run_dummy_quick_fit_xgb)
+
+X, y = create_predictor_target_vars(df, target, metric, include_group, run_dummy_quick_fit_xgb)
 
 if run_xgboost_fit:
     # Use XGBoost to predict school age behavior from brain metric

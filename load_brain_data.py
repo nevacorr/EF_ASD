@@ -7,7 +7,7 @@ import numpy as np
 def reshape_dataframe(df):
     df = df.drop(columns=["Combined_ID"])
     region_columns = [col for col in df.columns
-                      if '_VQC' not in col and '_ExcludeReason' not in col and '_Edited' not in col
+                      if '_VQC' not in col and '_ExcludeReason' not in col and 'Edited' not in col
                       and col not in ["DCCID", "Visit"]]
     df_pivot = df.pivot(index='DCCID', columns="Visit", values=region_columns)
     df_pivot.columns = [f'{col[0]}_{col[1].lower()}' for col in df_pivot.columns]
@@ -15,29 +15,10 @@ def reshape_dataframe(df):
 
     return df_pivot
 
-def load_subcortical_data(filepath, vol_dir, voldatafile, target, include_group):
-    vol_df = pd.read_csv(f"{vol_dir}/{voldatafile}")
+def load_infant_subcortical_data(filepath):
 
-    # Extract first three characters of 'Identifiers' and create new column 'Site''
-    vol_df['Site'] = vol_df['Identifiers'].str[:3]
-
-    # Move 'Group' to be the third column
-    # First, drop and save the column
-    site_col = vol_df.pop('Site')
-
-    # Then insert it at position 2 (Python indexing starts at 0, so position 2 = third column)
-    vol_df.insert(2, 'Site', site_col)
-
-    vol_df = vol_df[vol_df['CandID'].notna()]
-
-    vol_df['CandID'] = vol_df['CandID'].astype('int64')
-
-    vol_df = vol_df.loc[:, ~vol_df.columns.str.contains('GM|WM|ICV|totTiss', regex=True)]
-
-    vol_df.drop(columns=['Identifiers'], inplace=True)
-
-    # Get all the suortical CSV filenames in the directory
-    csv_files = [f for f in os.listdir(filepath) if f.endswith('.csv')]
+    # Get all the subcortical CSV filenames in the directory
+    csv_files = [f for f in os.listdir(filepath) if f.endswith('.csv') and 'LobeParcel' not in f]
 
     # Create an empty dictionary to store dataframes
     dfs = {}
@@ -85,54 +66,11 @@ def load_subcortical_data(filepath, vol_dir, voldatafile, target, include_group)
 
     subcort_merged_df.rename(columns={'DCCID': 'CandID'}, inplace=True)
 
-    merged_df = vol_df.merge(subcort_merged_df, on='CandID', how='left')
+    return subcort_merged_df
 
-    merged_df.drop(columns=['CandID'], inplace=True)
-
-    # Keep only rows where the response variable is not NA
-    merged_df = merged_df[merged_df[target].notna()]
-
-    # Encode Sex column Female = 0 Male = 1
-    merged_df["Sex"] = merged_df["Sex"].replace({"Female": 0, "Male": 1})
-
-    if include_group:
-        columns_to_exclude = ["Combined_ASD_DX", "Risk", "AB_12_Percent", "AB_24_Percent",
-                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected",
-                              "Flanker_Standard_Age_Corrected"]
-
-        columns_to_exclude.remove(target)
-
-    else:
-        columns_to_exclude = ["Group", "Combined_ASD_DX", "Risk", "AB_12_Percent", "AB_24_Percent",
-                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected",
-                              "Flanker_Standard_Age_Corrected"]
-
-        columns_to_exclude.remove(target)
-
-    merged_df.drop(columns=columns_to_exclude, inplace=True)
-
-    if include_group:
-        # One-hot encode the 'Group' column
-        merged_df = pd.get_dummies(merged_df, columns=['Group'], drop_first=False)
-
-    # Drop all rows where all columns except Sex, Site and target are nan
-    merged_df = merged_df.dropna(subset=[col for col in merged_df.columns if col not in ['Site', 'Sex', target]], how='all')
-
-    return merged_df
-
-def load_and_clean_dti_data(dir, datafilename, vol_dir, voldatafile, target, include_group):
+def load_and_clean_vsa_dti_data(dir, datafilename):
 
     dti_df = pd.read_csv(f"{dir}/{datafilename}")
-
-    vol_df = pd.read_csv(f"{vol_dir}/{voldatafile}")
-
-    vol_df = vol_df[vol_df['CandID'].notna()]
-
-    vol_df['CandID'] = vol_df['CandID'].astype('int64')
-
-    vol_df = vol_df.loc[:, ~vol_df.columns.str.contains('GM|WM|ICV|totTiss', regex=True)]
-
-    vol_df.drop(columns=['Identifiers'], inplace=True)
 
     dti_df.drop(columns=['Visit_label', 'CandID_Visit', 'dMRI_protocol', 'FileID'], inplace=True)
 
@@ -143,70 +81,30 @@ def load_and_clean_dti_data(dir, datafilename, vol_dir, voldatafile, target, inc
     dti_df[dti_df.columns.difference(['CandID'])] = (
         dti_df[dti_df.columns.difference(['CandID'])].apply(pd.to_numeric, errors='coerce'))
 
-    merged_df = vol_df.merge(dti_df, on="CandID", how="left")
-
-    merged_df.drop(columns=['CandID'], inplace=True)
-
-    # Keep only rows where the response variable is not NA
-    merged_df = merged_df[merged_df[target].notna()]
-
-    # Encode Sex column Female = 0 Male = 1
-    merged_df["Sex"] = merged_df["Sex"].replace({"Female": 0, "Male": 1})
-
-    if include_group:
-        columns_to_exclude = ["Combined_ASD_DX", "Risk", "AB_12_Percent", "AB_24_Percent",
-                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected",
-                              "Flanker_Standard_Age_Corrected"]
-
-        columns_to_exclude.remove(target)
-
-    else:
-        columns_to_exclude = ["Group", "Combined_ASD_DX", "Risk", "AB_12_Percent", "AB_24_Percent",
-                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected",
-                              "Flanker_Standard_Age_Corrected"]
-
-        columns_to_exclude.remove(target)
-
-    merged_df.drop(columns=columns_to_exclude, inplace=True)
-
-    if include_group:
-        # One-hot encode the 'Group' column
-        merged_df = pd.get_dummies(merged_df, columns=['Group'], drop_first=False)
-
-    merged_df = merged_df.dropna(subset=[col for col in merged_df.columns if col not in ['Sex', target]], how='all')
-
-    return merged_df
+    return dti_df
 
 
-def load_and_clean_volume_data(filepath, filename, target, include_group):
+def load_and_clean_infant_volume_data_and_all_behavior(filepath, filename):
 
     df = pd.read_csv(f"{filepath}/{filename}")
-
-    if include_group:
-        columns_to_exclude = ["CandID", "Identifiers", "Combined_ASD_DX", "Risk", "AB_12_Percent", "AB_24_Percent",
-                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected",
-                              "Flanker_Standard_Age_Corrected", "ICV_V12","ICV_V24", "totTiss_V12", "totTiss_V24"]
-
-        columns_to_exclude.remove(target)
-
-    else:
-        columns_to_exclude = ["CandID", "Group", "Identifiers", "Combined_ASD_DX", "Risk", "AB_12_Percent", "AB_24_Percent",
-                              "BRIEF2_GEC_raw_score", "BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected",
-                              "Flanker_Standard_Age_Corrected","ICV_V12","ICV_V24", "totTiss_V12", "totTiss_V24"]
-
-        columns_to_exclude.remove(target)
-
-    df.drop(columns=columns_to_exclude, inplace=True)
-
-    # Keep only rows where the response variable is not NA
-    df = df[df[target].notna()]
 
     # Encode Sex column Female = 0 Male = 1
     df["Sex"] = df["Sex"].replace({"Female": 0, "Male": 1})
 
-    if include_group:
-        # One-hot encode the 'Group' column
-        df = pd.get_dummies(df, columns=['Group'], drop_first=False)
+    # One-hot encode the 'Group' column
+    df = pd.get_dummies(df, columns=['Group'], drop_first=False)
+
+    # Identify the columns that start with "Group"
+    group_cols = [col for col in df.columns if col.startswith("Group")]
+
+    # Get the list of other columns (excluding group_cols)
+    other_cols = [col for col in df.columns if col not in group_cols]
+
+    #Insert group_cols into the desired positions (5th to 7th )
+    new_col_order = other_cols[:5] + group_cols + other_cols[5:]
+
+    # Step 4: Reorder the DataFrame
+    df = df[new_col_order]
 
     return df
 
