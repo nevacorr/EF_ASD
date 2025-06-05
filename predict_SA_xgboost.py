@@ -9,7 +9,7 @@ from neurocombat_sklearn import CombatModel
 import warnings
 from Utility_Functions_XGBoost import write_modeling_data_and_outcome_to_file
 
-def predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit, set_params_man, show_results_plot, n_bootstraps):
+def predict_SA_xgboost(X, y, target, metric, params, run_dummy_quick_fit, set_params_man, show_results_plot, n_bootstraps):
 
     # Suppress all FutureWarnings
     warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -155,7 +155,7 @@ def predict_SA_xgboost(X, y, df, target, metric, params, run_dummy_quick_fit, se
 
         if n_bootstraps == 1:
             bootstrap = 1
-            write_modeling_data_and_outcome_to_file(run_dummy_quick_fit, metric, params, set_parameters_manually, target, df,
+            write_modeling_data_and_outcome_to_file(run_dummy_quick_fit, metric, params, set_parameters_manually, target, X,
                                                  r2_train, r2_test, best_params, bootstrap, elapsed_time)
 
         # plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, df, best_params, show_results_plot)
