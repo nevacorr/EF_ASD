@@ -38,7 +38,7 @@ def tune_ridge_alpha(X, y, site_column='Site', sex_column='Sex'):
     print(f"Best alpha from tuning: {best_alpha}")
     return best_alpha
 
-def predict_SA_ridge(X, y, df, target, alpha_value, n_bootstraps):
+def predict_SA_ridge(X, y, target, alpha_value, n_bootstraps):
 
     # Suppress all FutureWarnings
     warnings.simplefilter(action='ignore', category=FutureWarning)
