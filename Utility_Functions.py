@@ -318,3 +318,32 @@ def create_combined_dx_risk_column(df):
     df = replace_missing_with_nan(df)
 
     return df
+def divide_columns_by_tottiss(df_all_brain_behav, df, mystr):
+
+    suffix = f"_{mystr}"
+    if mystr == 'VSA':
+        tot_col = f"total_Tissue_vol_{mystr}"
+        icv_col = f"ICV_vol_{mystr}"
+    else:
+        tot_col = f"totTiss_{mystr}"
+        icv_col = f"ICV_{mystr}"
+
+    if tot_col not in df_all_brain_behav.columns:
+        raise ValueError(f"Cannot divide by totTiss. Column '{tot_col}' not found in df_all_brain_behav.")
+
+    # Find shared columns ending in _mystr (excluding CandID)
+    shared_cols = [
+        col for col in df.columns
+        if col != "CandID" and
+           col in df_all_brain_behav.columns and
+           col.endswith(suffix)
+    ]
+
+    # Remove totTiss_mystr and ICV_mystr from shared_cols
+    shared_cols = [col for col in shared_cols if col not in {tot_col, icv_col}]
+
+    # Perform row-wise division using totTiss_mystr from df_all_brain_behav
+    for col in shared_cols:
+        df_all_brain_behav[col] = df_all_brain_behav[col] / df_all_brain_behav[tot_col]
+
+    return df_all_brain_behav

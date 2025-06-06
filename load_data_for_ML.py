@@ -5,6 +5,7 @@ from load_brain_data import load_and_clean_infant_volume_data_and_all_behavior
 from load_brain_data import load_and_clean_vsa_volume_data, load_vsa_subcortical_data
 from load_brain_data import load_vsa_ct_data
 from functools import reduce
+from Utility_Functions import divide_columns_by_tottiss
 from Utility_Functions_XGBoost import plot_correlations, remove_collinearity
 from matplotlib import pyplot as plt
 def load_all_data():
@@ -111,5 +112,14 @@ def load_all_data():
     ]
 
     df_all_brain_behav = dfs_all.dropna(subset=behav_cols, how='all')
+
+    # Divide call volume columns by totTissue for the appropriate age
+    df_all_brain_behav = divide_columns_by_tottiss(df_all_brain_behav, df_infant_dem_lobe, "V12")
+    df_all_brain_behav = divide_columns_by_tottiss(df_all_brain_behav, df_infant_dem_lobe, "V24")
+    df_all_brain_behav = divide_columns_by_tottiss(df_all_brain_behav, df_vsa_lobe, "VSA")
+    df_all_brain_behav = divide_columns_by_tottiss(df_all_brain_behav, df_infant_subcort, "V12")
+    df_all_brain_behav = divide_columns_by_tottiss(df_all_brain_behav, df_vsa_subcort, "VSA")
+
+    df_all_brain_behav = df_all_brain_behav.loc[:, ~df_all_brain_behav.columns.str.contains('Tiss|ICV')]
 
     return df_all_brain_behav
