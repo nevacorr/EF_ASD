@@ -2,6 +2,9 @@ import os
 import pandas as pd
 from load_brain_data import load_and_clean_vsa_dti_data, load_infant_subcortical_data
 from load_brain_data import load_and_clean_infant_volume_data_and_all_behavior
+from load_brain_data import load_and_clean_vsa_volume_data, load_vsa_subcortical_data
+from load_brain_data import load_vsa_ct_data
+from functools import reduce
 from Utility_Functions_XGBoost import plot_correlations, remove_collinearity
 from matplotlib import pyplot as plt
 def load_all_data():
@@ -15,14 +18,38 @@ def load_all_data():
     #### Load infant lobe volume data and all age behavioral data ######
     #############################
     datafilename = volume_infant_datafilename
-    df_dem_lobe = load_and_clean_infant_volume_data_and_all_behavior(vol_infant_dir, datafilename)
+    df_infant_dem_lobe = load_and_clean_infant_volume_data_and_all_behavior(vol_infant_dir, datafilename)
+
+    #############################
+    #### Load school age lobe volume data and age data ######
+    #############################
+    vol_dir_SA = "/Users/nevao/Documents/IBIS_EF/source data/Brain_Data/updated imaging_2-27-25/IBISandDS_VSA_Cerebrum_and_LobeParcel_Vols_v01.04_20250221"
+    volume_SA_datafilename = 'IBISandDS-VSA_Lobe_Vols_v01.04_20250221.csv'
+    tot_tiss_dir_SA = "/Users/nevao/Documents/IBIS_EF/source data/Brain_Data/updated imaging_2-27-25/IBISandDS_VSA_TissueSeg_Vols_v01.04_20250221"
+    tot_tiss_SA_datafilename = 'IBISandDS_VSA_TissueSeg_Vols_v01.04_20250221.csv'
+    df_vsa_lobe = load_and_clean_vsa_volume_data(vol_dir_SA, volume_SA_datafilename,
+                                                 tot_tiss_dir_SA, tot_tiss_SA_datafilename)
 
     #############################
     #### Load infant subcort volume data ######
     #############################
-    subcort_dir = '/Users/nevao/Documents/IBIS_EF/source data/Brain_Data/IBIS1&2_volumes_v3.13'
-    df = load_infant_subcortical_data(subcort_dir)
-    df_subcort = df.reset_index(drop=True)
+    subcort_infant_dir = '/Users/nevao/Documents/IBIS_EF/source data/Brain_Data/IBIS1&2_volumes_v3.13'
+    df = load_infant_subcortical_data(subcort_infant_dir)
+    df_infant_subcort = df.reset_index(drop=True)
+
+    #############################
+    #### Load school age subcort volume data ######
+    #############################
+    subcort_vsa_dir = "/Users/nevao/Documents/IBIS_EF/source data/Brain_Data/updated imaging_2-27-25/IBISandDS_VSA_Subcort_and_LV_Vols_v01.04_20250221"
+    subcort_vsa_datafilename = 'IBISandDS_VSA_Subcort_and_LV_Vols_v01.04_20250221.csv'
+    df_vsa_subcort = load_vsa_subcortical_data(subcort_vsa_dir, subcort_vsa_datafilename)
+
+    #############################
+    #### Load school age cortical thickness data ######
+    #############################
+    ct_vsa_dir = "/Users/nevao/Documents/IBIS_EF/source data/Brain_Data/IBISandDS_VSA_SurfaceData_v01.02_20210809"
+    ct_vsa_datafilename = 'IBISandDS_VSA_CorticalThickness_DKT_v01.02_20210708.csv'
+    df_vsa_ct = load_vsa_ct_data(ct_vsa_dir, ct_vsa_datafilename)
 
     #############################
     #### Load VSA DTI data ######
@@ -47,13 +74,19 @@ def load_all_data():
     dfs = [dfs[0]] + [df.drop(columns='CandID', errors='ignore') for df in dfs[1:]]
 
     # Concatenate all DataFrames column-wise
-    df_dti = pd.concat(dfs, axis=1)
+    df_vsa_dti = pd.concat(dfs, axis=1)
 
-    dfs_list= [df_dem_lobe, df_subcort, df_dti]
+    #############################
+    #### Combine all data ######
+    #############################
 
-    dfs_list[1:] = [df.drop(columns='CandID') for df in dfs_list[1:]]
+    dfs_list= [df_infant_dem_lobe, df_vsa_lobe, df_infant_subcort, df_vsa_subcort, df_vsa_ct, df_vsa_dti]
 
-    dfs_combined = pd.concat(dfs_list, axis=1)
+    # dfs_list[1:] = [df.drop(columns='CandID') for df in dfs_list[1:]]
+
+    dfs_combined = reduce(lambda left, right: pd.merge(left, right, on='CandID', how='outer'), dfs_list)
+
+    # dfs_combined = pd.concat(dfs_list, axis=1)
 
     dfs_combined['CandID'] = pd.to_numeric(dfs_combined['CandID'], errors="coerce").astype("Int64")
 

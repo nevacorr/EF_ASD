@@ -68,6 +68,40 @@ def load_infant_subcortical_data(filepath):
 
     return subcort_merged_df
 
+def load_vsa_subcortical_data(filepath, datafilename):
+
+    df = pd.read_csv(f"{filepath}/{datafilename}")
+
+    unwanted_substrings = ["PassFail", "Exclude_Reason", "score", "Visit", "Septum", "Ventricle"]
+
+    # Keep only columns that do NOT contain any of the unwanted substrings
+    df = df[[col for col in df.columns if not any(sub in col for sub in unwanted_substrings)]]
+
+    df.replace('.', np.nan, inplace=True)
+
+    df = df.apply(lambda col: pd.to_numeric(col, errors='coerce') if col.dtype == 'object' else col)
+
+    df.rename(columns=lambda col: col if col == "CandID" else col + "_VSA", inplace=True)
+
+    return df
+
+def load_vsa_ct_data(filepath, datafilename):
+
+    df = pd.read_csv(f"{filepath}/{datafilename}")
+
+    unwanted_substrings = ["Visit"]
+
+    # Keep only columns that do NOT contain any of the unwanted substrings
+    df = df[[col for col in df.columns if not any(sub in col for sub in unwanted_substrings)]]
+
+    df.replace('.', np.nan, inplace=True)
+
+    df = df.apply(lambda col: pd.to_numeric(col, errors='coerce') if col.dtype == 'object' else col)
+
+    df.rename(columns=lambda col: col if col == "CandID" else col + "_CT_VSA", inplace=True)
+
+    return df
+
 def load_and_clean_vsa_dti_data(dir, datafilename):
 
     dti_df = pd.read_csv(f"{dir}/{datafilename}")
@@ -108,4 +142,28 @@ def load_and_clean_infant_volume_data_and_all_behavior(filepath, filename):
 
     return df
 
+def load_and_clean_vsa_volume_data(dir, datafilename, tissue_dir, tissue_datafilename):
 
+    # Load lobe volumes
+    df = pd.read_csv(f"{dir}/{datafilename}")
+
+    unwanted_substrings = ["PassFail", "Cerebellum", "ExcludeReason", "score", 'Visit']
+
+    # Keep only columns that do NOT contain any of the unwanted substrings
+    df = df[[col for col in df.columns if not any(sub in col for sub in unwanted_substrings)]]
+
+    df.replace('.', np.nan, inplace=True)
+
+    df = df.apply(lambda col: pd.to_numeric(col, errors='coerce') if col.dtype == 'object' else col)
+
+    # Load ICV and total_tissue volumes
+
+    tissue_df = pd.read_csv(f"{tissue_dir}/{tissue_datafilename}")
+
+    tissue_df = tissue_df[['CandID', 'ICV_vol', 'total_Tissue_vol']].copy()
+
+    merged_df = pd.merge(df, tissue_df, on='CandID', how='outer')
+
+    merged_df.rename(columns=lambda col: col if col == "CandID" else col + "_VSA", inplace=True)
+
+    return merged_df
