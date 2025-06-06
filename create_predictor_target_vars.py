@@ -14,19 +14,19 @@ def create_predictor_target_vars(df, target, metric, include_group, run_dummy_qu
 
     # Select columns of interest based on metric
     if metric == "volume_infant":
-        pred_brain_cols = df.columns[df.columns.str.contains("WM_V12|WM_V24|GM_V12|GM_V24", regex=True)]
+        pred_brain_cols = df.columns[df.columns.str.contains("WM_V12|WM_V24|GM_V12|GM_V24", regex=True)].tolist()
     elif metric == "volume_VSA":
-        pred_brain_cols = df.columns[df.columns.str.contains("WM_VSA|GM_VSA", regex=True)]
+        pred_brain_cols = df.columns[df.columns.str.contains("WM_VSA|GM_VSA", regex=True)].tolist()
     elif metric == "subcort_infant":
         pred_brain_cols = df.columns[df.columns.str.contains(
             "Amygdala_v12|Putamen_v12|Caudate_v12|Thalamus_v12|GlobusPall_v12|Hippocampus_v12|Amygdala_v24|Putamen_v24|Caudate_v24|Thalamus_v24|GlobusPall_v24|Hippocampus_v24",
             regex=True)].tolist()
     elif metric == "subcort_VSA":
         pred_brain_cols = df.columns[df.columns.str.contains(
-            r"(Amygdala|Caudate|Putamen|Thalamus|Hippocampus||Globus_Pall).*VSA",regex=True)].tolist()
-    elif metric == "CT_VSA":
+            r"(Amygdala|Caudate|Putamen|Thalamus|Hippocampus|Globus_Pall).*VSA",regex=True)].tolist()
+    elif metric == "cortical_thickness_VSA":
         pred_brain_cols = df.columns[df.columns.str.contains("CT_VSA")].tolist()
-    elif metric == "SA_VSA":
+    elif metric == "surface_area_VSA":
         pred_brain_cols = df.columns[df.columns.str.contains("SA_VSA")].tolist()
     elif metric in {"fa_VSA", "rd_VSA", "md_VSA", "ad_VSA"}:
         prefix = metric.split('_')[0]  # Extracts the prefix (e.g., "fa" from "fa_VSA")
