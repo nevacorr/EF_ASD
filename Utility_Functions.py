@@ -322,11 +322,11 @@ def divide_columns_by_tottiss(df_all_brain_behav, df, mystr):
 
     suffix = f"_{mystr}"
     if mystr == 'VSA':
-        tot_col = f"total_Tissue_vol_{mystr}"
-        icv_col = f"ICV_vol_{mystr}"
+        tot_col = f"total_Tissue_vol_{mystr.upper()}"
+        icv_col = f"ICV_vol_{mystr.upper()}"
     else:
-        tot_col = f"totTiss_{mystr}"
-        icv_col = f"ICV_{mystr}"
+        tot_col = f"totTiss_{mystr.upper()}"
+        icv_col = f"ICV_{mystr.upper()}"
 
     if tot_col not in df_all_brain_behav.columns:
         raise ValueError(f"Cannot divide by totTiss. Column '{tot_col}' not found in df_all_brain_behav.")
