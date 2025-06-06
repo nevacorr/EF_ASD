@@ -82,11 +82,7 @@ def load_all_data():
 
     dfs_list= [df_infant_dem_lobe, df_vsa_lobe, df_infant_subcort, df_vsa_subcort, df_vsa_ct, df_vsa_dti]
 
-    # dfs_list[1:] = [df.drop(columns='CandID') for df in dfs_list[1:]]
-
     dfs_combined = reduce(lambda left, right: pd.merge(left, right, on='CandID', how='outer'), dfs_list)
-
-    # dfs_combined = pd.concat(dfs_list, axis=1)
 
     dfs_combined['CandID'] = pd.to_numeric(dfs_combined['CandID'], errors="coerce").astype("Int64")
 
@@ -107,4 +103,13 @@ def load_all_data():
     diff = dfs_combined.merge(dfs_all, how='outer', indicator=True)
     rows_only_in_df1 = diff[diff['_merge'] == 'left_only'].drop(columns=['_merge'])
 
-    return dfs_all
+    # remove rows that have nan values for all behavior measures
+    behav_cols = [
+        "AB_12_Percent", "AB_24_Percent",
+        "BRIEF2_GEC_T_score", "BRIEF2_GEC_raw_score",
+        "Flanker_Standard_Age_Corrected", "DCCS_Standard_Age_Corrected",
+    ]
+
+    df_all_brain_behav = dfs_all.dropna(subset=behav_cols, how='all')
+
+    return df_all_brain_behav
