@@ -3,7 +3,7 @@ import pandas as pd
 from load_brain_data import load_and_clean_vsa_dti_data, load_infant_subcortical_data
 from load_brain_data import load_and_clean_infant_volume_data_and_all_behavior
 from load_brain_data import load_and_clean_vsa_volume_data, load_vsa_subcortical_data
-from load_brain_data import load_vsa_ct_data
+from load_brain_data import load_vsa_ct_sa_data
 from functools import reduce
 from Utility_Functions import divide_columns_by_tottiss
 from Utility_Functions_XGBoost import plot_correlations, remove_collinearity
@@ -50,7 +50,14 @@ def load_all_data():
     #############################
     ct_vsa_dir = "/Users/nevao/Documents/IBIS_EF/source data/Brain_Data/IBISandDS_VSA_SurfaceData_v01.02_20210809"
     ct_vsa_datafilename = 'IBISandDS_VSA_CorticalThickness_DKT_v01.02_20210708.csv'
-    df_vsa_ct = load_vsa_ct_data(ct_vsa_dir, ct_vsa_datafilename)
+    df_vsa_ct = load_vsa_ct_sa_data(ct_vsa_dir, ct_vsa_datafilename, 'CT')
+
+    #############################
+    #### Load school age surface area data ######
+    #############################
+    sa_vsa_dir = "/Users/nevao/Documents/IBIS_EF/source data/Brain_Data/IBISandDS_VSA_SurfaceData_v01.02_20210809"
+    sa_vsa_datafilename = 'IBISandDS_VSA_SurfaceArea_DKT_v01.02_20210708.csv'
+    df_vsa_sa = load_vsa_ct_sa_data(sa_vsa_dir, sa_vsa_datafilename, 'SA')
 
     #############################
     #### Load VSA DTI data ######
@@ -81,7 +88,8 @@ def load_all_data():
     #### Combine all data ######
     #############################
 
-    dfs_list= [df_infant_dem_lobe, df_vsa_lobe, df_infant_subcort, df_vsa_subcort, df_vsa_ct, df_vsa_dti]
+    dfs_list= [df_infant_dem_lobe, df_vsa_lobe, df_infant_subcort, df_vsa_subcort,
+               df_vsa_ct, df_vsa_sa, df_vsa_dti]
 
     dfs_combined = reduce(lambda left, right: pd.merge(left, right, on='CandID', how='outer'), dfs_list)
 

@@ -85,7 +85,7 @@ def load_vsa_subcortical_data(filepath, datafilename):
 
     return df
 
-def load_vsa_ct_data(filepath, datafilename):
+def load_vsa_ct_sa_data(filepath, datafilename, datastr):
 
     df = pd.read_csv(f"{filepath}/{datafilename}")
 
@@ -98,7 +98,7 @@ def load_vsa_ct_data(filepath, datafilename):
 
     df = df.apply(lambda col: pd.to_numeric(col, errors='coerce') if col.dtype == 'object' else col)
 
-    df.rename(columns=lambda col: col if col == "CandID" else col + "_CT_VSA", inplace=True)
+    df.rename(columns=lambda col: col if col == "CandID" else col +f"_{datastr}_VSA", inplace=True)
 
     return df
 
