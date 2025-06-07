@@ -344,6 +344,6 @@ def divide_columns_by_tottiss(df_all_brain_behav, df, mystr):
 
     # Perform row-wise division using totTiss_mystr from df_all_brain_behav
     for col in shared_cols:
-        df_all_brain_behav[col] = df_all_brain_behav[col] / df_all_brain_behav[tot_col]
+        df_all_brain_behav.loc[:,col] = df_all_brain_behav[col] / df_all_brain_behav[tot_col]
 
     return df_all_brain_behav
