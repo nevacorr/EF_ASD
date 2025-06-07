@@ -8,8 +8,9 @@ from sklearn.metrics import mean_squared_error, r2_score
 from neurocombat_sklearn import CombatModel
 import warnings
 from Utility_Functions_XGBoost import write_modeling_data_and_outcome_to_file
+from check_site_variance import check_site_variance
 
-def predict_SA_xgboost(X, y, target, metric, params, run_dummy_quick_fit, set_params_man, show_results_plot, n_bootstraps):
+def predict_SA_xgboost(X, y, target, metric, params, run_dummy_quick_fit, set_params_man, show_results_plot, bootstrap, n_bootstraps):
 
     # Suppress all FutureWarnings
     warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -19,7 +20,10 @@ def predict_SA_xgboost(X, y, target, metric, params, run_dummy_quick_fit, set_pa
     r2_test_all_bootstraps=[]
 
     # set number of iterations for BayesCV
-    n_iter = 100
+    if run_dummy_quick_fit:
+        n_iter = 5
+    else:
+        n_iter = 100
 
     if set_parameters_manually == 0: #if search for best parameters
 
@@ -43,6 +47,9 @@ def predict_SA_xgboost(X, y, target, metric, params, run_dummy_quick_fit, set_pa
     start_time = time.time()
     rng = np.random.default_rng(42)  # Fixed seed for reproducibility
 
+    if bootstrap == 0:
+        n_bootstraps = 1 # force one iteration with no bootstrapping inside
+
     for b in range(n_bootstraps):
 
         # make variables to hold predictions for train and test run, as well as counts for how many times each subject appears in a train set
@@ -65,10 +72,14 @@ def predict_SA_xgboost(X, y, target, metric, params, run_dummy_quick_fit, set_pa
             X_test = X.iloc[test_index].copy()
             y_test = y[test_index].copy()
 
-            # Bootstrap the training data only
-            bootstrap_indices = rng.choice(len(train_index), size=len(train_index), replace=True)
-            X_train_boot = X_train.iloc[bootstrap_indices].reset_index(drop=True)
-            y_train_boot = y_train[bootstrap_indices]
+            if bootstrap:
+                # Bootstrap the training data only
+                bootstrap_indices = rng.choice(len(train_index), size=len(train_index), replace=True)
+                X_train_boot = X_train.iloc[bootstrap_indices].reset_index(drop=True)
+                y_train_boot = y_train[bootstrap_indices]
+            else:
+                X_train_boot = X_train
+                y_train_boot = y_train
 
             # Create Categorical object for the training set sites
             train_sites = pd.Categorical(X_train_boot['Site'])
@@ -153,8 +164,7 @@ def predict_SA_xgboost(X, y, target, metric, params, run_dummy_quick_fit, set_pa
         elapsed_time = (end_time - start_time) / 60.0
         print(f"XGB Bootstrap {b + 1}/{n_bootstraps} complete. Time since beginning of program: {elapsed_time:.2f} minutes")
 
-        if n_bootstraps == 1:
-            bootstrap = 1
+        if bootstrap == 0:
             write_modeling_data_and_outcome_to_file(run_dummy_quick_fit, metric, params, set_parameters_manually, target, X,
                                                  r2_train, r2_test, best_params, bootstrap, elapsed_time)
 
