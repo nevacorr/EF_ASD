@@ -1,7 +1,9 @@
 from Utility_Functions_XGBoost import plot_correlations, remove_collinearity
 from matplotlib import pyplot as plt
-def create_predictor_target_vars(df, target, metric, include_group, run_dummy_quick_fit_xgb,
+def create_predictor_target_vars(dforig, target, metric, include_group, run_dummy_quick_fit_xgb,
                                  show_heat_map, remove_colinear):
+
+    df = dforig.copy()
 
     # Extract first three characters of 'Identifiers' and create new column 'Site''
     df['Site'] = df['Identifiers'].str[:3]
@@ -23,7 +25,7 @@ def create_predictor_target_vars(df, target, metric, include_group, run_dummy_qu
             regex=True)].tolist()
     elif metric == "subcort_VSA":
         pred_brain_cols = df.columns[df.columns.str.contains(
-            r"(Amygdala|Caudate|Putamen|Thalamus|Hippocampus|Globus_Pall).*VSA",regex=True)].tolist()
+            r"(?:Amygdala|Caudate|Putamen|Thalamus|Hippocampus|Globus_Pall).*VSA",regex=True)].tolist()
     elif metric == "cortical_thickness_VSA":
         pred_brain_cols = df.columns[df.columns.str.contains("CT_VSA")].tolist()
     elif metric == "surface_area_VSA":
