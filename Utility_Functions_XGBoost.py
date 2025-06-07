@@ -2,6 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+from datetime import datetime
 
 def plot_correlations(df, title):
     correlation_matrix = df.corr()
@@ -37,6 +38,8 @@ def remove_collinearity(df, threshold):
 def write_modeling_data_and_outcome_to_file(quick_run, metric, params, set_parameters_manually, target,
                                             X, r2_train, r2_test, best_params, bootstrap, elapsed_time):
     with open(f"{target}_{metric}_xgboost_run_results_summary.txt", "a") as f:
+        now = datetime.now()
+        f.write(f"Run Date and Time: {now.strftime('%Y-%m-%d %H:%M:%S')}\n")
         # Write featueres and targets used
         f.write(f"####### Model performance summary ######\n")
         if quick_run == 1:
