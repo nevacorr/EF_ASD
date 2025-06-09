@@ -148,3 +148,45 @@ def plot_r2_distribution(r2_test_array, result_text, percentile_value,
 
     # Show plot
     plt.show()
+
+def aggregate_feature_importances(feature_importance_list, feature_names, n_boot, outputfilename, top_n=10, plot=True):
+    """
+    Aggregates and plots feature importances across bootstraps.
+
+    Parameters:
+        feature_importance_list (list): List of arrays from model.feature_importances_ across bootstraps.
+        feature_names (list or pd.Index): Names of features corresponding to the importances.
+        top_n (int): Number of top features to display.
+        plot (bool): Whether to generate a bar plot.
+
+    Returns:
+        pd.DataFrame: Sorted dataframe of mean and std of feature importances.
+    """
+    # Convert to numpy array: shape (n_bootstraps, n_features)
+    importance_array = np.array(feature_importance_list)
+    mean_importances = importance_array.mean(axis=0)
+    std_importances = importance_array.std(axis=0)
+
+    # Create a DataFrame
+    importance_df = pd.DataFrame({
+        'feature': feature_names,
+        'mean_importance': mean_importances,
+        'std_importance': std_importances
+    })
+
+    # Sort by mean importance
+    sorted_df = importance_df.sort_values(by='mean_importance', ascending=False).reset_index(drop=True)
+
+    sorted_df.to_csv(outputfilename)
+
+    if plot:
+        top_features = sorted_df.head(top_n)
+        plt.figure(figsize=(10, 6))
+        plt.barh(top_features['feature'], top_features['mean_importance'], xerr=top_features['std_importance'], color='skyblue')
+        plt.gca().invert_yaxis()
+        plt.xlabel('Mean Importance')
+        plt.title(f'Top {top_n} Feature Importances (Bootstrapped XGBoost {n_boot} bootstraps)')
+        plt.tight_layout()
+        plt.show()
+
+    return sorted_df

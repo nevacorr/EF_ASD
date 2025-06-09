@@ -7,10 +7,10 @@ import pandas as pd
 from sklearn.metrics import mean_squared_error, r2_score
 from neurocombat_sklearn import CombatModel
 import warnings
-from Utility_Functions_XGBoost import write_modeling_data_and_outcome_to_file
-from check_site_variance import check_site_variance
+from Utility_Functions_XGBoost import write_modeling_data_and_outcome_to_file, aggregate_feature_importances
 
-def predict_SA_xgboost(X, y, target, metric, params, run_dummy_quick_fit, set_params_man, show_results_plot, bootstrap, n_bootstraps):
+def predict_SA_xgboost(X, y, target, metric, params, run_dummy_quick_fit, set_params_man,
+                       show_results_plot, bootstrap, n_bootstraps):
 
     # Suppress all FutureWarnings
     warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -49,6 +49,8 @@ def predict_SA_xgboost(X, y, target, metric, params, run_dummy_quick_fit, set_pa
 
     if bootstrap == 0:
         n_bootstraps = 1 # force one iteration with no bootstrapping inside
+
+    feature_importance_list = []
 
     for b in range(n_bootstraps):
 
@@ -135,11 +137,17 @@ def predict_SA_xgboost(X, y, target, metric, params, run_dummy_quick_fit, set_pa
                 # Predict for train set
                 train_predictions[train_index] += opt.predict(X_train_boot_combat)
 
+                model = opt.best_estimator_
+
             else:
                 # Fit xgboost model using specified parameters
                 xgb.fit(X_train_boot_combat, y_train_boot)
+                model = xgb
                 test_predictions[test_index] = xgb.predict(X_test_combat)
                 train_predictions[train_index] += xgb.predict(X_train_boot_combat)
+
+            # Store importances
+            feature_importance_list.append(model.feature_importances_)
 
             # Keep track of the number of times that each subject is included in the train set
             train_counts[train_index] += 1
@@ -173,4 +181,8 @@ def predict_SA_xgboost(X, y, target, metric, params, run_dummy_quick_fit, set_pa
 
     r2_test_array_xgb = np.array(r2_test_all_bootstraps)
 
-    return r2_test_array_xgb
+    feature_names = ['Sex'] + X.drop(columns=['Site', 'Sex']).columns.tolist()
+    feature_importance_df = aggregate_feature_importances(feature_importance_list, feature_names, n_bootstraps,
+                outputfilename=f"{target}_{metric}_{n_bootstraps}_xgb_feature_importance.txt", top_n=25)
+
+    return r2_test_array_xgb, feature_importance_df
