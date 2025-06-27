@@ -190,3 +190,72 @@ def aggregate_feature_importances(feature_importance_list, feature_names, n_boot
         plt.show()
 
     return sorted_df
+
+def plot_top_shap_scatter_by_group(shap_feature_importance_df, all_shap_values, all_feature_values, all_group_labels, top_n=5):
+    """
+    Plots scatter plots for top N important features based on SHAP values,
+    colored by group.
+
+    Parameters:
+    - shap_feature_importance_df: DataFrame with 'feature' and 'mean_abs_shap' columns
+    - all_shap_values: numpy array of shape (n_samples, n_features)
+    - all_feature_values: DataFrame of original feature values aligned with SHAP values
+    - all_group_labels: Series or array of group labels aligned with rows
+    - top_n: number of top features to plot (default=5)
+    """
+
+    all_feature_values = all_feature_values.drop(columns=['Site'])
+    top_features = shap_feature_importance_df['feature'].head(top_n)
+
+    for feature in top_features:
+        # Get index of the feature
+        feature_idx = list(shap_feature_importance_df['feature']).index(feature)
+
+        # Extract x (feature values) and y (SHAP values)
+        x_vals = all_feature_values[feature]
+        y_vals = all_shap_values[:, feature_idx]
+
+        x_vals = x_vals.reset_index(drop=True)
+        all_group_labels = all_group_labels.reset_index(drop=True)
+
+        # Plot
+        plt.figure(figsize=(8, 6))
+        sns.scatterplot(x=x_vals, y=y_vals, hue=all_group_labels, palette='Set2')
+        plt.axhline(0, linestyle='--', color='gray', linewidth=1)
+        plt.xlabel(f"{feature} value")
+        plt.ylabel("SHAP value")
+        plt.title(f"SHAP Scatter Plot: {feature}")
+        plt.tight_layout()
+        plt.show()
+
+
+def plot_top_shap_distributions_by_group(shap_feature_importance_df, all_shap_values, all_group_labels, feature_names,
+                                         top_n=5):
+    """
+    Plot violin plots of SHAP values for the top_n features, colored by group.
+
+    Parameters:
+    - shap_feature_importance_df: DataFrame with 'feature' and 'mean_abs_shap' columns
+    - all_shap_values: numpy array (n_samples, n_features)
+    - all_group_labels: pandas Series (n_samples,) with group labels
+    - feature_names: list of feature names in order matching SHAP values
+    - top_n: number of top features to plot
+    """
+
+    top_features = shap_feature_importance_df['feature'].head(top_n).tolist()
+
+    for feature_name in top_features:
+        feature_idx = feature_names.index(feature_name)
+        shap_vals = all_shap_values[:, feature_idx]
+
+        df = pd.DataFrame({
+            "SHAP value": shap_vals,
+            "Group": all_group_labels.reset_index(drop=True)  # <== reset index!
+        })
+
+        plt.figure(figsize=(8, 6))
+        sns.violinplot(data=df, x="Group", y="SHAP value", inner="box", palette="Set2")
+        plt.title(f"SHAP Distribution by Group for Feature: {feature_name}")
+        plt.axhline(0, linestyle='--', color='gray')
+        plt.tight_layout()
+        plt.show()

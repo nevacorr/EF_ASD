@@ -125,16 +125,17 @@ def load_and_clean_infant_volume_data_and_all_behavior(filepath, filename):
     # Encode Sex column Female = 0 Male = 1
     df["Sex"] = df["Sex"].replace({"Female": 0, "Male": 1})
 
-    # One-hot encode the 'Group' column
-    df = pd.get_dummies(df, columns=['Group'], drop_first=False)
+    # One-hot encode the 'Group' column but do not remove the "Group" column
+    group_dummies = pd.get_dummies(df['Group'], prefix='Group', drop_first=False)
+    df = pd.concat([df, group_dummies], axis=1)
 
     # Identify the columns that start with "Group"
     group_cols = [col for col in df.columns if col.startswith("Group")]
 
-    # Get the list of other columns (excluding group_cols)
+    # Get the list of other columns (excluding one hot encoded roup_cols)
     other_cols = [col for col in df.columns if col not in group_cols]
 
-    #Insert group_cols into the desired positions (5th to 7th )
+    #Insert one hot encoded group_cols into the desired positions
     new_col_order = other_cols[:5] + group_cols + other_cols[5:]
 
     # Step 4: Reorder the DataFrame

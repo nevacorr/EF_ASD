@@ -35,9 +35,9 @@ def create_predictor_target_vars(dforig, target, metric, include_group, run_dumm
         pred_brain_cols = df.columns[df.columns.str.startswith(prefix.upper() + '_')].tolist()
 
     if include_group:
-        pred_non_brain_cols = ["Site", "Sex","Group_HR+", "Group_HR-", "Group_LR-"]
+        pred_non_brain_cols = ["Site", "Sex", "Group", "Group_HR+", "Group_HR-", "Group_LR-"]
     else:
-        pred_non_brain_cols = ["Site", "Sex"]
+        pred_non_brain_cols = ["Site", "Sex", "Group"]
 
     predictor_list = pred_non_brain_cols + pred_brain_cols
 
@@ -48,8 +48,13 @@ def create_predictor_target_vars(dforig, target, metric, include_group, run_dumm
         df = df.sample(frac=0.1, random_state=42)
         n_iter = 5
 
+    # Make variable with just group
+    group_vals = df['Group'].copy()
+    group_vals = group_vals.reset_index(drop=True)
+
     # Make matrix of predictors
     X = df[predictor_list].copy()
+    X.drop(columns=['Group'], inplace=True)
 
     # Make vector with target value
     y = df[target].values
@@ -67,4 +72,4 @@ def create_predictor_target_vars(dforig, target, metric, include_group, run_dumm
         corr_matrix = plot_correlations(X, plot_title)
         plt.show()
 
-    return X, y
+    return X, y, group_vals

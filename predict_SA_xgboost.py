@@ -7,9 +7,11 @@ import pandas as pd
 from sklearn.metrics import mean_squared_error, r2_score
 from neurocombat_sklearn import CombatModel
 import warnings
+import shap
 from Utility_Functions_XGBoost import write_modeling_data_and_outcome_to_file, aggregate_feature_importances
+from Utility_Functions_XGBoost import plot_top_shap_scatter_by_group, plot_top_shap_distributions_by_group
 
-def predict_SA_xgboost(X, y, target, metric, params, run_dummy_quick_fit, set_params_man,
+def predict_SA_xgboost(X, y, group_vals, target, metric, params, run_dummy_quick_fit, set_params_man,
                        show_results_plot, bootstrap, n_bootstraps):
 
     # Suppress all FutureWarnings
@@ -48,7 +50,7 @@ def predict_SA_xgboost(X, y, target, metric, params, run_dummy_quick_fit, set_pa
     rng = np.random.default_rng(42)  # Fixed seed for reproducibility
 
     if bootstrap == 0:
-        n_bootstraps = 1 # force one iteration with no bootstrapping inside
+        n_bootstraps = 1 # force one iteration with no bootstrapping
 
     feature_importance_list = []
 
@@ -146,6 +148,27 @@ def predict_SA_xgboost(X, y, target, metric, params, run_dummy_quick_fit, set_pa
                 test_predictions[test_index] = xgb.predict(X_test_combat)
                 train_predictions[train_index] += xgb.predict(X_train_boot_combat)
 
+                # explain the GAM model with SHAP
+                explainer= shap.Explainer(xgb, X_train_boot_combat)
+                shap_values = explainer(X_test_combat)
+                shap_feature_names = list(X_train_boot.drop(columns="Site"))
+
+                # Save SHAP values and metadata
+                if b == 0 and i == 0 and n_bootstraps==1 and set_parameters_manually == 1:
+                    all_shap_values = shap_values.values
+                    all_feature_values = X.iloc[test_index].copy()
+                    all_group_labels = group_vals.iloc[test_index].copy()
+                elif set_parameters_manually == 1 and n_bootstraps ==1:
+                    all_shap_values = np.vstack([all_shap_values, shap_values.values])
+                    all_feature_values = pd.concat(
+                        [all_feature_values, X.iloc[test_index].copy().reset_index(drop=True)],
+                        axis=0
+                    ).reset_index(drop=True)
+                    all_group_labels = pd.concat(
+                        [all_group_labels, group_vals.iloc[test_index].copy().reset_index(drop=True)],
+                        axis=0
+                    ).reset_index(drop=True)
+
             # Store importances
             feature_importance_list.append(model.feature_importances_)
 
@@ -184,5 +207,22 @@ def predict_SA_xgboost(X, y, target, metric, params, run_dummy_quick_fit, set_pa
     feature_names = ['Sex'] + X.drop(columns=['Site', 'Sex']).columns.tolist()
     feature_importance_df = aggregate_feature_importances(feature_importance_list, feature_names, n_bootstraps,
                 outputfilename=f"{target}_{metric}_{n_bootstraps}_xgb_feature_importance.txt", top_n=25)
+
+    if set_parameters_manually == 1 and n_bootstraps == 1:
+        # all_shap_values shape: (n_samples, n_features)
+        mean_abs_shap = np.abs(all_shap_values).mean(axis=0)
+
+        # Create a DataFrame for easier handling and plotting
+        shap_feature_importance_df = pd.DataFrame({
+            'feature': feature_names,
+            'mean_abs_shap': mean_abs_shap
+        }).sort_values('mean_abs_shap', ascending=False)
+        plot_top_shap_distributions_by_group(
+            shap_feature_importance_df,
+            all_shap_values,
+            all_group_labels,
+            feature_names,
+            top_n=20
+        )
 
     return r2_test_array_xgb, feature_importance_df

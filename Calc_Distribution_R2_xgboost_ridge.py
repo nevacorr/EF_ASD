@@ -12,7 +12,7 @@ metric = 'subcort_infant'
 #options 'volume_infant', 'volume_VSA', 'subcort_VSA', 'subcort_infant', 'ad_VSA', 'rd_VSA', 'md_VSA', 'fa_VSA'
 #        'surface_area_VSA', 'cortical_thickness_VSA'
 include_group = 0
-n_bootstraps = 100
+n_bootstraps = 1
 show_heat_map = 0
 remove_colinear = 0
 run_dummy_quick_fit_xgb = 0
@@ -48,15 +48,24 @@ else:
 # Load and clean data for selected target and metric
 df = load_all_data()
 
-X, y = create_predictor_target_vars(df, target, metric, include_group, run_dummy_quick_fit_xgb,
+X, y, group_vals = create_predictor_target_vars(df, target, metric, include_group, run_dummy_quick_fit_xgb,
                                     show_heat_map, remove_colinear)
+
+
+# Plot histogram
+plt.hist(y, bins=30, edgecolor='black')
+plt.xlabel(target)
+plt.ylabel('Frequency')
+plt.title(f'Histogram of {target}')
+plt.grid(True)
+plt.show()
 
 print(f"Running with target = {target} metric = {metric} include_group = {include_group} "
       f"quick fit = {run_dummy_quick_fit_xgb}")
 
 if run_xgboost_fit:
     # Use XGBoost to predict school age behavior from brain metric
-    r2_test_array_xgb, feature_importance_df = predict_SA_xgboost(X, y, target, metric, params,
+    r2_test_array_xgb, feature_importance_df = predict_SA_xgboost(X, y, group_vals, target, metric, params,
                     run_dummy_quick_fit_xgb, set_xgb_params_man,0, 1, n_bootstraps)
 
     # Calculate_xgb_percentile for r2test

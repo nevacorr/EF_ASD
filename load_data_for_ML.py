@@ -100,7 +100,7 @@ def load_all_data():
         "CandID", "Identifiers", "Combined_ASD_DX", "Risk", "Sex",
         "AB_12_Percent", "AB_24_Percent",
         "BRIEF2_GEC_T_score", "BRIEF2_GEC_raw_score",
-        "Flanker_Standard_Age_Corrected", "DCCS_Standard_Age_Corrected",
+        "Flanker_Standard_Age_Corrected", "DCCS_Standard_Age_Corrected", "Group",
         "Group_HR+", "Group_HR-", "Group_LR-"
     ]
 

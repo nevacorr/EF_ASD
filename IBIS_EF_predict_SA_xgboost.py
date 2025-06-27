@@ -6,7 +6,7 @@ from create_predictor_target_vars import create_predictor_target_vars
 show_heat_map = 0
 remove_colinear = 0
 run_dummy_quick_fit_xgb = 0
-set_params_man = 0
+set_params_man = 1
 
 targets = ["Flanker_Standard_Age_Corrected", "BRIEF2_GEC_raw_score","BRIEF2_GEC_T_score", "DCCS_Standard_Age_Corrected"]
 metrics = [ 'cortical_thickness_VSA', 'volume_VSA','subcort_VSA', 'surface_area_VSA', 'volume_infant', 'subcort_infant',
@@ -29,7 +29,7 @@ df = load_all_data()
 
 for target, metric, include_group in itertools.product(targets, metrics, include_group_options):
 
-    X, y = create_predictor_target_vars(df, target, metric, include_group, run_dummy_quick_fit_xgb,
+    X, y, group_vals = create_predictor_target_vars(df, target, metric, include_group, run_dummy_quick_fit_xgb,
                                         show_heat_map, remove_colinear)
 
     print(f"Running with target = {target} metric = {metric} include_group = {include_group} "
@@ -38,6 +38,7 @@ for target, metric, include_group in itertools.product(targets, metrics, include
     predict_SA_xgboost(
         X,
         y,
+        group_vals,
         target,
         metric,
         params,
