@@ -10,8 +10,9 @@ import warnings
 import shap
 from Utility_Functions_XGBoost import write_modeling_data_and_outcome_to_file, aggregate_feature_importances
 from Utility_Functions_XGBoost import plot_top_shap_scatter_by_group, plot_top_shap_distributions_by_group
+from Utility_Functions_XGBoost import plot_shap_sex_distribution_by_group
 
-def predict_SA_xgboost(X, y, group_vals, target, metric, params, run_dummy_quick_fit, set_params_man,
+def predict_SA_xgboost(X, y, group_vals, sex_vals, target, metric, params, run_dummy_quick_fit, set_params_man,
                        show_results_plot, bootstrap, n_bootstraps):
 
     # Suppress all FutureWarnings
@@ -158,6 +159,7 @@ def predict_SA_xgboost(X, y, group_vals, target, metric, params, run_dummy_quick
                     all_shap_values = shap_values.values
                     all_feature_values = X.iloc[test_index].copy()
                     all_group_labels = group_vals.iloc[test_index].copy()
+                    all_sex_labels = sex_vals.iloc[test_index].copy()
                 elif set_parameters_manually == 1 and n_bootstraps ==1:
                     all_shap_values = np.vstack([all_shap_values, shap_values.values])
                     all_feature_values = pd.concat(
@@ -166,6 +168,10 @@ def predict_SA_xgboost(X, y, group_vals, target, metric, params, run_dummy_quick
                     ).reset_index(drop=True)
                     all_group_labels = pd.concat(
                         [all_group_labels, group_vals.iloc[test_index].copy().reset_index(drop=True)],
+                        axis=0
+                    ).reset_index(drop=True)
+                    all_sex_labels = pd.concat(
+                            [all_sex_labels, sex_vals.iloc[test_index].copy().reset_index(drop=True)],
                         axis=0
                     ).reset_index(drop=True)
 
@@ -217,12 +223,24 @@ def predict_SA_xgboost(X, y, group_vals, target, metric, params, run_dummy_quick
             'feature': feature_names,
             'mean_abs_shap': mean_abs_shap
         }).sort_values('mean_abs_shap', ascending=False)
+
         plot_top_shap_distributions_by_group(
             shap_feature_importance_df,
             all_shap_values,
             all_group_labels,
+            all_sex_labels,
             feature_names,
             top_n=20
+        )
+
+        plot_shap_sex_distribution_by_group(
+            all_shap_values,
+            all_group_labels,
+            all_sex_labels,
+            feature_names,
+            sex_feature_name='Sex',
+            bins=20,
+            plot_type='hist'  # or 'kde' for smooth curves
         )
 
     return r2_test_array_xgb, feature_importance_df

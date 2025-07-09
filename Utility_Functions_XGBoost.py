@@ -229,7 +229,7 @@ def plot_top_shap_scatter_by_group(shap_feature_importance_df, all_shap_values, 
         plt.show()
 
 
-def plot_top_shap_distributions_by_group(shap_feature_importance_df, all_shap_values, all_group_labels, feature_names,
+def plot_top_shap_distributions_by_group(shap_feature_importance_df, all_shap_values, all_group_labels, all_sex_labels, feature_names,
                                          top_n=5):
     """
     Plot violin plots of SHAP values for the top_n features, colored by group.
@@ -259,3 +259,57 @@ def plot_top_shap_distributions_by_group(shap_feature_importance_df, all_shap_va
         plt.axhline(0, linestyle='--', color='gray')
         plt.tight_layout()
         plt.show()
+
+def plot_shap_sex_distribution_by_group(all_shap_values, all_group_labels, all_sex_labels, feature_names,
+                                        sex_feature_name='Sex', bins=20, plot_type='hist'):
+    """
+    Plot SHAP value distributions for the 'sex' feature by sex within each diagnostic group.
+
+    Parameters:
+    - all_shap_values: numpy array of shape (n_samples, n_features)
+    - all_group_labels: pandas Series or array-like with group labels (e.g., HR+, HR-, LR)
+    - all_sex_labels: pandas Series or array-like with binary sex labels (0 = female, 1 = male)
+    - feature_names: list of feature names in order matching SHAP values
+    - sex_feature_name: name of the sex feature in feature_names
+    - bins: number of histogram bins
+    - plot_type: 'hist' or 'kde' for histogram or density plot
+    """
+
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    import pandas as pd
+
+    feature_idx = feature_names.index(sex_feature_name)
+
+    shap_sex_vals = all_shap_values[:, feature_idx]
+
+    df = pd.DataFrame({
+        'SHAP value': shap_sex_vals,
+        'Group': all_group_labels.reset_index(drop=True),
+        'Sex': all_sex_labels.reset_index(drop=True).map({0: 'Female', 1: 'Male'})
+    })
+
+    groups = df['Group'].unique()
+
+    for group in groups:
+        plt.figure(figsize=(8, 6))
+        group_df = df[df['Group'] == group]
+
+        if plot_type == 'hist':
+            for sex, color in zip(['Female', 'Male'], ['green', 'blue']):
+                plt.hist(group_df[group_df['Sex'] == sex]['SHAP value'],
+                         bins=bins, alpha=0.5, label=sex, color=color, edgecolor='black', linewidth=0.5)
+        elif plot_type == 'kde':
+            for sex, color in zip(['Female', 'Male'], ['orange', 'blue']):
+                sns.kdeplot(group_df[group_df['Sex'] == sex]['SHAP value'],
+                            label=sex, fill=True, common_norm=False, alpha=0.5, color=color)
+
+        plt.axvline(0, color='gray', linestyle='--')
+        plt.title(f"SHAP Values for 'Sex' in Group: {group}")
+        plt.xlabel("SHAP Value for 'Sex'")
+        plt.ylabel("Count" if plot_type == 'hist' else "Density")
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+
+        mystop=1

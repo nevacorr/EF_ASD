@@ -48,7 +48,7 @@ else:
 # Load and clean data for selected target and metric
 df = load_all_data()
 
-X, y, group_vals = create_predictor_target_vars(df, target, metric, include_group, run_dummy_quick_fit_xgb,
+X, y, group_vals, sex_vals = create_predictor_target_vars(df, target, metric, include_group, run_dummy_quick_fit_xgb,
                                     show_heat_map, remove_colinear)
 
 
@@ -65,7 +65,7 @@ print(f"Running with target = {target} metric = {metric} include_group = {includ
 
 if run_xgboost_fit:
     # Use XGBoost to predict school age behavior from brain metric
-    r2_test_array_xgb, feature_importance_df = predict_SA_xgboost(X, y, group_vals, target, metric, params,
+    r2_test_array_xgb, feature_importance_df = predict_SA_xgboost(X, y, group_vals, sex_vals, target, metric, params,
                     run_dummy_quick_fit_xgb, set_xgb_params_man,0, 1, n_bootstraps)
 
     # Calculate_xgb_percentile for r2test
