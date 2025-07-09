@@ -52,6 +52,10 @@ def create_predictor_target_vars(dforig, target, metric, include_group, run_dumm
     group_vals = df['Group'].copy()
     group_vals = group_vals.reset_index(drop=True)
 
+    # Make variable with just sex
+    sex_vals = df['Sex'].copy()
+    sex_vals = sex_vals.reset_index(drop=True)
+
     # Make matrix of predictors
     X = df[predictor_list].copy()
     X.drop(columns=['Group'], inplace=True)
@@ -72,4 +76,4 @@ def create_predictor_target_vars(dforig, target, metric, include_group, run_dumm
         corr_matrix = plot_correlations(X, plot_title)
         plt.show()
 
-    return X, y, group_vals
+    return X, y, group_vals, sex_vals
