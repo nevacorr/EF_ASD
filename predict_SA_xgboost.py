@@ -10,7 +10,8 @@ import warnings
 import shap
 from Utility_Functions_XGBoost import write_modeling_data_and_outcome_to_file, aggregate_feature_importances
 from Utility_Functions_XGBoost import plot_top_shap_scatter_by_group, plot_top_shap_distributions_by_group
-from Utility_Functions_XGBoost import plot_shap_sex_distribution_by_group
+from Utility_Functions_XGBoost import plot_shap_magnitude_histograms_equal_bins, plot_shap_magnitude_by_sex_and_group
+from Utility_Functions_XGBoost import plot_shap_magnitude_kde
 
 def predict_SA_xgboost(X, y, group_vals, sex_vals, target, metric, params, run_dummy_quick_fit, set_params_man,
                        show_results_plot, bootstrap, n_bootstraps):
@@ -224,23 +225,37 @@ def predict_SA_xgboost(X, y, group_vals, sex_vals, target, metric, params, run_d
             'mean_abs_shap': mean_abs_shap
         }).sort_values('mean_abs_shap', ascending=False)
 
-        plot_top_shap_distributions_by_group(
-            shap_feature_importance_df,
+        # plot_top_shap_distributions_by_group(
+        #     shap_feature_importance_df,
+        #     all_shap_values,
+        #     all_group_labels,
+        #     all_sex_labels,
+        #     feature_names,
+        #     top_n=20
+        # )
+
+        plot_shap_magnitude_histograms_equal_bins(
             all_shap_values,
             all_group_labels,
             all_sex_labels,
             feature_names,
-            top_n=20
+            sex_feature_name='Sex'
         )
 
-        plot_shap_sex_distribution_by_group(
+        plot_shap_magnitude_by_sex_and_group(
             all_shap_values,
             all_group_labels,
             all_sex_labels,
             feature_names,
-            sex_feature_name='Sex',
-            bins=20,
-            plot_type='hist'  # or 'kde' for smooth curves
+            sex_feature_name='Sex'
+        )
+
+        plot_shap_magnitude_kde(
+            all_shap_values,
+            all_group_labels,
+            all_sex_labels,
+            feature_names,
+            sex_feature_name='Sex'
         )
 
     return r2_test_array_xgb, feature_importance_df

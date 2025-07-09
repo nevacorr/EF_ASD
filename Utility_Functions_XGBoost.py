@@ -260,56 +260,122 @@ def plot_top_shap_distributions_by_group(shap_feature_importance_df, all_shap_va
         plt.tight_layout()
         plt.show()
 
-def plot_shap_sex_distribution_by_group(all_shap_values, all_group_labels, all_sex_labels, feature_names,
-                                        sex_feature_name='Sex', bins=20, plot_type='hist'):
-    """
-    Plot SHAP value distributions for the 'sex' feature by sex within each diagnostic group.
 
-    Parameters:
-    - all_shap_values: numpy array of shape (n_samples, n_features)
-    - all_group_labels: pandas Series or array-like with group labels (e.g., HR+, HR-, LR)
-    - all_sex_labels: pandas Series or array-like with binary sex labels (0 = female, 1 = male)
-    - feature_names: list of feature names in order matching SHAP values
-    - sex_feature_name: name of the sex feature in feature_names
-    - bins: number of histogram bins
-    - plot_type: 'hist' or 'kde' for histogram or density plot
-    """
 
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    import pandas as pd
+def plot_shap_magnitude_histograms_equal_bins(all_shap_values, all_group_labels, all_sex_labels, feature_names,
+                                              sex_feature_name='sex'):
+    sex_idx = feature_names.index(sex_feature_name)
+    sex_shap_vals = all_shap_values[:, sex_idx]
 
-    feature_idx = feature_names.index(sex_feature_name)
+    sex_series = pd.Series(all_sex_labels).map({0: 'Female', 1: 'Male'}) if np.issubdtype(type(all_sex_labels[0]),
+                                                                                          np.number) else pd.Series(
+        all_sex_labels)
+    group_series = pd.Series(all_group_labels)
 
-    shap_sex_vals = all_shap_values[:, feature_idx]
-
-    df = pd.DataFrame({
-        'SHAP value': shap_sex_vals,
-        'Group': all_group_labels.reset_index(drop=True),
-        'Sex': all_sex_labels.reset_index(drop=True).map({0: 'Female', 1: 'Male'})
+    plot_df = pd.DataFrame({
+        'Group': group_series,
+        'Sex': sex_series,
+        '|SHAP value|': np.abs(sex_shap_vals)
     })
 
-    groups = df['Group'].unique()
+    groups = plot_df['Group'].unique()
+    sexes = ['Male', 'Female']
+    colors = {'Male': 'blue', 'Female': 'green'}
 
-    for group in groups:
-        plt.figure(figsize=(8, 6))
-        group_df = df[df['Group'] == group]
+    n_bins = 30
+    fig, axes = plt.subplots(nrows=int(np.ceil(len(groups) / 3)), ncols=3,
+                             figsize=(15, 5 * int(np.ceil(len(groups) / 3))))
+    axes = axes.flatten()
 
-        if plot_type == 'hist':
-            for sex, color in zip(['Female', 'Male'], ['green', 'blue']):
-                plt.hist(group_df[group_df['Sex'] == sex]['SHAP value'],
-                         bins=bins, alpha=0.5, label=sex, color=color, edgecolor='black', linewidth=0.5)
-        elif plot_type == 'kde':
-            for sex, color in zip(['Female', 'Male'], ['orange', 'blue']):
-                sns.kdeplot(group_df[group_df['Sex'] == sex]['SHAP value'],
-                            label=sex, fill=True, common_norm=False, alpha=0.5, color=color)
+    for i, grp in enumerate(groups):
+        ax = axes[i]
+        subset = plot_df[plot_df['Group'] == grp]
 
-        plt.axvline(0, color='gray', linestyle='--')
-        plt.title(f"SHAP Values for 'Sex' in Group: {group}")
-        plt.xlabel("SHAP Value for 'Sex'")
-        plt.ylabel("Count" if plot_type == 'hist' else "Density")
-        plt.legend()
-        plt.tight_layout()
-        plt.show()
+        # Determine common bins for this group's data
+        data_min = subset['|SHAP value|'].min()
+        data_max = subset['|SHAP value|'].max()
+        bins = np.linspace(data_min, data_max, n_bins + 1)
 
-        mystop=1
+        for sex in sexes:
+            sex_data = subset[subset['Sex'] == sex]['|SHAP value|']
+            ax.hist(sex_data, bins=bins, alpha=0.6, label=sex, color=colors[sex], density=True, histtype='bar',
+                    edgecolor='black')
+
+        ax.set_title(f'Group: {grp}')
+        ax.set_xlabel('|SHAP value|')
+        ax.set_ylabel('Count')
+        ax.legend()
+
+    # Remove unused subplots if any
+    for j in range(i + 1, len(axes)):
+        fig.delaxes(axes[j])
+
+    plt.suptitle('Distribution of |SHAP| Values for Sex Feature by Group and Sex', fontsize=16)
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    plt.show()
+
+
+def plot_shap_magnitude_by_sex_and_group(all_shap_values, all_group_labels, all_sex_labels, feature_names, sex_feature_name='sex'):
+    """
+    Plot boxplots of |SHAP| values for the sex feature, split by sex and diagnostic group.
+
+    Parameters:
+    - all_shap_values: np.ndarray of shape (n_samples, n_features)
+    - all_group_labels: pandas Series or array-like of group labels (length = n_samples)
+    - all_sex_labels: pandas Series or array-like of sex labels (e.g., 'Male'/'Female')
+    - feature_names: list of feature names (length = n_features)
+    - sex_feature_name: the exact name of the sex feature in feature_names
+    """
+
+    # Get index of the sex feature
+    sex_feature_index = feature_names.index(sex_feature_name)
+
+    # Get the SHAP values for just the sex feature
+    sex_shap_values = all_shap_values[:, sex_feature_index]
+
+    # Build DataFrame
+    plot_df = pd.DataFrame({
+        'Group': pd.Series(all_group_labels).reset_index(drop=True),
+        'Sex': pd.Series(all_sex_labels).map({0: 'Female', 1: 'Male'}).reset_index(drop=True),
+        '|SHAP value|': np.abs(sex_shap_values)
+    })
+
+    # Plot boxplot
+    plt.figure(figsize=(8, 6))
+    sns.boxplot(data=plot_df, x='Group', y='|SHAP value|', hue='Sex', palette={'Male': 'blue', 'Female': 'green'})
+    plt.title("SHAP Magnitude for Sex Feature by Group and Sex")
+    plt.ylabel("|SHAP value| (magnitude)")
+    plt.tight_layout()
+    plt.show()
+
+def plot_shap_magnitude_kde(all_shap_values, all_group_labels, all_sex_labels, feature_names, sex_feature_name='sex'):
+    """
+    Plot KDE plots of absolute SHAP values for the sex feature, separated by group and sex.
+
+    Parameters:
+    - all_shap_values: numpy array (n_samples, n_features)
+    - all_group_labels: array-like of group labels (length n_samples)
+    - all_sex_labels: array-like of sex labels coded as 0/1 or strings
+    - feature_names: list of feature names
+    - sex_feature_name: name of the sex feature in feature_names
+    """
+
+    sex_idx = feature_names.index(sex_feature_name)
+    sex_shap_vals = all_shap_values[:, sex_idx]
+
+    # Map numeric sex labels if needed
+    sex_series = pd.Series(all_sex_labels).map({0: 'Female', 1: 'Male'}) if np.issubdtype(type(all_sex_labels[0]), np.number) else pd.Series(all_sex_labels)
+
+    plot_df = pd.DataFrame({
+        'Group': pd.Series(all_group_labels),
+        'Sex': sex_series,
+        '|SHAP value|': np.abs(sex_shap_vals)
+    })
+
+    g = sns.FacetGrid(plot_df, col="Group", hue="Sex", palette={'Male': 'blue', 'Female': 'green'}, col_wrap=3, height=4, sharex=True, sharey=True)
+    g.map(sns.kdeplot, '|SHAP value|', fill=True, common_norm=False, alpha=0.6)
+    g.add_legend()
+    g.set_axis_labels("|SHAP value|", "Density")
+    g.fig.subplots_adjust(top=0.9)
+    g.fig.suptitle('KDE of |SHAP| Values for Sex Feature by Group and Sex')
+    plt.show()
