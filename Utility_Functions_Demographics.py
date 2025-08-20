@@ -342,29 +342,47 @@ def compute_stats_conditioned_on_identifiers(df, categorical_columns=None):
     #
     # Example:
     # Input dataframe:
-    #    Identifiers_ibis  Identifiers_vsa   Age   Sex
-    # 0              101.0             NaN   10.0     M
-    # 1              102.0             NaN   12.0     F
-    # 2                NaN           201.0   11.0     F
-    # 3                NaN           202.0    NaN     M
+    #    Identifiers_ab12  Identifiers_24  Identifiers_brief2  Identifiers_dccs  Identifiers_flanker   Age   Sex
+    # 0             101.0            NaN               301.0             NaN                 NaN   10.0     M
+    # 1             102.0            NaN                 NaN           401.0                 NaN   12.0     F
+    # 2               NaN          201.0                 NaN             NaN               501.0   11.0     F
+    # 3               NaN          202.0                 NaN             NaN                 NaN    NaN     M
     #
     # If categorical_columns = ['Sex'], then:
     #
-    # - For suffix "ibis" (rows 0,1):
-    #     Age__ibis → mean=11.0, std=1.41, count=2, n_nan=0
-    #     Sex__ibis → value_counts={'M':1, 'F':1}, n_nan=0
+    # - For suffix "ab12" (rows 0,1):
+    #     Age__ab12 → mean=11.0, std=1.41, count=2, n_nan=0
+    #     Sex__ab12 → value_counts={'M':1, 'F':1}, n_nan=0
     #
-    # - For suffix "vsa" (rows 2,3):
-    #     Age__vsa → mean=11.0, std=0.0, count=1, n_nan=1
-    #     Sex__vsa → value_counts={'F':1, 'M':1}, n_nan=0
+    # - For suffix "24" (rows 2,3):
+    #     Age__24 → mean=11.0, std=0.0, count=1, n_nan=1
+    #     Sex__24 → value_counts={'F':1, 'M':1}, n_nan=0
+    #
+    # - For suffix "brief2" (rows 0):
+    #     Age__brief2 → mean=10.0, std=NaN, count=1, n_nan=0
+    #     Sex__brief2 → value_counts={'M':1}, n_nan=0
+    #
+    # - For suffix "dccs" (rows 1):
+    #     Age__dccs → mean=12.0, std=NaN, count=1, n_nan=0
+    #     Sex__dccs → value_counts={'F':1}, n_nan=0
+    #
+    # - For suffix "flanker" (rows 2):
+    #     Age__flanker → mean=11.0, std=NaN, count=1, n_nan=0
+    #     Sex__flanker → value_counts={'F':1}, n_nan=0
     #
     # The returned DataFrame would look like:
     #
-    #                     mean   std  count  n_nan                     value_counts
-    # Age__ibis           11.0  1.41    2.0      0                            NaN
-    # Sex__ibis            NaN   NaN    NaN      0        {'M': 1, 'F': 1}
-    # Age__vsa            11.0  0.00    1.0      1                            NaN
-    # Sex__vsa             NaN   NaN    NaN      0        {'F': 1, 'M': 1}
+    #                          mean   std  count  n_nan                     value_counts
+    # Age__ab12                11.0  1.41    2.0      0                            NaN
+    # Sex__ab12                  NaN   NaN    NaN      0        {'M':1, 'F':1}
+    # Age__24                   11.0  0.0     1.0      1                            NaN
+    # Sex__24                    NaN   NaN    NaN      0        {'F':1, 'M':1}
+    # Age__brief2               10.0  NaN     1.0      0                            NaN
+    # Sex__brief2                NaN   NaN    NaN      0        {'M':1}
+    # Age__dccs                 12.0  NaN     1.0      0                            NaN
+    # Sex__dccs                  NaN   NaN    NaN      0        {'F':1}
+    # Age__flanker              11.0  NaN     1.0      0                            NaN
+    # Sex__flanker               NaN   NaN    NaN      0        {'F':1}
 
     if categorical_columns is None:
         categorical_columns = []
