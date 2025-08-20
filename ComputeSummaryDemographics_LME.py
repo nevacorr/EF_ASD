@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from Utility_Functions_Demographics import compute_stats_conditioned_on_identifiers
-from Utility_Functions_Demographics import combine_redundant_columns
+from Utility_Functions_Demographics import combine_redundant_columns, add_IQ_ADOS
 from Utility_Functions_Demographics import convert_maternal_education_num_to_string
 
 working_dir = os.getcwd()
@@ -11,6 +11,9 @@ dataframes = {}
 
 python_directory = "/Users/nevao/PycharmProjects/EF_ASD/"
 python_filename = "IBIS_merged_df_full_demographics.csv"
+VSA_ADOS_filename = "/Users/nevao/Documents/IBIS_EF/source data/Behav_Data/ADOS_school-age_long_data-2025-07-27T00_14_09.037Z.csv"
+v24_v36_ADOS_filename = "/Users/nevao/Documents/IBIS_EF/source data/Behav_Data/ADOS_v24 and 36_long_data-2025-07-27T00_05_00.911Z.csv"
+IQ_filename = "/Users/nevao/Documents/IBIS_EF/source data/Behav_Data/IQ data_Long_data-2025-07-26T23_51_14.152Z.csv"
 
 dfs = []
 ibis_df = None
@@ -80,6 +83,9 @@ python_data = combine_redundant_columns(python_data, column_groups, new_column_n
 
 final_data = pd.merge(r_data_df, python_data, on='Identifiers', how='outer')
 final_data.drop(columns=["X"], inplace=True)
+
+# Add ADOS scores, IQ at 12mo, IQ at school age
+final_data = add_IQ_ADOS(final_data, v24_v36_ADOS_filename,VSA_ADOS_filename,  IQ_filename)
 
 demo_stats = compute_stats_conditioned_on_identifiers(final_data, categorical_columns=[])
 
