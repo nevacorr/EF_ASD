@@ -404,3 +404,55 @@ def convert_maternal_education_num_to_string(score):
         return "grad_degree"
     else:
         return "nan"
+
+def add_IQ_ADOS(df_input, v24_v36_ADOS_filename, VSA_ADOS_filename, IQ_filename):
+    df = df_input.copy()
+    V24_V36_ADOS_df = pd.read_csv(v24_v36_ADOS_filename)
+    VSA_ADOS_df = pd.read_csv(VSA_ADOS_filename)
+    IQ_df = pd.read_csv(IQ_filename)
+
+    V24_V36_ADOS_keep_columns=['Identifiers','V24 ADOS_Derived,severity_score_lookup', 'V36 ADOS_Derived,severity_score_lookup', 'V37Plus ADOS_Derived,severity_score_lookup']
+    VSA_ADOS_keep_columns = ['Identifiers', 'VSA ados2_module1,severity_score_lookup','VSA ados2_module2,severity_score_lookup','VSA ados2_module3,severity_score_lookup']
+    IQ_keep_columns=['Identifiers', 'V12 mullen,composite_standard_score','V24 mullen,composite_standard_score', 'VSA DAS_SA,GCA_STD_SCORE']
+
+    V24_V36_ADOS_df = V24_V36_ADOS_df[V24_V36_ADOS_keep_columns]
+    V24_V36_ADOS_df = V24_V36_ADOS_df.replace('.', np.nan)
+    VSA_ADOS_df = VSA_ADOS_df[VSA_ADOS_keep_columns]
+    IQ_df = IQ_df[IQ_keep_columns]
+    IQ_df = IQ_df.replace('.', np.nan)
+
+    # Create new severity score column for V24 V36 that collapses across multiple columns
+    V24_V36_ADOS_df["V24_V36_ados_severity_score"] = (
+        V24_V36_ADOS_df["V37Plus ADOS_Derived,severity_score_lookup"]
+        .combine_first(V24_V36_ADOS_df["V36 ADOS_Derived,severity_score_lookup"])
+        .combine_first(V24_V36_ADOS_df["V24 ADOS_Derived,severity_score_lookup"])
+    )
+
+    # Keep only Identifiers and the new score column
+    V24_V36_ADOS_df = V24_V36_ADOS_df[["Identifiers", "V24_V36_ados_severity_score"]]
+
+    # Create new severity score column for VSA that collapses across multiple columns
+    VSA_ADOS_df["VSA_ados2_severity_score"] = (
+        VSA_ADOS_df["VSA ados2_module3,severity_score_lookup"]
+        .combine_first(VSA_ADOS_df["VSA ados2_module2,severity_score_lookup"])
+        .combine_first(VSA_ADOS_df["VSA ados2_module1,severity_score_lookup"])
+    )
+
+    # Keep only Identifiers and the new score column
+    VSA_ADOS_df = VSA_ADOS_df[["Identifiers", "VSA_ados2_severity_score"]]
+
+    # Create new mullen score that collapses across 12 and 24 months
+    IQ_df["mullen,composite_standard_score"] = (
+        IQ_df["V24 mullen,composite_standard_score"]
+        .combine_first(IQ_df["V12 mullen,composite_standard_score"])
+    )
+
+    IQ_df = IQ_df[["Identifiers", "mullen,composite_standard_score", "VSA DAS_SA,GCA_STD_SCORE"]]
+
+    # Left merge final df and ADOS df on Identifier
+    final_df = (
+        df.merge(V24_V36_ADOS_df, on="Identifiers", how="left")
+        .merge(VSA_ADOS_df, on="Identifiers", how="left")
+        .merge(IQ_df, on="Identifiers", how="left")
+    )
+    return final_df
