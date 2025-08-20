@@ -322,6 +322,49 @@ def create_combined_dx_risk_column(df):
 
 
 def compute_stats_conditioned_on_identifiers(df, categorical_columns=None):
+    # This function computes descriptive statistics for each column in the dataframe,
+    # conditioned on the presence of different identifier columns.
+    #
+    # Specifically:
+    # - It looks for all columns whose names start with 'Identifiers_' and extracts their suffixes.
+    # - For each suffix (e.g., 'ibis', 'vsa'), it selects the subset of rows where that identifier is not NaN.
+    # - For every other column (excluding all 'Identifiers' columns):
+    #     * If the column is categorical (either explicitly listed in categorical_columns or inferred as non-numeric),
+    #       it records value counts (including NaNs) and the number of missing values.
+    #     * If the column is numeric, it records mean, standard deviation, non-missing count, and number of missing values.
+    # - The results are stored in a dictionary keyed as "<column>__<suffix>" and returned as a DataFrame.
+    #
+    # Example:
+    # If you have identifiers 'Identifiers_ibis' and 'Identifiers_vsa',
+    # this function will compute stats for each non-identifier column separately
+    # within the subset of rows where 'Identifiers_ibis' is not NaN
+    # and where 'Identifiers_vsa' is not NaN.
+    #
+    # Example:
+    # Input dataframe:
+    #    Identifiers_ibis  Identifiers_vsa   Age   Sex
+    # 0              101.0             NaN   10.0     M
+    # 1              102.0             NaN   12.0     F
+    # 2                NaN           201.0   11.0     F
+    # 3                NaN           202.0    NaN     M
+    #
+    # If categorical_columns = ['Sex'], then:
+    #
+    # - For suffix "ibis" (rows 0,1):
+    #     Age__ibis → mean=11.0, std=1.41, count=2, n_nan=0
+    #     Sex__ibis → value_counts={'M':1, 'F':1}, n_nan=0
+    #
+    # - For suffix "vsa" (rows 2,3):
+    #     Age__vsa → mean=11.0, std=0.0, count=1, n_nan=1
+    #     Sex__vsa → value_counts={'F':1, 'M':1}, n_nan=0
+    #
+    # The returned DataFrame would look like:
+    #
+    #                     mean   std  count  n_nan                     value_counts
+    # Age__ibis           11.0  1.41    2.0      0                            NaN
+    # Sex__ibis            NaN   NaN    NaN      0        {'M': 1, 'F': 1}
+    # Age__vsa            11.0  0.00    1.0      1                            NaN
+    # Sex__vsa             NaN   NaN    NaN      0        {'F': 1, 'M': 1}
 
     if categorical_columns is None:
         categorical_columns = []
@@ -418,6 +461,7 @@ def add_IQ_ADOS(df_input, v24_v36_ADOS_filename, VSA_ADOS_filename, IQ_filename)
     V24_V36_ADOS_df = V24_V36_ADOS_df[V24_V36_ADOS_keep_columns]
     V24_V36_ADOS_df = V24_V36_ADOS_df.replace('.', np.nan)
     VSA_ADOS_df = VSA_ADOS_df[VSA_ADOS_keep_columns]
+    VSA_ADOS_df = VSA_ADOS_df.replace('.', np.nan)
     IQ_df = IQ_df[IQ_keep_columns]
     IQ_df = IQ_df.replace('.', np.nan)
 
@@ -449,10 +493,19 @@ def add_IQ_ADOS(df_input, v24_v36_ADOS_filename, VSA_ADOS_filename, IQ_filename)
 
     IQ_df = IQ_df[["Identifiers", "mullen,composite_standard_score", "VSA DAS_SA,GCA_STD_SCORE"]]
 
+    # Replace the literal string 'less than 25' with 25
+    IQ_df["VSA DAS_SA,GCA_STD_SCORE"] = IQ_df["VSA DAS_SA,GCA_STD_SCORE"].replace("less than 25", 25).astype(float)
+
     # Left merge final df and ADOS df on Identifier
     final_df = (
         df.merge(V24_V36_ADOS_df, on="Identifiers", how="left")
         .merge(VSA_ADOS_df, on="Identifiers", how="left")
         .merge(IQ_df, on="Identifiers", how="left")
     )
+
+    # Convert new columns to type float
+    cols_to_float = ['V24_V36_ados_severity_score', 'VSA_ados2_severity_score', 'mullen,composite_standard_score', 'VSA DAS_SA,GCA_STD_SCORE']
+
+    final_df[cols_to_float] = final_df[cols_to_float].astype(float)
+
     return final_df
