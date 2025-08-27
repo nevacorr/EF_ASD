@@ -320,6 +320,20 @@ def create_combined_dx_risk_column(df):
 
     return df
 
+def output_rows_with_nans(df, measure, columns_to_check, exclude_prefixes=None):
+    # Filter rows where any of the specified columns are NaN
+    mask = df[columns_to_check].isna().any(axis=1)
+    filtered_df = df.loc[mask]
+
+    # Drop columns with specified prefixes
+    if exclude_prefixes is not None:
+        cols_to_drop = [col for col in filtered_df.columns
+                        if any(col.startswith(pref) for pref in exclude_prefixes)]
+        filtered_df = filtered_df.drop(columns=cols_to_drop, errors='ignore')
+
+    filtered_df.reset_index(inplace=True, drop=True)
+
+    filtered_df.to_csv(f'/Users/nevao/PycharmProjects/EF_ASD/{measure}_with_missing_data.csv', index=False)
 
 def compute_stats_conditioned_on_identifiers(df, categorical_columns=None):
     # This function computes descriptive statistics for each column in the dataframe,
@@ -396,6 +410,35 @@ def compute_stats_conditioned_on_identifiers(df, categorical_columns=None):
     for suffix in suffixes:
         id_col = f'Identifiers_{suffix}'
         sub_df = df[df[id_col].notna()]  # Only keep rows where this identifier is not NaN
+
+        sub_df.to_csv(f'Demographics for {suffix}.csv')
+
+        if suffix == 'ab12':
+            columns_to_check = ['V12Candidate_Age', 'V06 tsi,mother_education',  'mullen,composite_standard_score', 'VSA_ados2_severity_score']
+            exclude_prefixes = ['Identifiers_', 'V24Candidate', 'Age_', 'VSD-All NIHToolBox,Registration_Data_Race',
+                                'VSD-All NIHToolBox,Registration_Data_Ethnicity', 'V06V12candidate_ethnicity',
+                                'VSD-All NIHToolBox,Candidate_Age', 'V06V12', 'VSA DAS', 'Group', 'Sex']
+        elif suffix == 'ab24':
+            columns_to_check = ['V24Candidate_Age', 'V06 tsi,mother_education',  'mullen,composite_standard_score', 'VSA_ados2_severity_score']
+            exclude_prefixes = ['Identifiers_', 'V12Candidate', 'Age_', 'VSD-All NIHToolBox,Registration_Data_Race',
+                                'VSD-All NIHToolBox,Registration_Data_Ethnicity',  'V06V12candidate_ethnicity', 'V06V12', 'VSA DAS',
+                                'VSD-All NIHToolBox,Candidate_Age', 'Group', 'Sex']
+        elif suffix == 'dccs':
+            columns_to_check = ['Age_SchoolAge', 'V06 tsi,mother_education',  'VSA DAS_SA,GCA_STD_SCORE', 'VSA_ados2_severity_score']
+            exclude_prefixes = ['Identifiers_', 'V12Candidate', 'V24Candidate', 'VSD-All NIHToolBox,Registration_Data_Race',
+                                'VSD-All NIHToolBox,Registration_Data_Ethnicity','V06V12candidate_ethnicity',  'V06V12', 'mullen', 'Group', 'Sex']
+
+        elif suffix == 'flanker':
+            columns_to_check = ['Age_SchoolAge', 'V06 tsi,mother_education',  'VSA DAS_SA,GCA_STD_SCORE', 'VSA_ados2_severity_score']
+            exclude_prefixes = ['Identifiers_', 'V12Candidate', 'V24Candidate', 'VSD-All NIHToolBox,Registration_Data_Race',
+                                'VSD-All NIHToolBox,Registration_Data_Ethnicity','V06V12candidate_ethnicity',  'V06V12', 'mullen', 'Group', 'Sex']
+
+        elif suffix == 'brief2':
+            columns_to_check = ['Age_SchoolAge', 'V06 tsi,mother_education',  'VSA DAS_SA,GCA_STD_SCORE', 'VSA_ados2_severity_score']
+            exclude_prefixes = ['Identifiers_', 'V12Candidate', 'V24Candidate', 'VSD-All NIHToolBox,Registration_Data_Race',
+                                'VSD-All NIHToolBox,Registration_Data_Ethnicity','V06V12candidate_ethnicity',  'V06V12', 'mullen', 'Group', 'Sex']
+
+        output_rows_with_nans(sub_df, suffix, columns_to_check, exclude_prefixes)
 
         # Loop through other columns, excluding all Identifiers columns
         for col in df.columns:
