@@ -64,13 +64,16 @@ python_data.drop(columns=['DoB', 'VSD-All NIHToolBox,Date_taken', 'Risk', 'Sex',
                         'V06 tsi,child_ethnicity','V06 tsi,candidate_race'], inplace=True)
 
 vsa_me_col_name = 'VSD-All NIHToolBox,Registration_Data_Mothers_Education'
-python_data[vsa_me_col_name] = python_data[vsa_me_col_name].apply(convert_maternal_education_num_to_string)
+# python_data[vsa_me_col_name] = python_data[vsa_me_col_name].apply(convert_maternal_education_num_to_string)
+
+# column_groups = [['V06 demographics,candidate_ethnicity', 'V12 demographics,candidate_ethnicity'],
+#     ['V06 demographics,candidate_race', 'V12 demographics,candidate_race'],
+#     ['V06 tsi,mother_education', 'VSD-All NIHToolBox,Registration_Data_Mothers_Education']]
 
 column_groups = [['V06 demographics,candidate_ethnicity', 'V12 demographics,candidate_ethnicity'],
-    ['V06 demographics,candidate_race', 'V12 demographics,candidate_race'],
-    ['V06 tsi,mother_education', 'VSD-All NIHToolBox,Registration_Data_Mothers_Education']]
+    ['V06 demographics,candidate_race', 'V12 demographics,candidate_race']]
 
-new_column_names = ['V06V12candidate_ethnicity', 'V06V12candidate_race', 'AllAges_MotherEducation']
+new_column_names = ['V06V12candidate_ethnicity', 'V06V12candidate_race']
 
 python_data = combine_redundant_columns(python_data, column_groups, new_column_names)
 
