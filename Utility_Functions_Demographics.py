@@ -417,11 +417,11 @@ def compute_stats_conditioned_on_identifiers(df, categorical_columns=None):
             columns_to_check = ['V12Candidate_Age', 'V06 tsi,mother_education',  'mullen,composite_standard_score', 'VSA_ados2_severity_score']
             exclude_prefixes = ['Identifiers_', 'V24Candidate', 'Age_', 'VSD-All NIHToolBox,Registration_Data_Race',
                                 'VSD-All NIHToolBox,Registration_Data_Ethnicity', 'V06V12candidate_ethnicity',
-                                'VSD-All NIHToolBox,Candidate_Age', 'V06V12', 'VSA DAS', 'Group', 'Sex']
+                                'VSD-All NIHToolBox,Candidate_Age', 'V06V12', 'Group', 'Sex']
         elif suffix == 'ab24':
             columns_to_check = ['V24Candidate_Age', 'V06 tsi,mother_education',  'mullen,composite_standard_score', 'VSA_ados2_severity_score']
             exclude_prefixes = ['Identifiers_', 'V12Candidate', 'Age_', 'VSD-All NIHToolBox,Registration_Data_Race',
-                                'VSD-All NIHToolBox,Registration_Data_Ethnicity',  'V06V12candidate_ethnicity', 'V06V12', 'VSA DAS',
+                                'VSD-All NIHToolBox,Registration_Data_Ethnicity',  'V06V12candidate_ethnicity', 'V06V12',
                                 'VSD-All NIHToolBox,Candidate_Age', 'Group', 'Sex']
         elif suffix == 'dccs':
             columns_to_check = ['Age_SchoolAge', 'V06 tsi,mother_education',  'VSA DAS_SA,GCA_STD_SCORE', 'VSA_ados2_severity_score']
