@@ -333,7 +333,7 @@ def output_rows_with_nans(df, measure, columns_to_check, exclude_prefixes=None):
 
     filtered_df.reset_index(inplace=True, drop=True)
 
-    filtered_df.to_csv(f'/Users/nevao/PycharmProjects/EF_ASD/{measure}_with_missing_data.csv', index=False)
+    filtered_df.to_csv(f'/Users/nevao/PycharmProjects/EF_ASD/{measure}_with_missing_v24.csv', index=False)
 
 def compute_stats_conditioned_on_identifiers(df, categorical_columns=None):
     # This function computes descriptive statistics for each column in the dataframe,
@@ -414,29 +414,39 @@ def compute_stats_conditioned_on_identifiers(df, categorical_columns=None):
         sub_df.to_csv(f'Demographics for {suffix}.csv')
 
         if suffix == 'ab12':
-            columns_to_check = ['V12Candidate_Age', 'V06 tsi,mother_education',  'mullen,composite_standard_score', 'VSA_ados2_severity_score']
+            columns_to_check = ['V12Candidate_Age', 'V06 tsi,mother_education',  'V12 mullen,composite_standard_score',
+                                'V24 mullen,composite_standard_score','VSA_ados2_severity_score']
+            columns_to_check = ['V24 mullen,composite_standard_score']
             exclude_prefixes = ['Identifiers_', 'V24Candidate', 'Age_', 'VSD-All NIHToolBox,Registration_Data_Race',
                                 'VSD-All NIHToolBox,Registration_Data_Ethnicity', 'V06V12candidate_ethnicity',
                                 'VSD-All NIHToolBox,Candidate_Age', 'V06V12', 'Group', 'Sex']
         elif suffix == 'ab24':
-            columns_to_check = ['V24Candidate_Age', 'V06 tsi,mother_education',  'mullen,composite_standard_score', 'VSA_ados2_severity_score']
+            columns_to_check = ['V24Candidate_Age', 'V06 tsi,mother_education',  'V12 mullen,composite_standard_score',
+                                'V24 mullen,composite_standard_score','VSA_ados2_severity_score']
+            columns_to_check = ['V24 mullen,composite_standard_score']
             exclude_prefixes = ['Identifiers_', 'V12Candidate', 'Age_', 'VSD-All NIHToolBox,Registration_Data_Race',
                                 'VSD-All NIHToolBox,Registration_Data_Ethnicity',  'V06V12candidate_ethnicity', 'V06V12',
                                 'VSD-All NIHToolBox,Candidate_Age', 'Group', 'Sex']
         elif suffix == 'dccs':
-            columns_to_check = ['Age_SchoolAge', 'V06 tsi,mother_education',  'VSA DAS_SA,GCA_STD_SCORE', 'VSA_ados2_severity_score']
+            columns_to_check = ['Age_SchoolAge', 'V06 tsi,mother_education',  'VSA DAS_SA,GCA_STD_SCORE', 'VSA_ados2_severity_score',
+                                'V12 mullen,composite_standard_score', 'V24 mullen,composite_standard_score']
+            columns_to_check = ['V24 mullen,composite_standard_score']
             exclude_prefixes = ['Identifiers_', 'V12Candidate', 'V24Candidate', 'VSD-All NIHToolBox,Registration_Data_Race',
-                                'VSD-All NIHToolBox,Registration_Data_Ethnicity','V06V12candidate_ethnicity',  'V06V12', 'mullen', 'Group', 'Sex']
+                                'VSD-All NIHToolBox,Registration_Data_Ethnicity','V06V12candidate_ethnicity',  'V06V12', 'Group', 'Sex']
 
         elif suffix == 'flanker':
-            columns_to_check = ['Age_SchoolAge', 'V06 tsi,mother_education',  'VSA DAS_SA,GCA_STD_SCORE', 'VSA_ados2_severity_score']
+            columns_to_check = ['Age_SchoolAge', 'V06 tsi,mother_education',  'VSA DAS_SA,GCA_STD_SCORE', 'VSA_ados2_severity_score',
+                                'V12 mullen,composite_standard_score', 'V24 mullen,composite_standard_score']
+            columns_to_check = ['V24 mullen,composite_standard_score']
             exclude_prefixes = ['Identifiers_', 'V12Candidate', 'V24Candidate', 'VSD-All NIHToolBox,Registration_Data_Race',
-                                'VSD-All NIHToolBox,Registration_Data_Ethnicity','V06V12candidate_ethnicity',  'V06V12', 'mullen', 'Group', 'Sex']
+                                'VSD-All NIHToolBox,Registration_Data_Ethnicity','V06V12candidate_ethnicity',  'V06V12', 'Group', 'Sex']
 
         elif suffix == 'brief2':
-            columns_to_check = ['Age_SchoolAge', 'V06 tsi,mother_education',  'VSA DAS_SA,GCA_STD_SCORE', 'VSA_ados2_severity_score']
+            columns_to_check = ['Age_SchoolAge', 'V06 tsi,mother_education',  'VSA DAS_SA,GCA_STD_SCORE', 'VSA_ados2_severity_score',
+                                'V12 mullen,composite_standard_score', 'V24 mullen,composite_standard_score']
+            columns_to_check = ['V24 mullen,composite_standard_score']
             exclude_prefixes = ['Identifiers_', 'V12Candidate', 'V24Candidate', 'VSD-All NIHToolBox,Registration_Data_Race',
-                                'VSD-All NIHToolBox,Registration_Data_Ethnicity','V06V12candidate_ethnicity',  'V06V12', 'mullen', 'Group', 'Sex']
+                                'VSD-All NIHToolBox,Registration_Data_Ethnicity','V06V12candidate_ethnicity',  'V06V12', 'Group', 'Sex']
 
         output_rows_with_nans(sub_df, suffix, columns_to_check, exclude_prefixes)
 
@@ -547,12 +557,13 @@ def add_IQ_ADOS(df_input, v24_v36_ADOS_filename, VSA_ADOS_filename, IQ_filename)
     VSA_ADOS_df = VSA_ADOS_df[["Identifiers", "VSA_ados2_severity_score"]]
 
     # Create new mullen score that collapses across 12 and 24 months
-    IQ_df["mullen,composite_standard_score"] = (
-        IQ_df["V24 mullen,composite_standard_score"]
-        .combine_first(IQ_df["V12 mullen,composite_standard_score"])
-    )
+    # IQ_df["mullen,composite_standard_score"] = (
+    #     IQ_df["V24 mullen,composite_standard_score"]
+    #     .combine_first(IQ_df["V12 mullen,composite_standard_score"])
+    # )
 
-    IQ_df = IQ_df[["Identifiers", "mullen,composite_standard_score", "VSA DAS_SA,GCA_STD_SCORE"]]
+    IQ_df = IQ_df[["Identifiers", "V12 mullen,composite_standard_score", "V24 mullen,composite_standard_score",
+                   "VSA DAS_SA,GCA_STD_SCORE"]]
 
     # Replace the literal string 'less than 25' with 25
     IQ_df["VSA DAS_SA,GCA_STD_SCORE"] = IQ_df["VSA DAS_SA,GCA_STD_SCORE"].replace("less than 25", 25).astype(float)
@@ -565,7 +576,8 @@ def add_IQ_ADOS(df_input, v24_v36_ADOS_filename, VSA_ADOS_filename, IQ_filename)
     )
 
     # Convert new columns to type float
-    cols_to_float = ['V24_V36_ados_severity_score', 'VSA_ados2_severity_score', 'mullen,composite_standard_score', 'VSA DAS_SA,GCA_STD_SCORE']
+    cols_to_float = ['V24_V36_ados_severity_score', 'VSA_ados2_severity_score', 'V12 mullen,composite_standard_score',
+                     'V24 mullen,composite_standard_score','VSA DAS_SA,GCA_STD_SCORE']
 
     final_df[cols_to_float] = final_df[cols_to_float].astype(float)
 
