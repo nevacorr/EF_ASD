@@ -78,7 +78,7 @@ merged_demograph_behavior_df = replace_missing_with_nan(merged_demograph_behavio
 IBIS_demograph_behavior_df = remove_fragx_downsyndrome_subj(merged_demograph_behavior_df)
 
 # Save this dataframe
-IBIS_demograph_behavior_df.to_csv('IBIS_merged_df_full_demographics.csv', index=None)
+IBIS_demograph_behavior_df.to_csv('IBIS_merged_df_full_demographics_addmissingdata.csv', index=None)
 
 mystop=1
 
