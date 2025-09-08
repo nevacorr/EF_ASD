@@ -18,7 +18,7 @@ from plot_data_histograms import plot_data_histograms
 working_dir = os.getcwd()
 
 # Define location of data to import
-datadir = '/home/toddr/neva/PycharmProjects/data_dir/IBIS_Behav_Brain'
+datadir = '/Users/nevao/Documents/IBIS_EF/source data/Behav_Data'
 
 # Load executive function and demographic data
 anotb = pd.read_csv(os.path.join(datadir, 'AnotB_clean.csv'))
@@ -26,9 +26,9 @@ brief1 = pd.read_csv(os.path.join(datadir, 'BRIEF1_UNC.csv'))
 brief2 = pd.read_csv(os.path.join(datadir, 'BRIEF-2_7-1-24_data-2024-07-01T19_35_29.390Z.csv'))
 dx = pd.read_csv(os.path.join(datadir, 'DSM_7-1-24_data-2024-07-01T21_05_03.559Z.csv'))
 dx2 = pd.read_csv(os.path.join(datadir, 'New-11-22-21_data-2021-11-23T07_39_34.455Z.csv'))
-nihtoolbox = pd.read_csv(os.path.join(datadir, 'NIH Toolbox_7-1-24_data-2024-07-01T19_40_36.204Z.csv'))
+nihtoolbox = pd.read_csv(os.path.join(datadir, 'NIH Toolbox_7-1-24_data-2024-07-01T19_40_36.204Z_addedmissingdata.csv'))
 dob_risk_sex = pd.read_csv(os.path.join(datadir, 'DOB_sex_risk_11-8-24.csv'))
-asd_diagnosis = pd.read_csv(os.path.join(datadir, 'IBIS 1 and 2_ASD Diagnosis-2024-11-22(data-2024-11-22T19_37_29.csv'))
+asd_diagnosis = pd.read_csv(os.path.join(datadir, 'IBIS 1 and 2_ASD Diagnosis-2024-11-22.csv'))
 
 # Make lists of columns to keep or remove
 (anotb_cols_to_remove, brief2_cols_to_keep, brief1_cols_to_remove, dx_cols_to_remove, dx2_cols_to_keep,
@@ -128,7 +128,8 @@ plot_data_histograms(working_dir, IBIS_demograph_behavior_df.drop(columns=['Iden
 make_and_plot_missing_data_map(IBIS_demograph_behavior_df, working_dir, 'AnotB_NIHToolbox_Missing_Data_Heatmap',
                                figsize=(10,20))
 # Write dataframe to file
-IBIS_demograph_behavior_df.to_csv(f'{working_dir}/IBIS_behav_dataframe_demographics_AnotB_Flanker_DCCS_BRIEF2.csv')
+IBIS_demograph_behavior_df.to_csv(f'{working_dir}/IBIS_behav_dataframe_demographics_AnotB_Flanker_DCCS_BRIEF2_addedmissingdata_September2025.csv')
+
 
 mystop=1
 
