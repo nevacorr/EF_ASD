@@ -29,11 +29,12 @@ dx2 = pd.read_csv(os.path.join(datadir, 'New-11-22-21_data-2021-11-23T07_39_34.4
 nihtoolbox = pd.read_csv(os.path.join(datadir, 'NIH Toolbox_7-1-24_data-2024-07-01T19_40_36.204Z_addedmissingdata.csv'))
 dob_risk_sex = pd.read_csv(os.path.join(datadir, 'DOB_sex_risk_11-8-24.csv'))
 asd_diagnosis = pd.read_csv(os.path.join(datadir, 'IBIS 1 and 2_ASD Diagnosis-2024-11-22.csv'))
+infant_maternal_education = pd.read_csv(os.path.join(datadir, 'IBIS 1 and 2 TSI demographic_added_missing_data.csv'))
 
 # Make lists of columns to keep or remove
 (anotb_cols_to_remove, brief2_cols_to_keep, brief1_cols_to_remove, dx_cols_to_remove, dx2_cols_to_keep,
-            nihtoolbox_cols_to_keep, asd_cols_to_keep) \
-                    = make_lists_of_columns_needed(anotb, brief2, dx2, nihtoolbox, asd_diagnosis)
+            nihtoolbox_cols_to_keep, asd_cols_to_keep, me_cols_to_keep) \
+                    = make_lists_of_columns_needed(anotb, brief2, dx2, nihtoolbox, asd_diagnosis, infant_maternal_education)
 
 # Remove extra text from ASD_DX at 24months column
 # dx2 = remove_24mo_extra_ASD_DX_text(dx2)
@@ -51,6 +52,7 @@ dx2 = dx2.loc[:, dx2.columns.isin(dx2_cols_to_keep)]
 nihtoolbox = nihtoolbox.loc[:, nihtoolbox.columns.isin(nihtoolbox_cols_to_keep)]
 asd_diagnosis = asd_diagnosis.loc[:, asd_diagnosis.columns.isin(asd_cols_to_keep)]
 asd_diagnosis.replace('No DSMIV ever administered', np.nan, inplace=True)
+infant_maternal_education = infant_maternal_education.loc[:, infant_maternal_education.columns.isin(me_cols_to_keep)]
 
 # Combine VSA and VSA-CD columns
 brief2 = combine_vsa_columns(brief2)
@@ -70,7 +72,8 @@ merged_demograph_behavior_df = (dob_df_final.merge(asd_diagnosis, on='Identifier
                                 .merge(dx2, on='Identifiers',how='outer')
                                 .merge(anotb, on='Identifiers', how='outer')
                                 .merge(nihtoolbox, on='Identifiers',how='outer')
-                                .merge(brief2, on='Identifiers', how='outer'))
+                                .merge(brief2, on='Identifiers', how='outer')
+                                .merge(infant_maternal_education, on='Identifiers', how='outer'))
 
 # Replace missing values with NaN
 merged_demograph_behavior_df = replace_missing_with_nan(merged_demograph_behavior_df)
@@ -79,7 +82,7 @@ merged_demograph_behavior_df = replace_missing_with_nan(merged_demograph_behavio
 IBIS_demograph_behavior_df = remove_fragx_downsyndrome_subj(merged_demograph_behavior_df)
 
 # Save this dataframe
-IBIS_demograph_behavior_df.to_csv('IBIS_merged_df_full.csv', index=None)
+IBIS_demograph_behavior_df.to_csv('IBIS_merged_df_full_addedmissing_ageschoolage_maternaled.csv', index=None)
 
 # Remove columns that I won't use in the first analysis
 dx_col_to_keep = ['Identifiers', 'VSD-All demographics,ASD_Ever_DSMIV']
@@ -128,7 +131,7 @@ plot_data_histograms(working_dir, IBIS_demograph_behavior_df.drop(columns=['Iden
 make_and_plot_missing_data_map(IBIS_demograph_behavior_df, working_dir, 'AnotB_NIHToolbox_Missing_Data_Heatmap',
                                figsize=(10,20))
 # Write dataframe to file
-IBIS_demograph_behavior_df.to_csv(f'{working_dir}/IBIS_behav_dataframe_demographics_AnotB_Flanker_DCCS_BRIEF2_addedmissingagedata_September2025.csv')
+IBIS_demograph_behavior_df.to_csv(f'{working_dir}/IBIS_behav_dataframe_demographics_AnotB_Flanker_DCCS_BRIEF2_addedmissing_age_data_mat_ed_8Sep2025a.csv')
 
 
 mystop=1
