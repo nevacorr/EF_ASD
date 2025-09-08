@@ -34,7 +34,7 @@ infant_maternal_education = pd.read_csv(os.path.join(datadir, 'IBIS 1 and 2 TSI 
 # Make lists of columns to keep or remove
 (anotb_cols_to_remove, brief2_cols_to_keep, brief1_cols_to_remove, dx_cols_to_remove, dx2_cols_to_keep,
             nihtoolbox_cols_to_keep, asd_cols_to_keep, me_cols_to_keep) \
-                    = make_lists_of_columns_needed(anotb, brief2, dx2, nihtoolbox, asd_diagnosis, infant_maternal_education)
+                    = make_lists_of_columns_needed(anotb, brief2, dx2, nihtoolbox, asd_diagnosis)
 
 # Remove extra text from ASD_DX at 24months column
 # dx2 = remove_24mo_extra_ASD_DX_text(dx2)

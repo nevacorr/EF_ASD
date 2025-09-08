@@ -46,8 +46,11 @@ def make_lists_of_columns_needed(anotb, brief2, dx2, nihtoolbox, asd_diagnosis):
     asd_cols_to_keep = ['Identifiers']
     asd_cols_to_keep.extend([col for col in asd_diagnosis if 'Ever_DSMIV' in col])
 
+    ######  ---- Infant Maternal Education ---###########
+    infant_me_cols_to_keep = ['Identifiers', 'V06 tsi,mother_education']
+
     return (anotb_cols_to_remove, brief2_cols_to_keep, brief1_cols_to_remove, dx_cols_to_remove, dx2_cols_to_keep,
-            nihtoolbox_cols_to_keep, asd_cols_to_keep)
+            nihtoolbox_cols_to_keep, asd_cols_to_keep, infant_me_cols_to_keep)
 
 # Take DOB data frame and create a single data frame with one Sex, one Risk,a nd one Dob columns for all Identifiers
 def simplify_dob_df(dob_risk_sex):
@@ -111,6 +114,7 @@ def replace_missing_with_nan(df):
     df.replace('nan', np.nan, inplace=True)
     df.replace('NaN', np.nan, inplace=True)
     df.replace('Unknown', np.nan, inplace=True)
+    df.replace('not_answered', np.nan, inplace=True)
     return df
 
 # Remove all rows that have Down Syndrome Infant or Fragile X for VXX demographics,Project
@@ -188,7 +192,7 @@ def convert_numeric_columns_to_numeric_type(df):
                            'V06 demographics,Project',
                            'V12 demographics,Project', 'V24 demographics,Project', 'V12_AB_validitycode',
                            'V24_AB_validitycode', 'V24 demographics,ASD_DX', 'Combined_ASD_DX',
-                           'ASD_Ever_DSMIV_infant']
+                           'ASD_Ever_DSMIV_infant', 'V06 tsi,mother_education']
     cols_convert_to_numeric = [col for col in object_columns if col not in categorical_columns]
     df[cols_convert_to_numeric] = df[cols_convert_to_numeric].apply(
         pd.to_numeric, errors='coerce')
@@ -197,7 +201,7 @@ def convert_numeric_columns_to_numeric_type(df):
 def remove_subj_no_behav_data(df):
     cols_demographic = ['Identifiers', 'Risk', 'Sex', 'DoB', 'ASD_Ever_DSMIV', 'V12prefrontal_taskCandidate_Age',
                         'V24prefrontal_taskCandidate_Age', 'V24 demographics,ASD_DX', 'Combined_ASD_DX',
-                        'ASD_Ever_DSMIV_infant', 'NIHToolBox,Date_taken']
+                        'ASD_Ever_DSMIV_infant', 'NIHToolBox,Date_taken', 'V06 tsi,mother_education']
     cols_not_demographic = [col for col in df.columns if col not in cols_demographic]
     ctest = df.loc[:, cols_not_demographic].copy()
     ctest = ctest.replace(['nan', 'NaN'], np.nan)
