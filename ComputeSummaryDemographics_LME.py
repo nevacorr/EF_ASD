@@ -80,27 +80,6 @@ r_data_df = combined_df[(col for col in combined_df if not any(sub in col for su
 # Remove 'prefrontal_task' from column names
 r_data_df.columns = [col.replace('prefrontal_task', '') for col in r_data_df.columns]
 
-# python_data = pd.read_csv(os.path.join(python_directory, python_filename))
-
-# substr_to_keep = ['ethnicity', 'race', 'Ethnicity', 'Race']
-# keep = ["Identifiers"] + [col for col in python_data.columns if any(s in col for s in substr_to_keep)]
-# python_data= python_data[keep]
-#
-# column_groups = [['V06 demographics,candidate_ethnicity', 'V12 demographics,candidate_ethnicity'],
-#     ['V06 demographics,candidate_race', 'V12 demographics,candidate_race']]
-#
-# new_column_names = ['V06V12candidate_ethnicity', 'V06V12candidate_race']
-#
-# python_data = combine_redundant_columns(python_data, column_groups, new_column_names)
-
-# column_groups = [['V06V12candidate_ethnicity', 'VSD-All NIHToolBox,Registration_Data_Ethnicity'],
-#                  ['V06V12candidate_race', 'VSD-All NIHToolBox,Registration_Data_Race']]
-#
-# new_column_names = ['AllAges_Ethnicity', 'AllAges_Race']
-#
-# python_data = combine_redundant_columns(python_data, column_groups, new_column_names)
-
-# final_data = pd.merge(r_data_df, python_data, on='Identifiers', how='outer')
 final_data = r_data_df.copy()
 final_data.drop(columns=["X"], inplace=True)
 
