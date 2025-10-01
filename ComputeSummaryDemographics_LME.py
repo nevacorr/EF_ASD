@@ -2,7 +2,7 @@ import os
 import pandas as pd
 from Utility_Functions_Demographics import compute_stats_conditioned_on_identifiers
 from Utility_Functions_Demographics import compute_stats_conditioned_on_identifiers_by_group
-from Utility_Functions_Demographics import combine_redundant_columns, add_IQ_ADOS
+from Utility_Functions_Demographics import combine_redundant_columns, add_IQ_ADOS, add_race
 from Utility_Functions_Demographics import convert_maternal_education_num_to_string
 
 working_dir = os.getcwd()
@@ -15,6 +15,9 @@ python_filename = "IBIS_merged_df_full_addedmissing_ageschoolage_maternaled.csv"
 VSA_ADOS_filename = "/Users/nevao/Documents/IBIS_EF/source data/Behav_Data/ADOS_school-age_long_data-2025-07-27T00_14_09.037Z.csv"
 v24_v36_ADOS_filename = "/Users/nevao/Documents/IBIS_EF/source data/Behav_Data/ADOS_v24 and 36_long_data-2025-07-27T00_05_00.911Z.csv"
 IQ_filename = "/Users/nevao/Documents/IBIS_EF/source data/Behav_Data/IQ data_Long_data-2025-07-26T23_51_14.152Z.csv"
+V06_V12_race_filename = "/Users/nevao/Documents/IBIS_EF/source data/Behav_Data/race_v6_v12 from New spreadsheet.csv"
+tsi_filename = "/Users/nevao/Documents/IBIS_EF/source data/Behav_Data/IBIS 1 and 2 TSI demographic_added_missing_data.csv"
+nihtoolbox_race_filename = "/Users/nevao/Documents/IBIS_EF/source data/Behav_Data/NIH Toolbox_7-1-24_data-2024-07-01T19_40_36.204Z_addedmissingdata.csv"
 
 dfs = []
 ibis_df = None
@@ -104,12 +107,14 @@ final_data.drop(columns=["X"], inplace=True)
 # Add ADOS scores, IQ at 12mo, IQ at school age, age from DAS
 final_data = add_IQ_ADOS(final_data, v24_v36_ADOS_filename,VSA_ADOS_filename,  IQ_filename)
 
+final_data = add_race(final_data, V06_V12_race_filename, tsi_filename, nihtoolbox_race_filename)
+
 demo_stats = compute_stats_conditioned_on_identifiers(final_data, categorical_columns=[])
 
 demo_stats_by_group = compute_stats_conditioned_on_identifiers_by_group(final_data)
 
-demo_stats.to_csv(os.path.join(working_dir, 'demographic_stats_summary_with_DAS_age.csv'))
+demo_stats.to_csv(os.path.join(working_dir, 'demographic_stats_summary_with_DAS_age_race.csv'))
 
-demo_stats_by_group.to_csv(os.path.join(working_dir, 'demographic_stats_summary_with_DAS_age_by_group.csv'))
+demo_stats_by_group.to_csv(os.path.join(working_dir, 'demographic_stats_summary_with_DAS_age_race_by_group.csv'))
 
 mystop=1

@@ -618,3 +618,69 @@ def add_IQ_ADOS(df_input, v24_v36_ADOS_filename, VSA_ADOS_filename, IQ_filename)
     final_df[cols_to_float] = final_df[cols_to_float].astype(float)
 
     return final_df
+
+def add_race(final_df, race_filename, tsi_filename, vsa_filename):
+
+    df1= pd.read_csv(race_filename)
+    df2 = pd.read_csv(tsi_filename)
+    df3 = pd.read_csv(vsa_filename)
+
+    def filter_columns(df):
+        keep = [col for col in df.columns if col == "Identifiers" or "race" in col.lower()]
+        df_filtered = df[keep].copy()  # avoid SettingWithCopyWarning
+        df_filtered = df_filtered.replace('.', np.nan, regex=False)
+        return df_filtered
+
+    # Example: apply to your 4 dataframes
+    df1 = filter_columns(df1)
+    df2 = filter_columns(df2)
+    df3 = filter_columns(df3)
+
+    # mapping dictionary for race codes
+    race_map = {
+        1: "white",
+        2: "black_african_american",
+        4: "asian",
+        8: "american_indian_alaska_native",
+        16: "native_hawaiian_pacific_islander",
+        32: "other",
+        0: "unknown_not_reported",
+        64: "unknown_not_reported"
+    }
+
+    # Map nihtoolbox race codes to strings
+    def map_race_codes(df, code_col, new_col="race_string"):
+        df[new_col] = df[code_col].apply(
+            lambda x: race_map.get(int(x), "more_than_one_race") if pd.notna(x) else "missing"
+        )
+        return df
+
+    df3 = combine_vsa_columns(df3)
+    df3 = map_race_codes(df3, "VSD-All NIHToolBox,Registration_Data_Race")
+    df3.drop(columns=["VSD-All NIHToolBox,Registration_Data_Race"], inplace=True)
+
+    # Merge df1, df2, df3 on "Identifiers" with full outer join
+    merged = df1.merge(df2, on="Identifiers", how="outer") \
+        .merge(df3, on="Identifiers", how="outer")
+
+    # Replace all columns containing '@' to 'more_than_one_race'
+    merged = merged.replace(r".*@.*", "more_than_one_race", regex=True)
+
+    # List the columns in order (excluding Identifiers)
+    cols_to_collapse = merged.columns[1:]  # all columns after Identifiers
+
+    # Create new column with first non-NaN value from left to right
+    merged["race"] = merged[cols_to_collapse].bfill(axis=1).iloc[:, 0]
+
+    # Drop the old columns
+    merged = merged.drop(columns=cols_to_collapse)
+
+    merged["race"] = merged["race"].fillna("unknown_not_reported")
+
+    # Merge merged dataframe with final_df, keeping only Identifiers from final_df
+    merged_final = final_df.merge(merged, on="Identifiers", how="left")
+
+    # Fill missing race_final values in final dataframe
+    merged_final["race"] = merged_final["race"].fillna("unknown_not_reported")
+
+    return merged_final
