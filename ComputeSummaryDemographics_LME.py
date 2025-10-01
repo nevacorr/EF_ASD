@@ -2,7 +2,7 @@ import os
 import pandas as pd
 from Utility_Functions_Demographics import compute_stats_conditioned_on_identifiers
 from Utility_Functions_Demographics import compute_stats_conditioned_on_identifiers_by_group
-from Utility_Functions_Demographics import combine_redundant_columns, add_IQ_ADOS, add_race
+from Utility_Functions_Demographics import combine_redundant_columns, add_IQ_ADOS, add_race, add_missing_ages_from_brief2
 from Utility_Functions_Demographics import convert_maternal_education_num_to_string
 
 working_dir = os.getcwd()
@@ -18,9 +18,11 @@ IQ_filename = "/Users/nevao/Documents/IBIS_EF/source data/Behav_Data/IQ data_Lon
 V06_V12_race_filename = "/Users/nevao/Documents/IBIS_EF/source data/Behav_Data/race_v6_v12 from New spreadsheet.csv"
 tsi_filename = "/Users/nevao/Documents/IBIS_EF/source data/Behav_Data/IBIS 1 and 2 TSI demographic_added_missing_data.csv"
 nihtoolbox_race_filename = "/Users/nevao/Documents/IBIS_EF/source data/Behav_Data/NIH Toolbox_7-1-24_data-2024-07-01T19_40_36.204Z_addedmissingdata.csv"
+brief2_ages_filename = "/Users/nevao/Documents/IBIS_EF/source data/Behav_Data/Missing_Ages_From_BRIEF2.csv"
 
 dfs = []
 ibis_df = None
+brief2_ages = pd.read_csv(brief2_ages_filename)
 
 file_list = ['ibis_subj_demographics_and_data_used_for_2025analysis.csv',
                  'ab12_used_for_2025analysis__noIQ_ME.csv',
@@ -87,6 +89,8 @@ final_data.drop(columns=["X"], inplace=True)
 final_data = add_IQ_ADOS(final_data, v24_v36_ADOS_filename,VSA_ADOS_filename,  IQ_filename)
 
 final_data = add_race(final_data, V06_V12_race_filename, tsi_filename, nihtoolbox_race_filename)
+
+final_data = add_missing_ages_from_brief2(final_data, brief2_ages)
 
 demo_stats = compute_stats_conditioned_on_identifiers(final_data, categorical_columns=[])
 

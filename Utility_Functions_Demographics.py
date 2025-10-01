@@ -684,3 +684,19 @@ def add_race(final_df, race_filename, tsi_filename, vsa_filename):
     merged_final["race"] = merged_final["race"].fillna("unknown_not_reported")
 
     return merged_final
+
+def add_missing_ages_from_brief2(final_data, brief2_ages):
+    # Merge final_data with brief2_ages to get Calculated_Age
+    merged = final_data.merge(
+        brief2_ages[["Identifiers", "Calculated_Age"]],
+        on="Identifiers",
+        how="left"
+    )
+
+    # Replace Final_Age_School_Age with Calculated_Age where available
+    merged["Final_Age_School_Age"] = merged["Calculated_Age"].combine_first(merged["Final_Age_School_Age"])
+
+    # Drop the temporary Calculated_Age column
+    merged = merged.drop(columns=["Calculated_Age"])
+
+    return merged
