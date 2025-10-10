@@ -335,6 +335,60 @@ def output_rows_with_nans(df, measure, columns_to_check, exclude_prefixes=None):
 
     filtered_df.to_csv(f'/Users/nevao/PycharmProjects/EF_ASD/{measure}_with_missing_v24_and_age_DAS.csv', index=False)
 
+def summarize_by_group(df):
+    group_col = 'Group'
+
+    # Ensure group column is string
+    # Make a copy of dataframe and filter unwanted groups
+    df_summary = df.copy()
+    df_summary = df_summary[df_summary['Group'] != 'LR+']
+    df_summary = df_summary.dropna(subset=['Group'])
+    df_summary['Group'] = df_summary['Group'].astype(str)
+
+    group_col = 'Group'
+
+    # Fill missing values and standardize strings
+    df_summary['V06.tsi.mother_education'] = df_summary['V06.tsi.mother_education'].fillna(
+        'missing').str.strip().str.lower()
+    df_summary['race'] = df_summary['race'].fillna('unknown_not_reported').str.strip().str.lower()
+    df_summary['Sex'] = df_summary['Sex'].fillna('unknown').str.strip().str.capitalize()
+
+    # 1. Total N per group
+    total_n = df_summary[group_col].value_counts().rename("Total N").to_frame().T
+
+    # 2. Sex (Male) n (%)
+    sex_counts = pd.crosstab(df_summary[group_col], df_summary['Sex'])
+    male_counts = sex_counts.get('Male', pd.Series(0, index=sex_counts.index))
+    male_percent = (male_counts / sex_counts.sum(axis=1) * 100).round(1)
+    sex_summary = (male_counts.astype(int).astype(str) + " (" + male_percent.astype(str) + "%)").to_frame().T
+    sex_summary.index = ["Sex (Male)"]
+
+    # 3. Maternal Education (auto-detect categories)
+    edu_order = sorted(df_summary['V06.tsi.mother_education'].unique())
+    edu_counts = pd.crosstab(df_summary['V06.tsi.mother_education'], df_summary[group_col]).reindex(edu_order,
+                                                                                                    fill_value=0)
+
+    # 4. Race (auto-detect categories)
+    race_order = sorted(df_summary['race'].unique())
+    race_counts = pd.crosstab(df_summary['race'], df_summary[group_col]).reindex(race_order, fill_value=0)
+
+    # 5. Combine into one table with blank rows as separators
+    blank_row = pd.DataFrame([[""] * len(total_n.columns)], columns=total_n.columns)
+    table = pd.concat([
+        total_n,
+        sex_summary,
+        blank_row,
+        edu_counts,
+        blank_row,
+        race_counts
+    ])
+
+    # Optional: display
+    print(table)
+
+    return table
+
+
 def compute_stats_conditioned_on_identifiers(df, categorical_columns=None):
     # This function computes descriptive statistics for each column in the dataframe,
     # conditioned on the presence of different identifier columns.
@@ -414,30 +468,6 @@ def compute_stats_conditioned_on_identifiers(df, categorical_columns=None):
         sub_df = df[df[id_col].notna()]  # Only keep rows where this identifier is not NaN
 
         sub_df.to_csv(f'Demographics for {suffix}.csv')
-
-        if suffix == 'ab12':
-            columns_to_check = ['V12Candidate_Age', 'V06.tsi.mother_education',  'maternal_education',
-                                'V24 mullen,composite_standard_score','VSA_ados2_severity_score']
-            exclude_prefixes = ['Identifiers_', 'V24Candidate', 'Age_Scool_Age','Group', 'Sex']
-        elif suffix == 'ab24':
-            columns_to_check = ['V24Candidate_Age', 'V06.tsi.mother_education', 'maternal_education',
-                                'V24 mullen,composite_standard_score','VSA_ados2_severity_score']
-            exclude_prefixes = ['Identifiers_', 'V12Candidate', 'Age_School_Age', 'Group', 'Sex']
-        elif suffix == 'dccs':
-            columns_to_check = ['Age_School_Age','V06.tsi.mother_education',  'maternal_education', 'VSA_ados2_severity_score',
-                               'V24 mullen,composite_standard_score']
-            exclude_prefixes = ['Identifiers_', 'V12Candidate', 'V24Candidate',  'Group', 'Sex']
-
-        elif suffix == 'flanker':
-            columns_to_check = ['Age_School_Age','V06.tsi.mother_education',  'maternal_education', 'VSA_ados2_severity_score',
-                                'V24 mullen,composite_standard_score']
-            exclude_prefixes = ['Identifiers_', 'V12Candidate', 'V24Candidate', 'Group', 'Sex']
-
-        elif suffix == 'brief2':
-            columns_to_check = ['V06.tsi.mother_education',  'maternal_education', 'VSA_ados2_severity_score','V24 mullen,composite_standard_score']
-            exclude_prefixes = ['Identifiers_', 'V12Candidate', 'V24Candidate',  'Group', 'Sex']
-
-        output_rows_with_nans(sub_df, suffix, columns_to_check, exclude_prefixes)
 
         # Loop through other columns, excluding all Identifiers columns
         for col in sub_df.columns:

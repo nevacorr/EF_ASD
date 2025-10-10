@@ -3,7 +3,7 @@ import pandas as pd
 from Utility_Functions_Demographics import compute_stats_conditioned_on_identifiers
 from Utility_Functions_Demographics import compute_stats_conditioned_on_identifiers_by_group
 from Utility_Functions_Demographics import combine_redundant_columns, add_IQ_ADOS, add_race, add_missing_ages_from_brief2
-from Utility_Functions_Demographics import convert_maternal_education_num_to_string
+from Utility_Functions_Demographics import convert_maternal_education_num_to_string, summarize_by_group
 
 working_dir = os.getcwd()
 
@@ -91,6 +91,8 @@ final_data = add_IQ_ADOS(final_data, v24_v36_ADOS_filename,VSA_ADOS_filename,  I
 final_data = add_race(final_data, V06_V12_race_filename, tsi_filename, nihtoolbox_race_filename)
 
 final_data = add_missing_ages_from_brief2(final_data, brief2_ages)
+
+demo_stats_ages_combined_by_group = summarize_by_group(final_data)
 
 demo_stats = compute_stats_conditioned_on_identifiers(final_data, categorical_columns=[])
 
