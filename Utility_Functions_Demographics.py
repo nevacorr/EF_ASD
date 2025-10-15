@@ -486,6 +486,8 @@ def compute_stats_conditioned_on_identifiers(df, categorical_columns=None):
             else:
                 stats = {
                     'mean': values.mean(),
+                    'max': values.max(),
+                    'min': values.min(),
                     'std': values.std(),
                     'count': values.count(),
                     'n_nan': values.isna().sum()
