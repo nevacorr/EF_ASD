@@ -131,7 +131,7 @@ plot_data_histograms(working_dir, IBIS_demograph_behavior_df.drop(columns=['Iden
 make_and_plot_missing_data_map(IBIS_demograph_behavior_df, working_dir, 'AnotB_NIHToolbox_Missing_Data_Heatmap',
                                figsize=(10,20))
 # Write dataframe to file
-IBIS_demograph_behavior_df.to_csv(f'{working_dir}/IBIS_behav_dataframe_demographics_AnotB_Flanker_DCCS_BRIEF2_addedmissing_age_data_mat_ed_15Sep2025a.csv')
+IBIS_demograph_behavior_df.to_csv(f'{working_dir}/IBIS_behav_dataframe_demographics_AnotB_Flanker_DCCS_BRIEF2_Brief2subscales_15Oct2025.csv')
 
 
 mystop=1
