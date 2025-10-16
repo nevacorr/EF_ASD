@@ -354,3 +354,39 @@ def divide_columns_by_tottiss(df_all_brain_behav, df, mystr):
         df_all_brain_behav.loc[:,col] = df_all_brain_behav[col] / df_all_brain_behav[tot_col]
 
     return df_all_brain_behav
+
+def combine_brief(brief1, brief2):
+    common_ids = set(brief1['Identifiers']).intersection(brief2['Identifiers'])
+
+    brief1_columns = ['GECTScore', 'WMTScore', 'ShiftTScore', 'InhibitTScore']
+    brief2_columns = ['VSA BRIEF2_Parent,GEC_T_score', 'VSA BRIEF2_Parent,working_memory_T_score',
+                                'VSA BRIEF2_Parent,shift_T_score', 'VSA BRIEF2_Parent,inhibit_T_score']
+
+    if len(brief1_columns) != len(brief2_columns):
+        raise ValueError("brief1_columns and brief2_columns must have the same length.")
+
+    # Subset brief1 and rename columns to match brief2
+    brief1_subset = brief1[['Identifiers'] + brief1_columns].copy()
+    rename_map = dict(zip(brief1_columns, brief2_columns))
+    brief1_subset = brief1_subset.rename(columns=rename_map)
+
+    # Set Identifier as index
+    b2 = brief2.set_index('Identifiers').copy()
+    b1 = brief1_subset.set_index('Identifiers').copy()
+
+    # Reindex b2 to include all identifiers from both dataframes
+    b2 = b2.reindex(b2.index.union(b1.index))
+
+    # Fill missing values in b2 with corresponding values from b1
+    for col in b1.columns:
+        if col in b2.columns:
+            b2[col] = b2[col].combine_first(b1[col])
+        else:
+            # If b2 didn’t have this column, create it with b1 values
+            b2[col] = b1[col]
+
+    # Reset index and replace remaining NaN with '.'
+    result = b2.reset_index()
+    result = result.fillna('.')
+
+    return result

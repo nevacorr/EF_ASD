@@ -12,7 +12,7 @@ from Utility_Functions import remove_extra_ASD_DX_text, remove_extra_text_eftask
 from Utility_Functions import remove_subj_no_behav_data, make_flanker_dccs_columns
 from Utility_Functions import make_and_plot_missing_data_map, write_missing_to_file
 from Utility_Functions import remove_Brief2_columns, calculate_nihtoolbox_age, combine_asd_dx
-from Utility_Functions import make_lists_of_columns_needed, combine_age_nihtoolbox
+from Utility_Functions import make_lists_of_columns_needed, combine_age_nihtoolbox, combine_brief
 from plot_data_histograms import plot_data_histograms
 
 working_dir = os.getcwd()
@@ -46,6 +46,8 @@ dob_df_final = simplify_dob_df(dob_risk_sex)
 # Remove or keep columns specified in lists created above
 anotb = anotb.drop(columns=anotb_cols_to_remove)
 brief1 = brief1.drop(columns=brief1_cols_to_remove)
+# Subjet UNC0154 has all zero values for brief1
+brief1 = brief1[brief1['Identifiers'] != 'UNC0154']
 brief2 = brief2.loc[:, brief2.columns.isin(brief2_cols_to_keep)]
 dx = dx.drop(columns=dx_cols_to_remove)
 dx2 = dx2.loc[:, dx2.columns.isin(dx2_cols_to_keep)]
@@ -53,6 +55,9 @@ nihtoolbox = nihtoolbox.loc[:, nihtoolbox.columns.isin(nihtoolbox_cols_to_keep)]
 asd_diagnosis = asd_diagnosis.loc[:, asd_diagnosis.columns.isin(asd_cols_to_keep)]
 asd_diagnosis.replace('No DSMIV ever administered', np.nan, inplace=True)
 infant_maternal_education = infant_maternal_education.loc[:, infant_maternal_education.columns.isin(me_cols_to_keep)]
+
+# Add brief1 data to brief2 dataframe
+brief2 = combine_brief(brief1, brief2)
 
 # Combine VSA and VSA-CD columns
 brief2 = combine_vsa_columns(brief2)
@@ -131,7 +136,7 @@ plot_data_histograms(working_dir, IBIS_demograph_behavior_df.drop(columns=['Iden
 make_and_plot_missing_data_map(IBIS_demograph_behavior_df, working_dir, 'AnotB_NIHToolbox_Missing_Data_Heatmap',
                                figsize=(10,20))
 # Write dataframe to file
-IBIS_demograph_behavior_df.to_csv(f'{working_dir}/IBIS_behav_dataframe_demographics_AnotB_Flanker_DCCS_BRIEF2_Brief2subscales_15Oct2025.csv')
+IBIS_demograph_behavior_df.to_csv(f'{working_dir}/IBIS_behav_dataframe_demographics_AnotB_Flanker_DCCS_BRIEF1+2_Brief2subscales_16Oct2025.csv')
 
 
 mystop=1
