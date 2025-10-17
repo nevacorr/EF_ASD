@@ -345,8 +345,6 @@ def summarize_by_group(df):
     df_summary = df_summary.dropna(subset=['Group'])
     df_summary['Group'] = df_summary['Group'].astype(str)
 
-    group_col = 'Group'
-
     # Fill missing values and standardize strings
     df_summary['V06.tsi.mother_education'] = df_summary['V06.tsi.mother_education'].fillna(
         'missing').str.strip().str.lower()
@@ -372,7 +370,26 @@ def summarize_by_group(df):
     race_order = sorted(df_summary['race'].unique())
     race_counts = pd.crosstab(df_summary['race'], df_summary[group_col]).reindex(race_order, fill_value=0)
 
-    # 5. Combine into one table with blank rows as separators
+    # 5. Continuous variables: mean (SD) for each group
+    continuous_vars = [
+        'V24_V36_ados_severity_score',
+        'V24 mullen,composite_standard_score'
+    ]
+    continuous_summary_list = []
+    for var in continuous_vars:
+        if var in df_summary.columns:
+            stats = (
+                df_summary.groupby(group_col)[var]
+                .agg(['mean', 'std'])
+                .round(2)
+                .astype(str)
+            )
+            combined = stats['mean'] + " (" + stats['std'] + ")"
+            continuous_summary_list.append(combined.rename(var))
+
+    continuous_summary = pd.DataFrame(continuous_summary_list)
+
+    # 6. Combine into one table with blank rows as separators
     blank_row = pd.DataFrame([[""] * len(total_n.columns)], columns=total_n.columns)
     table = pd.concat([
         total_n,
@@ -380,7 +397,8 @@ def summarize_by_group(df):
         blank_row,
         edu_counts,
         blank_row,
-        race_counts
+        race_counts,
+        continuous_summary
     ])
 
     # Optional: display
