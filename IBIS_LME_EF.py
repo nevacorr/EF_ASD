@@ -10,7 +10,7 @@ from Utility_Functions import remove_extra_text_asd_diagnosis, combine_age_nihto
 from Utility_Functions import replace_missing_with_nan, remove_fragx_downsyndrome_subj
 from Utility_Functions import remove_extra_ASD_DX_text, remove_extra_text_eftasks, convert_numeric_columns_to_numeric_type
 from Utility_Functions import remove_subj_no_behav_data, make_flanker_dccs_columns
-from Utility_Functions import make_and_plot_missing_data_map, write_missing_to_file
+from Utility_Functions import make_and_plot_missing_data_map, write_missing_to_file, merge_duplicate_identifiers
 from Utility_Functions import remove_Brief2_columns, calculate_nihtoolbox_age, combine_asd_dx
 from Utility_Functions import make_lists_of_columns_needed, combine_age_nihtoolbox, combine_brief
 from plot_data_histograms import plot_data_histograms
@@ -128,6 +128,9 @@ make_and_plot_missing_data_map(IBIS_demograph_behavior_df, working_dir, 'All_Beh
                                figsize=(20, 20))
 # Remove Brief2 columns
 IBIS_demograph_behavior_df = remove_Brief2_columns(IBIS_demograph_behavior_df)
+
+# Remove rows with duplicate identifiers while keeping all non nan data
+IBIS_demograph_behavior_df = merge_duplicate_identifiers(IBIS_demograph_behavior_df)
 
 # Plot histograms of all data
 plot_data_histograms(working_dir, IBIS_demograph_behavior_df.drop(columns=['Identifiers']))

@@ -390,3 +390,48 @@ def combine_brief(brief1, brief2):
     result = result.fillna('.')
 
     return result
+
+def merge_duplicate_identifiers(df):
+    # Check if Identifiers column exists
+    if 'Identifiers' not in df.columns:
+        raise ValueError("DataFrame must have a column named 'Identifiers'")
+
+    # Identify duplicate identifiers
+    duplicates = df[df.Identifiers.duplicated(keep=False)]
+    if duplicates.empty:
+        print("No duplicate identifiers found.")
+        return df
+
+    # Prepare a new dataframe to store merged rows
+    merged_rows = []
+
+    # Group by identifier
+    for ident, group in df.groupby('Identifiers'):
+        if len(group) == 1:
+            # Only one row → no merge needed
+            merged_rows.append(group.iloc[0])
+            continue
+
+        # Check for conflicts
+        for col in df.columns:
+            if col == 'Identifiers':
+                continue
+
+            non_nan_values = group[col].dropna().unique()
+            if len(non_nan_values) > 1:
+                raise ValueError(
+                    f"Conflict for Identifier '{ident}' in column '{col}': {non_nan_values}"
+                )
+
+        # Combine rows: keep first non-NaN value per column
+        merged = group.apply(lambda x: x.dropna().iloc[0] if x.notna().any() else np.nan)
+        merged_rows.append(merged)
+
+    # Create a new DataFrame from merged rows
+    merged_df = pd.DataFrame(merged_rows, columns=df.columns)
+
+    # Add back non-duplicate identifiers that weren’t part of any merge
+    unique_df = df[~df['Identifiers'].duplicated(keep=False)]
+    final_df = pd.concat([unique_df, merged_df]).drop_duplicates(subset=['Identifiers']).reset_index(drop=True)
+
+    return final_df
