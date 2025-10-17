@@ -24,7 +24,7 @@ dfs = []
 ibis_df = None
 brief2_ages = pd.read_csv(brief2_ages_filename)
 
-file_list = ['ibis_subj_demographics_and_data_used_for_2025analysis.csv',
+file_list = ['ibis_subj_demographics_and_data_used_for_2025analysis_with_Brief2_subscales_with_brief1.csv',
                  'ab12_used_for_2025analysis__noIQ_ME.csv',
                  'ab24_used_for_2025analysis__noIQ_ME.csv',
                  'Flanker_Standard_Age_Corrected_used_for_2025analysis__noIQ_ME.csv',
@@ -37,7 +37,7 @@ file_list = ['ibis_subj_demographics_and_data_used_for_2025analysis.csv',
 for filename in file_list:
     filepath = os.path.join(R_directory, filename)
     df_name = os.path.splitext(filename)[0]
-    df_name = df_name.replace('_used_for_2025analysis', '')
+    df_name = df_name.replace('_used_for_2025analysis_with_Brief2_subscales_with_brief1', '')
     df = pd.read_csv(filepath)
 
     if filename.lower().startswith("ibis"):
@@ -98,8 +98,8 @@ demo_stats = compute_stats_conditioned_on_identifiers(final_data, categorical_co
 
 demo_stats_by_group = compute_stats_conditioned_on_identifiers_by_group(final_data)
 
-demo_stats.to_csv(os.path.join(working_dir, 'demographic_stats_summary_with_DAS_age_race.csv'))
+demo_stats.to_csv(os.path.join(working_dir, 'demographic_stats_summary_with_DAS_age_race_with_brief1.csv'))
 
-demo_stats_by_group.to_csv(os.path.join(working_dir, 'demographic_stats_summary_with_DAS_age_race_by_group.csv'))
+demo_stats_by_group.to_csv(os.path.join(working_dir, 'demographic_stats_summary_with_DAS_age_race_by_group_with_brief1.csv'))
 
 mystop=1
