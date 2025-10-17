@@ -38,6 +38,7 @@ for filename in file_list:
     filepath = os.path.join(R_directory, filename)
     df_name = os.path.splitext(filename)[0]
     df_name = df_name.replace('_used_for_2025analysis_with_Brief2_subscales_with_brief1', '')
+    df_name = df_name.replace('_used_for_2025analysis', '')
     df = pd.read_csv(filepath)
 
     if filename.lower().startswith("ibis"):
