@@ -377,17 +377,31 @@ def combine_brief(brief1, brief2):
     # Reindex b2 to include all identifiers from both dataframes
     b2 = b2.reindex(b2.index.union(b1.index))
 
+    # Track identifiers that will get filled
+    filled_identifiers = set()
+
     # Fill missing values in b2 with corresponding values from b1
     for col in b1.columns:
+        # Identify where b2 is missing but b1 has data
+        fill_mask = b2[col].isna() & b1[col].notna()
+        filled_identifiers.update(b2.index[fill_mask].tolist())
         if col in b2.columns:
             b2[col] = b2[col].combine_first(b1[col])
         else:
             # If b2 didn’t have this column, create it with b1 values
             b2[col] = b1[col]
+            filled_identifiers.update(b1.index[b1[col].notna()].tolist())
 
     # Reset index and replace remaining NaN with '.'
     result = b2.reset_index()
     result = result.fillna('.')
+
+    # Identify IDs that were filled from b1 into missing or new rows
+    if filled_identifiers:
+        print("Identifiers filled from brief1 (missing or NaN in brief2):")
+        print(sorted(filled_identifiers))
+    else:
+        print("No identifiers needed filling from brief1.")
 
     return result
 
