@@ -149,6 +149,8 @@ def plot_r2_distribution(r2_test_array, result_text, percentile_value,
     # Show plot
     plt.show()
 
+    mystop=1
+
 def aggregate_feature_importances(feature_importance_list, feature_names, n_boot, outputfilename, top_n=10, plot=True):
     """
     Aggregates and plots feature importances across bootstraps.
