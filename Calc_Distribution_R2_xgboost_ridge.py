@@ -3,7 +3,7 @@ from Utility_Functions_XGBoost import calculate_percentile
 from Utility_Functions_XGBoost import plot_r2_distribution
 from predict_SA_ridge import tune_ridge_alpha
 from load_data_for_ML import load_all_data
-from predict_SA_xgboost import predict_SA_xgboost
+from predict_SA_xgboost_covbat import predict_SA_xgboost_covbat
 from predict_SA_ridge import predict_SA_ridge
 from create_predictor_target_vars import create_predictor_target_vars
 
@@ -66,7 +66,7 @@ print(f"Running with target = {target} metric = {metric} include_group = {includ
 
 if run_xgboost_fit:
     # Use XGBoost to predict school age behavior from brain metric
-    r2_test_array_xgb, feature_importance_df = predict_SA_xgboost(X, y, group_vals, sex_vals, target, metric, params,
+    r2_test_array_xgb, feature_importance_df = predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params,
                     run_dummy_quick_fit_xgb, set_xgb_params_man,0, bootstrap, n_bootstraps)
 
     # Calculate_xgb_percentile for r2test

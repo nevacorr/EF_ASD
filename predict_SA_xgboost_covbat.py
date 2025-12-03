@@ -1,187 +1,236 @@
-
-from xgboost import XGBRegressor
 from skopt import BayesSearchCV
+from xgboost import XGBRegressor
 from sklearn.model_selection import KFold
-from sklearn.impute import SimpleImputer
-from sklearn.metrics import r2_score
-from combatlearn import ComBat  # CovBat method via combatlearn
 import numpy as np
-import pandas as pd
-import shap
-import warnings
 import time
+import pandas as pd
+from sklearn.metrics import mean_squared_error, r2_score
+from neurocombat_sklearn import CombatModel
+from covbat_edited import covbat
+import warnings
+import shap
+from Utility_Functions_XGBoost import write_modeling_data_and_outcome_to_file, aggregate_feature_importances
+from Utility_Functions_XGBoost import plot_top_shap_scatter_by_group, plot_top_shap_distributions_by_group
+from Utility_Functions_XGBoost import plot_shap_magnitude_histograms_equal_bins, plot_shap_magnitude_by_sex_and_group
+from Utility_Functions_XGBoost import plot_shap_magnitude_kde
 
-"""
-   predict_SA_xgboost_covbat
+def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params, run_dummy_quick_fit, set_params_man,
+                       show_results_plot, bootstrap, n_bootstraps):
 
-   This function trains and evaluates an XGBoost regression model on neuroimaging data while addressing site effects,
-   missing data, and potential data leakage. It does:
-
-   1. Per-site Median Imputation:
-      - Missing values (NaNs) are imputed separately for each site using the median, which is robust to outliers.
-      - Imputation is fit only on the training data for each fold/bootstrapped sample to prevent leakage.
-
-   2. CovBat Harmonization:
-      - Features are harmonized across sites using CovBat, which removes site-specific mean, variance, and covariance effects.
-      - Harmonization is applied only to non-missing values in the training data and then applied to the test set.
-
-   3. Cross-Validation and Bootstrapping:
-      - Supports K-fold cross-validation (default 10 folds) and optional bootstrapping of the training data.
-      - Predictions are aggregated across folds and bootstraps.
-
-   4. XGBoost Modeling:
-      - XGBoost regression is trained either with manually specified hyperparameters or using Bayesian optimization via BayesSearchCV.
-      - The function supports multiple bootstraps and returns R² performance metrics.
-
-   5. SHAP Feature Importance:
-      - Computes SHAP values for test samples to assess feature contributions.
-      - Aggregates SHAP values across folds and bootstraps for downstream analysis or plotting.
-
-   6. Output:
-      - Returns R² scores across bootstraps, aggregated feature importance, SHAP values, original feature values, group labels, and sex labels.
-
-   This workflow ensures robust prediction while minimizing site confounds, handling missing data safely, 
-   and providing interpretable feature importance metrics.
-   """
-
-def predict_SA_xgboost_covbat(
-        X, y, group_vals, sex_vals, target, metric, params,
-        run_dummy_quick_fit=False, set_params_man=0,
-        show_results_plot=False, bootstrap=False, n_bootstraps=1
-):
-    """
-    Simplified XGBoost pipeline with:
-    1. Site-wise median imputation
-    2. CovBat harmonization (method='chen') to correct mean, variance, and covariance across sites
-    3. Optional BayesSearchCV hyperparameter tuning
-    4. KFold cross-validation and optional bootstrapping
-    Returns R² scores and aggregated SHAP values.
-    """
+    # Suppress all FutureWarnings
     warnings.simplefilter(action='ignore', category=FutureWarning)
-    rng = np.random.default_rng(42)
-    start_time = time.time()
 
+    set_parameters_manually = set_params_man
+
+    r2_test_all_bootstraps=[]
+
+    # set number of iterations for BayesCV
     if run_dummy_quick_fit:
         n_iter = 5
     else:
         n_iter = 100
 
-    r2_test_all_bootstraps = []
-    all_shap_values = []
+    if set_parameters_manually == 0: #if search for best parameters
 
-    feature_cols = [c for c in X.columns if c not in ['Site', 'Sex']]
+        xgb = XGBRegressor(objective="reg:squarederror", n_jobs=-1)
+        opt = BayesSearchCV(xgb, params, n_iter=n_iter, n_jobs=-1)
 
-    for b in range(max(n_bootstraps, 1)):
+    else:  # if parameters are to be set manually at fixed values
+
+        xgb = XGBRegressor(
+            objective="reg:squarederror",
+            n_jobs=16,
+            colsample_bytree=params["colsample_bytree"],#the fraction of features to be selected for each tree
+            eta=params["eta"],  # learning rate
+            gamma=params['gamma'],  # regularization. Low values allow splits as long as they improve the loss function, no matter how small
+            max_depth=params["max_depth"],#maximum depth of each decision tree
+            min_child_weight=params["min_child_weight"],# the number of samples required in each child node before attempting to split further
+            n_estimators=params["n_estimators"],  # Number of trees to create during training
+            subsample=params["subsample"]  # Fraction of training dta that is sampled for each boosting round
+        )
+    # record start time
+    start_time = time.time()
+    rng = np.random.default_rng(42)  # Fixed seed for reproducibility
+
+    if bootstrap == 0:
+        n_bootstraps = 1 # force one iteration with no bootstrapping
+
+    feature_importance_list = []
+
+    ########## Harmonize entire data set using CovBat ########
+    sex = X['Sex'].copy()
+    site = X['Site'].copy()
+    features = X.drop(columns=['Sex','Site']).copy()
+    # Make a nan mask
+    nan_mask = features.isna()
+    # Compute column-wise medians
+    feature_medians = features.median()
+    # Impute medians temporarily to just use with covbat
+    features_imputed = features.fillna(feature_medians)
+    # Harmonize, make sure to transpose input prior
+    features_np = features_imputed.values
+    X_harm_np = covbat(data=features_np, batch=site.values)
+    # Convert to dataframe with original feature names
+    X_harm = pd.DataFrame(X_harm_np, index=X.index, columns=features.columns)
+    # Restore NaNs
+    X_harm[nan_mask] = np.nan
+    # Add Sex and Site columns back in
+    X_harmonized = pd.concat([sex, site, X_harm], axis=1)
+
+    for b in range(n_bootstraps):
+
+        # make variables to hold predictions for train and test run, as well as counts for how many times each subject appears in a train set
         train_predictions = np.zeros_like(y, dtype=np.float64)
         test_predictions = np.zeros_like(y, dtype=np.float64)
         train_counts = np.zeros_like(y, dtype=np.int64)
 
+        # define cross validation scheme
         kf = KFold(n_splits=10, shuffle=True, random_state=42)
 
-        for train_idx, test_idx in kf.split(X, y):
-            X_train = X.iloc[train_idx].copy()
-            y_train = y[train_idx].copy()
-            X_test = X.iloc[test_idx].copy()
-            y_test = y[test_idx].copy()
+        # make indexes for train/test subjects for each fold
+        for i, (train_index, test_index) in enumerate(kf.split(X_harmonized, y)):
+            # print(f"bootstrap={b}/{n_bootstraps} {metric} Split {i + 1} - Training on {len(train_index)} samples, Testing on {len(test_index)} samples")
 
-            sex_train = X_train['Sex'].values.reshape(-1, 1)
-            sex_test = X_test['Sex'].values.reshape(-1, 1)
+            X_train = X_harmonized.iloc[train_index].copy()
+            y_train = y[train_index].copy()
+            X_test = X_harmonized.iloc[test_index].copy()
+            y_test = y[test_index].copy()
 
             if bootstrap:
-                bootstrap_indices = rng.choice(len(train_idx), size=len(train_idx), replace=True)
-                X_train = X_train.iloc[bootstrap_indices].reset_index(drop=True)
-                y_train = y_train[bootstrap_indices]
-                sex_train = sex_train[bootstrap_indices]
-
-            # -----------------------------
-            # 1️⃣ Site-wise median imputation
-            # -----------------------------
-            X_train_imputed = X_train.copy()
-            X_test_imputed = X_test.copy()
-            sites_train = X_train['Site'].values
-            sites_test = X_test['Site'].values
-
-            for site in np.unique(sites_train):
-                site_idx_train = X_train['Site'] == site
-                site_idx_test = X_test['Site'] == site
-
-                imputer = SimpleImputer(strategy='median')
-                X_train_imputed.loc[site_idx_train, feature_cols] = imputer.fit_transform(
-                    X_train.loc[site_idx_train, feature_cols]
-                )
-                X_test_imputed.loc[site_idx_test, feature_cols] = imputer.transform(
-                    X_test.loc[site_idx_test, feature_cols]
-                )
-
-            # -----------------------------
-            # 2️⃣ CovBat harmonization
-            # Corrects mean, variance, AND covariance across sites
-            # Applied separately per feature
-            # -----------------------------
-            X_train_harmonized = X_train_imputed.copy()
-            X_test_harmonized = X_test_imputed.copy()
-            for col in feature_cols:
-                not_nan_idx = ~X_train_harmonized[col].isna()
-                covbat = ComBat(method='chen')  # CovBat harmonization
-                # Fit CovBat on training data
-                covbat.fit(X_train_harmonized.loc[not_nan_idx, [col]].values,
-                           batch=sites_train[not_nan_idx].reshape(-1, 1))
-                # Transform training data
-                X_train_harmonized.loc[not_nan_idx, col] = covbat.transform(
-                    X_train_harmonized.loc[not_nan_idx, [col]].values,
-                    sites_train[not_nan_idx].reshape(-1, 1)
-                ).ravel()
-                # Transform test data using same fitted CovBat model
-                X_test_harmonized[col] = covbat.transform(
-                    X_test_harmonized[[col]].values, sites_test.reshape(-1, 1)
-                ).ravel()
-
-            # Add sex column back
-            X_train_final = np.hstack([sex_train, X_train_harmonized[feature_cols].values])
-            X_test_final = np.hstack([sex_test, X_test_harmonized[feature_cols].values])
-
-            # -----------------------------
-            # 3️⃣ XGBoost
-            # -----------------------------
-            if set_params_man == 0:
-                xgb = XGBRegressor(objective='reg:squarederror', n_jobs=-1)
-                opt = BayesSearchCV(xgb, params, n_iter=n_iter, n_jobs=-1)
-                opt.fit(X_train_final, y_train)
-                model = opt.best_estimator_
+                # Bootstrap the training data only
+                bootstrap_indices = rng.choice(len(train_index), size=len(train_index), replace=True)
+                X_train_boot = X_train.iloc[bootstrap_indices].reset_index(drop=True)
+                y_train_boot = y_train[bootstrap_indices]
             else:
-                model = XGBRegressor(
-                    objective='reg:squarederror',
-                    n_jobs=-1,
-                    colsample_bytree=params['colsample_bytree'],
-                    eta=params['eta'],
-                    gamma=params['gamma'],
-                    max_depth=params['max_depth'],
-                    min_child_weight=params['min_child_weight'],
-                    n_estimators=params['n_estimators'],
-                    subsample=params['subsample']
-                )
-                model.fit(X_train_final, y_train)
+                X_train_boot = X_train
+                y_train_boot = y_train
 
-            # Predictions
-            y_pred_test = model.predict(X_test_final)
-            y_pred_train = model.predict(X_train_final)
-            test_predictions[test_idx] = y_pred_test
-            train_predictions[train_idx] += y_pred_train
-            train_counts[train_idx] += 1
+            if set_parameters_manually == 0:
+                # Fit model to train set
+                print("fitting")
+                opt.fit(X_train_boot, y_train_boot)
 
-            # SHAP values
-            explainer = shap.Explainer(model, X_train_final)
-            shap_values = explainer(X_test_final)
-            all_shap_values.append(shap_values.values)
+                # Use model to predict on test set
+                test_predictions[test_index] = opt.predict(X_test)
 
-        # Correct train predictions by number of times each sample appeared
+                # Predict for train set
+                train_predictions[train_index] += opt.predict(X_train_boot)
+
+                model = opt.best_estimator_
+
+            else:
+                # Fit xgboost model using specified parameters
+                xgb.fit(X_train_boot, y_train_boot)
+                model = xgb
+                test_predictions[test_index] = xgb.predict(X_test)
+                train_predictions[train_index] += xgb.predict(X_train_boot)
+
+                # explain the GAM model with SHAP
+                explainer= shap.Explainer(xgb, X_train_boot)
+                shap_values = explainer(X_test)
+                shap_feature_names = list(X_train_boot.drop(columns="Site"))
+
+                # Save SHAP values and metadata
+                if b == 0 and i == 0 and n_bootstraps==1 and set_parameters_manually == 1:
+                    all_shap_values = shap_values.values
+                    all_feature_values = X_harmonized.iloc[test_index].copy()
+                    all_group_labels = group_vals.iloc[test_index].copy()
+                    all_sex_labels = sex_vals.iloc[test_index].copy()
+                elif set_parameters_manually == 1 and n_bootstraps ==1:
+                    all_shap_values = np.vstack([all_shap_values, shap_values.values])
+                    all_feature_values = pd.concat(
+                        [all_feature_values, X_harmonized.iloc[test_index].copy().reset_index(drop=True)],
+                        axis=0
+                    ).reset_index(drop=True)
+                    all_group_labels = pd.concat(
+                        [all_group_labels, group_vals.iloc[test_index].copy().reset_index(drop=True)],
+                        axis=0
+                    ).reset_index(drop=True)
+                    all_sex_labels = pd.concat(
+                            [all_sex_labels, sex_vals.iloc[test_index].copy().reset_index(drop=True)],
+                        axis=0
+                    ).reset_index(drop=True)
+
+            # Store importances
+            feature_importance_list.append(model.feature_importances_)
+
+            # Keep track of the number of times that each subject is included in the train set
+            train_counts[train_index] += 1
+
+        # Correct the predictions for the train set by the number of times they appeared in the train set
         train_predictions /= train_counts
 
+        if set_parameters_manually == 0:
+            best_params = opt.best_params_
+            print(f"Best Parameters for Final {metric} Model: {best_params}")
+        elif set_parameters_manually == 1:
+            best_params = params
+
+        # Compute R2
         r2_test = r2_score(y, test_predictions)
+        r2_train = r2_score(y, train_predictions)
+
+        print(f"R2test = {r2_test:.3f}")
+
+        # Calculate and print time it took to complete all model creations and predictions across all cv splits
+        end_time = time.time()
+        elapsed_time = (end_time - start_time) / 60.0
+        print(f"XGB Bootstrap {b + 1}/{n_bootstraps} complete. Time since beginning of program: {elapsed_time:.2f} minutes")
+
+        if bootstrap == 0:
+            write_modeling_data_and_outcome_to_file(run_dummy_quick_fit, metric, params, set_parameters_manually, target, X_harmonized,
+                                                 r2_train, r2_test, best_params, bootstrap, elapsed_time)
+
+        # plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, df, best_params, show_results_plot)
         r2_test_all_bootstraps.append(r2_test)
-        print(f"Bootstrap {b + 1}/{n_bootstraps} R² test: {r2_test:.3f}")
 
-    # Aggregate SHAP values across folds/bootstraps
-    all_shap_values = np.vstack(all_shap_values)
+    r2_test_array_xgb = np.array(r2_test_all_bootstraps)
 
-    return np.array(r2_test_all_bootstraps), all_shap_values
+    feature_names = ['Sex'] + X_harmonized.drop(columns=['Site', 'Sex']).columns.tolist()
+    feature_importance_df = aggregate_feature_importances(feature_importance_list, feature_names, n_bootstraps,
+                outputfilename=f"{target}_{metric}_{n_bootstraps}_xgb_feature_importance.txt", top_n=25)
+
+    if set_parameters_manually == 1 and n_bootstraps == 1:
+        # all_shap_values shape: (n_samples, n_features)
+        mean_abs_shap = np.abs(all_shap_values).mean(axis=0)
+
+        # Create a DataFrame for easier handling and plotting
+        shap_feature_importance_df = pd.DataFrame({
+            'feature': feature_names,
+            'mean_abs_shap': mean_abs_shap
+        }).sort_values('mean_abs_shap', ascending=False)
+
+        # plot_top_shap_distributions_by_group(
+        #     shap_feature_importance_df,
+        #     all_shap_values,
+        #     all_group_labels,
+        #     all_sex_labels,
+        #     feature_names,
+        #     top_n=20
+        # )
+
+        plot_shap_magnitude_histograms_equal_bins(
+            all_shap_values,
+            all_group_labels,
+            all_sex_labels,
+            feature_names,
+            sex_feature_name='Sex'
+        )
+
+        plot_shap_magnitude_by_sex_and_group(
+            all_shap_values,
+            all_group_labels,
+            all_sex_labels,
+            feature_names,
+            sex_feature_name='Sex'
+        )
+
+        plot_shap_magnitude_kde(
+            all_shap_values,
+            all_group_labels,
+            all_sex_labels,
+            feature_names,
+            sex_feature_name='Sex'
+        )
+
+    return r2_test_array_xgb, feature_importance_df
