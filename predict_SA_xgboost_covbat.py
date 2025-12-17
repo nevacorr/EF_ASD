@@ -94,22 +94,6 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
                 X_train_boot = X_train
                 y_train_boot = y_train
 
-            # # Create Categorical object for the training set sites
-            # train_sites = pd.Categorical(X_train_boot['Site'])
-            #
-            # # Convert training sites to numeric codes (for harmonization)
-            # sites_train = train_sites.codes
-            #
-            # # Replace the 'Site' column in X_train with the codes
-            # X_train_boot['Site'] = sites_train
-            #
-            # # Apply the same categorical mapping to the test set sites
-            # test_sites = pd.Categorical(X_test['Site'], categories=train_sites.categories)
-            # sites_test = test_sites.codes
-            #
-            # # Replace the 'Site' column in X_test with the codes
-            # X_test['Site'] = sites_test
-
             # Assign covbat functions
             fit_covbat = robjects.r['fit_covbat']
             apply_covbat = robjects.r['apply_covbat']
