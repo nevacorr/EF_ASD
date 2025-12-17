@@ -52,7 +52,6 @@ df = load_all_data()
 X, y, group_vals, sex_vals = create_predictor_target_vars(df, target, metric, include_group, run_dummy_quick_fit_xgb,
                                     show_heat_map, remove_colinear)
 
-
 # # Plot histogram of target variable
 # plt.hist(y, bins=30, edgecolor='black')
 # plt.xlabel(target)

@@ -5,13 +5,22 @@ import numpy as np
 import time
 import pandas as pd
 from sklearn.metrics import mean_squared_error, r2_score
-from neurocombat_sklearn import CombatModel
 import warnings
 import shap
 from Utility_Functions_XGBoost import write_modeling_data_and_outcome_to_file, aggregate_feature_importances
 from Utility_Functions_XGBoost import plot_top_shap_scatter_by_group, plot_top_shap_distributions_by_group
 from Utility_Functions_XGBoost import plot_shap_magnitude_histograms_equal_bins, plot_shap_magnitude_by_sex_and_group
 from Utility_Functions_XGBoost import plot_shap_magnitude_kde
+import os
+os.environ["R_HOME"] = "/Library/Frameworks/R.framework/Resources"
+import rpy2.robjects as robjects
+from rpy2.robjects.conversion import localconverter
+from rpy2.robjects import pandas2ri
+import rpy2.robjects as ro
+
+# Source your R wrapper script
+robjects.r('source("~/R_Projects/IBIS_EF_xgboost/covbat_wrapper_for_use_with_python.R")')
+
 # np.int = int   #patch because of bug in numpy version that affects gridsearchCV
 
 def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params, run_dummy_quick_fit, set_params_man,
@@ -71,9 +80,6 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
         for i, (train_index, test_index) in enumerate(kf.split(X, y)):
             # print(f"bootstrap={b}/{n_bootstraps} {metric} Split {i + 1} - Training on {len(train_index)} samples, Testing on {len(test_index)} samples")
 
-            # initialize combat model
-            combat = CombatModel()
-
             X_train = X.iloc[train_index].copy()
             y_train = y[train_index].copy()
             X_test = X.iloc[test_index].copy()
@@ -88,72 +94,97 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
                 X_train_boot = X_train
                 y_train_boot = y_train
 
-            # Create Categorical object for the training set sites
-            train_sites = pd.Categorical(X_train_boot['Site'])
+            # # Create Categorical object for the training set sites
+            # train_sites = pd.Categorical(X_train_boot['Site'])
+            #
+            # # Convert training sites to numeric codes (for harmonization)
+            # sites_train = train_sites.codes
+            #
+            # # Replace the 'Site' column in X_train with the codes
+            # X_train_boot['Site'] = sites_train
+            #
+            # # Apply the same categorical mapping to the test set sites
+            # test_sites = pd.Categorical(X_test['Site'], categories=train_sites.categories)
+            # sites_test = test_sites.codes
+            #
+            # # Replace the 'Site' column in X_test with the codes
+            # X_test['Site'] = sites_test
 
-            # Convert training sites to numeric codes (for harmonization)
-            sites_train = train_sites.codes
-
-            # Replace the 'Site' column in X_train with the codes
-            X_train_boot['Site'] = sites_train
-
-            # Apply the same categorical mapping to the test set sites
-            test_sites = pd.Categorical(X_test['Site'], categories=train_sites.categories)
-            sites_test = test_sites.codes
-
-            # Replace the 'Site' column in X_test with the codes
-            X_test['Site'] = sites_test
+            # Assign covbat functions
+            fit_covbat = robjects.r['fit_covbat']
+            apply_covbat = robjects.r['apply_covbat']
 
             #  Replace NaN values with column mean for harmonization
             # Drop the 'Site' column because X_train and X_test after running combat will not have this column
-            nan_indices_train = X_train_boot.isna().drop(columns=['Site','Sex'])
-            nan_indices_test = X_test.isna().drop(columns=['Site', 'Sex'])
+            nan_indices_train = X_train_boot.drop(columns=['Site','Sex']).isna().to_numpy()
+            nan_indices_test = X_test.drop(columns=['Site', 'Sex']).isna().to_numpy()
             X_train_boot_temp = X_train_boot.copy()  # Create a copy of the training data to avoid modifying original data
             X_test_temp = X_test.copy()
-            X_train_boot_temp = X_train_boot_temp.fillna(X_train_boot_temp.mean()) # Replace NaN with the column mean (change to use scikit learn)
-            X_test_temp = X_test_temp.fillna(X_train_boot_temp.mean()) # Replace NaN with the column mean of the train set
+
+            fcols = X_train_boot_temp.columns.difference(['Site', 'Sex'])
+
+            # Fill NaNs in training features
+            X_train_boot_temp[fcols] = X_train_boot_temp[fcols].fillna(
+                X_train_boot_temp[fcols].mean())
+
+            # Fill NaNs in test features using train means
+            X_test_temp[fcols] = X_test_temp[fcols].fillna(X_train_boot_temp[fcols].mean())
 
             # Keep a copy of Sex
             sex_train = X_train_boot_temp['Sex'].values.reshape(-1,1)
             sex_test = X_test_temp['Sex'].values.reshape(-1, 1)
 
-            # Harmonize the training data
-            X_train_boot_combat = combat.fit_transform(X_train_boot_temp.drop(columns=['Site', 'Sex']), sites_train.reshape(-1, 1))
-            # Replace the original Nan values
-            X_train_boot_combat[nan_indices_train] = np.nan
+            # --- Convert to R data frames ---
+            with localconverter(robjects.default_converter + pandas2ri.converter):
+                X_train_r = robjects.conversion.py2rpy(X_train_boot_temp.drop(columns=['Site', 'Sex']))
+                X_test_r = robjects.conversion.py2rpy(X_test_temp.drop(columns=['Site', 'Sex']))
 
-            # Harmonize the test data (using the same harmonization model fitted on the training data)
-            X_test_combat = combat.transform(X_test_temp.drop(columns=['Site', 'Sex']), sites_test.reshape(-1, 1))
-            # Replace the original Nan values
-            X_test_combat[nan_indices_test] = np.nan
+            batch_train_r = robjects.FactorVector(X_train_boot_temp['Site'])
+            batch_test_r = robjects.FactorVector(X_test_temp['Site'])
+
+            # --- Fit CovBat on training data ---
+            covbat_fit = fit_covbat(X_train_r, batch_train_r)
+
+            # --- Apply CovBat ---
+            X_train_boot_harmonized_r = apply_covbat(covbat_fit, X_train_r, batch_train_r)
+            X_test_harmonized_r = apply_covbat(covbat_fit, X_test_r, batch_test_r)
+
+            # --- Convert back to pandas ---
+            with localconverter(robjects.default_converter + pandas2ri.converter):
+                X_train_boot_harmonized = robjects.conversion.rpy2py(X_train_boot_harmonized_r)
+                X_test_harmonized = robjects.conversion.rpy2py(X_test_harmonized_r)
+
+            # --- Restore NaNs ---
+            X_train_boot_harmonized[nan_indices_train] = np.nan
+            X_test_harmonized[nan_indices_test] = np.nan
 
             # Add sex values back into array for xgboost now that the brain measures have been harmonized
-            X_train_boot_combat = np.hstack([sex_train,X_train_boot_combat])
-            X_test_combat = np.hstack([sex_test, X_test_combat])
+            X_train_boot_harmonized = np.hstack([sex_train,X_train_boot_harmonized])
+            X_test_harmonized = np.hstack([sex_test, X_test_harmonized])
 
             if set_parameters_manually == 0:
                 # Fit model to train set
                 print("fitting")
-                opt.fit(X_train_boot_combat, y_train_boot)
+                opt.fit(X_train_boot_harmonized, y_train_boot)
 
                 # Use model to predict on test set
-                test_predictions[test_index] = opt.predict(X_test_combat)
+                test_predictions[test_index] = opt.predict(X_test_harmonized)
 
                 # Predict for train set
-                train_predictions[train_index] += opt.predict(X_train_boot_combat)
+                train_predictions[train_index] += opt.predict(X_train_boot_harmonized)
 
                 model = opt.best_estimator_
 
             else:
                 # Fit xgboost model using specified parameters
-                xgb.fit(X_train_boot_combat, y_train_boot)
+                xgb.fit(X_train_boot_harmonized, y_train_boot)
                 model = xgb
-                test_predictions[test_index] = xgb.predict(X_test_combat)
-                train_predictions[train_index] += xgb.predict(X_train_boot_combat)
+                test_predictions[test_index] = xgb.predict(X_test_harmonized)
+                train_predictions[train_index] += xgb.predict(X_train_boot_harmonized)
 
                 # explain the GAM model with SHAP
-                explainer= shap.Explainer(xgb, X_train_boot_combat)
-                shap_values = explainer(X_test_combat)
+                explainer= shap.Explainer(xgb, X_train_boot_harmonized)
+                shap_values = explainer(X_test_harmonized)
                 shap_feature_names = list(X_train_boot.drop(columns="Site"))
 
                 # Save SHAP values and metadata
