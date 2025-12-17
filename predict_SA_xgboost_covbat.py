@@ -6,14 +6,13 @@ import time
 import pandas as pd
 from sklearn.metrics import mean_squared_error, r2_score
 from neurocombat_sklearn import CombatModel
-from covbat_edited import covbat
 import warnings
 import shap
 from Utility_Functions_XGBoost import write_modeling_data_and_outcome_to_file, aggregate_feature_importances
 from Utility_Functions_XGBoost import plot_top_shap_scatter_by_group, plot_top_shap_distributions_by_group
 from Utility_Functions_XGBoost import plot_shap_magnitude_histograms_equal_bins, plot_shap_magnitude_by_sex_and_group
 from Utility_Functions_XGBoost import plot_shap_magnitude_kde
-
+# np.int = int   #patch because of bug in numpy version that affects gridsearchCV
 def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params, run_dummy_quick_fit, set_params_man,
                        show_results_plot, bootstrap, n_bootstraps):
 
@@ -57,26 +56,6 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
 
     feature_importance_list = []
 
-    ########## Harmonize entire data set using CovBat ########
-    sex = X['Sex'].copy()
-    site = X['Site'].copy()
-    features = X.drop(columns=['Sex','Site']).copy()
-    # Make a nan mask
-    nan_mask = features.isna()
-    # Compute column-wise medians
-    feature_medians = features.median()
-    # Impute medians temporarily to just use with covbat
-    features_imputed = features.fillna(feature_medians)
-    # Harmonize, make sure to transpose input prior
-    features_np = features_imputed.values
-    X_harm_np = covbat(data=features_np, batch=site.values)
-    # Convert to dataframe with original feature names
-    X_harm = pd.DataFrame(X_harm_np, index=X.index, columns=features.columns)
-    # Restore NaNs
-    X_harm[nan_mask] = np.nan
-    # Add Sex and Site columns back in
-    X_harmonized = pd.concat([sex, site, X_harm], axis=1)
-
     for b in range(n_bootstraps):
 
         # make variables to hold predictions for train and test run, as well as counts for how many times each subject appears in a train set
@@ -88,12 +67,15 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
         kf = KFold(n_splits=10, shuffle=True, random_state=42)
 
         # make indexes for train/test subjects for each fold
-        for i, (train_index, test_index) in enumerate(kf.split(X_harmonized, y)):
+        for i, (train_index, test_index) in enumerate(kf.split(X, y)):
             # print(f"bootstrap={b}/{n_bootstraps} {metric} Split {i + 1} - Training on {len(train_index)} samples, Testing on {len(test_index)} samples")
 
-            X_train = X_harmonized.iloc[train_index].copy()
+            # initialize combat model
+            combat = CombatModel()
+
+            X_train = X.iloc[train_index].copy()
             y_train = y[train_index].copy()
-            X_test = X_harmonized.iloc[test_index].copy()
+            X_test = X.iloc[test_index].copy()
             y_test = y[test_index].copy()
 
             if bootstrap:
@@ -105,41 +87,84 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
                 X_train_boot = X_train
                 y_train_boot = y_train
 
+            # Create Categorical object for the training set sites
+            train_sites = pd.Categorical(X_train_boot['Site'])
+
+            # Convert training sites to numeric codes (for harmonization)
+            sites_train = train_sites.codes
+
+            # Replace the 'Site' column in X_train with the codes
+            X_train_boot['Site'] = sites_train
+
+            # Apply the same categorical mapping to the test set sites
+            test_sites = pd.Categorical(X_test['Site'], categories=train_sites.categories)
+            sites_test = test_sites.codes
+
+            # Replace the 'Site' column in X_test with the codes
+            X_test['Site'] = sites_test
+
+            #  Replace NaN values with column mean for harmonization
+            # Drop the 'Site' column because X_train and X_test after running combat will not have this column
+            nan_indices_train = X_train_boot.isna().drop(columns=['Site','Sex'])
+            nan_indices_test = X_test.isna().drop(columns=['Site', 'Sex'])
+            X_train_boot_temp = X_train_boot.copy()  # Create a copy of the training data to avoid modifying original data
+            X_test_temp = X_test.copy()
+            X_train_boot_temp = X_train_boot_temp.fillna(X_train_boot_temp.mean()) # Replace NaN with the column mean (change to use scikit learn)
+            X_test_temp = X_test_temp.fillna(X_train_boot_temp.mean()) # Replace NaN with the column mean of the train set
+
+            # Keep a copy of Sex
+            sex_train = X_train_boot_temp['Sex'].values.reshape(-1,1)
+            sex_test = X_test_temp['Sex'].values.reshape(-1, 1)
+
+            # Harmonize the training data
+            X_train_boot_combat = combat.fit_transform(X_train_boot_temp.drop(columns=['Site', 'Sex']), sites_train.reshape(-1, 1))
+            # Replace the original Nan values
+            X_train_boot_combat[nan_indices_train] = np.nan
+
+            # Harmonize the test data (using the same harmonization model fitted on the training data)
+            X_test_combat = combat.transform(X_test_temp.drop(columns=['Site', 'Sex']), sites_test.reshape(-1, 1))
+            # Replace the original Nan values
+            X_test_combat[nan_indices_test] = np.nan
+
+            # Add sex values back into array for xgboost now that the brain measures have been harmonized
+            X_train_boot_combat = np.hstack([sex_train,X_train_boot_combat])
+            X_test_combat = np.hstack([sex_test, X_test_combat])
+
             if set_parameters_manually == 0:
                 # Fit model to train set
                 print("fitting")
-                opt.fit(X_train_boot, y_train_boot)
+                opt.fit(X_train_boot_combat, y_train_boot)
 
                 # Use model to predict on test set
-                test_predictions[test_index] = opt.predict(X_test)
+                test_predictions[test_index] = opt.predict(X_test_combat)
 
                 # Predict for train set
-                train_predictions[train_index] += opt.predict(X_train_boot)
+                train_predictions[train_index] += opt.predict(X_train_boot_combat)
 
                 model = opt.best_estimator_
 
             else:
                 # Fit xgboost model using specified parameters
-                xgb.fit(X_train_boot, y_train_boot)
+                xgb.fit(X_train_boot_combat, y_train_boot)
                 model = xgb
-                test_predictions[test_index] = xgb.predict(X_test)
-                train_predictions[train_index] += xgb.predict(X_train_boot)
+                test_predictions[test_index] = xgb.predict(X_test_combat)
+                train_predictions[train_index] += xgb.predict(X_train_boot_combat)
 
                 # explain the GAM model with SHAP
-                explainer= shap.Explainer(xgb, X_train_boot)
-                shap_values = explainer(X_test)
+                explainer= shap.Explainer(xgb, X_train_boot_combat)
+                shap_values = explainer(X_test_combat)
                 shap_feature_names = list(X_train_boot.drop(columns="Site"))
 
                 # Save SHAP values and metadata
                 if b == 0 and i == 0 and n_bootstraps==1 and set_parameters_manually == 1:
                     all_shap_values = shap_values.values
-                    all_feature_values = X_harmonized.iloc[test_index].copy()
+                    all_feature_values = X.iloc[test_index].copy()
                     all_group_labels = group_vals.iloc[test_index].copy()
                     all_sex_labels = sex_vals.iloc[test_index].copy()
                 elif set_parameters_manually == 1 and n_bootstraps ==1:
                     all_shap_values = np.vstack([all_shap_values, shap_values.values])
                     all_feature_values = pd.concat(
-                        [all_feature_values, X_harmonized.iloc[test_index].copy().reset_index(drop=True)],
+                        [all_feature_values, X.iloc[test_index].copy().reset_index(drop=True)],
                         axis=0
                     ).reset_index(drop=True)
                     all_group_labels = pd.concat(
@@ -178,7 +203,7 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
         print(f"XGB Bootstrap {b + 1}/{n_bootstraps} complete. Time since beginning of program: {elapsed_time:.2f} minutes")
 
         if bootstrap == 0:
-            write_modeling_data_and_outcome_to_file(run_dummy_quick_fit, metric, params, set_parameters_manually, target, X_harmonized,
+            write_modeling_data_and_outcome_to_file(run_dummy_quick_fit, metric, params, set_parameters_manually, target, X,
                                                  r2_train, r2_test, best_params, bootstrap, elapsed_time)
 
         # plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, df, best_params, show_results_plot)
@@ -186,7 +211,7 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
 
     r2_test_array_xgb = np.array(r2_test_all_bootstraps)
 
-    feature_names = ['Sex'] + X_harmonized.drop(columns=['Site', 'Sex']).columns.tolist()
+    feature_names = ['Sex'] + X.drop(columns=['Site', 'Sex']).columns.tolist()
     feature_importance_df = aggregate_feature_importances(feature_importance_list, feature_names, n_bootstraps,
                 outputfilename=f"{target}_{metric}_{n_bootstraps}_xgb_feature_importance.txt", top_n=25)
 
