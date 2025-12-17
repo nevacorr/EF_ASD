@@ -50,16 +50,16 @@ def load_infant_subcortical_data(filepath):
     # Remove columns that contain the string "Edited"
     subcort_merged_df = subcort_merged_df.loc[:, ~subcort_merged_df.columns.str.contains('Edited')]
 
-    # Divide all columns with '_v12' by 'totTiss_v12'
-    v12_columns = [col for col in subcort_merged_df.columns if '_v12' in col and 'totTiss' not in col]
-    for col in v12_columns:
-        subcort_merged_df[col] = subcort_merged_df[col] / subcort_merged_df['totTiss_v12']
-        mystop=1
-
-    # Divide all columns with '_v24' by 'totTiss_v24'
-    v24_columns = [col for col in subcort_merged_df.columns if '_v24' in col and 'totTiss' not in col]
-    for col in v24_columns:
-        subcort_merged_df[col] = subcort_merged_df[col] / subcort_merged_df['totTiss_v24']
+    # # Divide all columns with '_v12' by 'totTiss_v12'
+    # v12_columns = [col for col in subcort_merged_df.columns if '_v12' in col and 'totTiss' not in col]
+    # for col in v12_columns:
+    #     subcort_merged_df[col] = subcort_merged_df[col] / subcort_merged_df['totTiss_v12']
+    #     mystop=1
+    #
+    # # Divide all columns with '_v24' by 'totTiss_v24'
+    # v24_columns = [col for col in subcort_merged_df.columns if '_v24' in col and 'totTiss' not in col]
+    # for col in v24_columns:
+    #     subcort_merged_df[col] = subcort_merged_df[col] / subcort_merged_df['totTiss_v24']
 
     # Drop the 'totTiss_v12' and 'totTiss_v24' columns
     subcort_merged_df.drop(['totTiss_v12', 'totTiss_v24'], axis=1, inplace=True)
