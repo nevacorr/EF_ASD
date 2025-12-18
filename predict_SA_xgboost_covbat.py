@@ -10,7 +10,7 @@ import shap
 from Utility_Functions_XGBoost import write_modeling_data_and_outcome_to_file, aggregate_feature_importances
 from Utility_Functions_XGBoost import plot_top_shap_scatter_by_group, plot_top_shap_distributions_by_group
 from Utility_Functions_XGBoost import plot_shap_magnitude_histograms_equal_bins, plot_shap_magnitude_by_sex_and_group
-from Utility_Functions_XGBoost import plot_shap_magnitude_kde
+from Utility_Functions_XGBoost import plot_shap_magnitude_kde, impute_by_site_median_with_nan_indices
 import os
 os.environ["R_HOME"] = "/Library/Frameworks/R.framework/Resources"
 import rpy2.robjects as robjects
@@ -98,21 +98,15 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
             fit_covbat = robjects.r['fit_covbat']
             apply_covbat = robjects.r['apply_covbat']
 
-            #  Replace NaN values with column mean for harmonization
-            # Drop the 'Site' column because X_train and X_test after running combat will not have this column
-            nan_indices_train = X_train_boot.drop(columns=['Site','Sex']).isna().to_numpy()
-            nan_indices_test = X_test.drop(columns=['Site', 'Sex']).isna().to_numpy()
-            X_train_boot_temp = X_train_boot.copy()  # Create a copy of the training data to avoid modifying original data
-            X_test_temp = X_test.copy()
+            #  Replace NaN values with column median for harmonization
+            fcols = X_train_boot.columns.difference(['Site', 'Sex'])
 
-            fcols = X_train_boot_temp.columns.difference(['Site', 'Sex'])
-
-            # Fill NaNs in training features
-            X_train_boot_temp[fcols] = X_train_boot_temp[fcols].fillna(
-                X_train_boot_temp[fcols].mean())
-
-            # Fill NaNs in test features using train means
-            X_test_temp[fcols] = X_test_temp[fcols].fillna(X_train_boot_temp[fcols].mean())
+            X_train_boot_temp, X_test_temp, nan_indices_train, nan_indices_test = impute_by_site_median_with_nan_indices(
+                X_train_boot,
+                X_test,
+                feature_cols=fcols,
+                site_col='Site'
+            )
 
             # Keep a copy of Sex
             sex_train = X_train_boot_temp['Sex'].values.reshape(-1,1)
