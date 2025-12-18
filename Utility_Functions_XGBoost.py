@@ -4,6 +4,55 @@ import seaborn as sns
 import numpy as np
 from datetime import datetime
 
+# Function to fill NaNs using site-wise medians
+def impute_by_site_median_with_nan_indices(X_train, X_test, feature_cols, site_col='Site'):
+    """
+    Impute missing values in X_train and X_test using site-specific medians,
+    and record NaN positions to restore them later.
+
+    Parameters
+    ----------
+    X_train : pd.DataFrame
+        Training data including 'Site' column.
+    X_test : pd.DataFrame
+        Test data including 'Site' column.
+    feature_cols : list-like
+        Columns to impute (numeric features, excluding 'Site' and 'Sex').
+    site_col : str
+        Name of the batch/site column.
+
+    Returns
+    -------
+    X_train_imputed : pd.DataFrame
+    X_test_imputed : pd.DataFrame
+    nan_indices_train : np.ndarray
+        Boolean array marking original NaNs in training features.
+    nan_indices_test : np.ndarray
+        Boolean array marking original NaNs in test features.
+    """
+    X_train_imputed = X_train.copy()
+    X_test_imputed = X_test.copy()
+
+    # Keep track of original NaNs
+    nan_indices_train = X_train_imputed[feature_cols].isna().to_numpy()
+    nan_indices_test = X_test_imputed[feature_cols].isna().to_numpy()
+
+    # Impute each column separately by site median
+    for col in feature_cols:
+        medians_by_site = X_train_imputed.groupby(site_col)[col].median()
+        # Fill train
+        X_train_imputed[col] = X_train_imputed.apply(
+            lambda row: medians_by_site[row[site_col]] if pd.isna(row[col]) else row[col],
+            axis=1
+        )
+        # Fill test using training medians
+        X_test_imputed[col] = X_test_imputed.apply(
+            lambda row: medians_by_site[row[site_col]] if pd.isna(row[col]) else row[col],
+            axis=1
+        )
+
+    return X_train_imputed, X_test_imputed, nan_indices_train, nan_indices_test
+
 def plot_correlations(df, title):
     correlation_matrix = df.corr()
 
