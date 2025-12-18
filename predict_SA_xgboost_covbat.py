@@ -31,7 +31,7 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
 
     set_parameters_manually = set_params_man
 
-    r2_test_all_bootstraps=[]
+    r2_val_all_bootstraps=[]
 
     # set number of iterations for BayesCV
     if run_dummy_quick_fit:
@@ -68,22 +68,22 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
 
     for b in range(n_bootstraps):
 
-        # make variables to hold predictions for train and test run, as well as counts for how many times each subject appears in a train set
+        # make variables to hold predictions for train and validation run, as well as counts for how many times each subject appears in a train set
         train_predictions = np.zeros_like(y, dtype=np.float64)
-        test_predictions = np.zeros_like(y, dtype=np.float64)
+        val_predictions = np.zeros_like(y, dtype=np.float64)
         train_counts = np.zeros_like(y, dtype=np.int64)
 
         # define cross validation scheme
         kf = KFold(n_splits=10, shuffle=True, random_state=42)
 
-        # make indexes for train/test subjects for each fold
-        for i, (train_index, test_index) in enumerate(kf.split(X, y)):
-            # print(f"bootstrap={b}/{n_bootstraps} {metric} Split {i + 1} - Training on {len(train_index)} samples, Testing on {len(test_index)} samples")
+        # make indexes for train/validation subjects for each fold
+        for i, (train_index, val_index) in enumerate(kf.split(X, y)):
+            # print(f"bootstrap={b}/{n_bootstraps} {metric} Split {i + 1} - Training on {len(train_index)} samples, Testing on {len(val_index)} samples")
 
             X_train = X.iloc[train_index].copy()
             y_train = y[train_index].copy()
-            X_test = X.iloc[test_index].copy()
-            y_test = y[test_index].copy()
+            X_val = X.iloc[val_index].copy()
+            y_val = y[val_index].copy()
 
             if bootstrap:
                 # Bootstrap the training data only
@@ -101,52 +101,52 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
             #  Replace NaN values with column median for harmonization
             fcols = X_train_boot.columns.difference(['Site', 'Sex'])
 
-            X_train_boot_temp, X_test_temp, nan_indices_train, nan_indices_test = impute_by_site_median_with_nan_indices(
+            X_train_boot_temp, X_val_temp, nan_indices_train, nan_indices_val = impute_by_site_median_with_nan_indices(
                 X_train_boot,
-                X_test,
+                X_val,
                 feature_cols=fcols,
                 site_col='Site'
             )
 
             # Keep a copy of Sex
             sex_train = X_train_boot_temp['Sex'].values.reshape(-1,1)
-            sex_test = X_test_temp['Sex'].values.reshape(-1, 1)
+            sex_val = X_val_temp['Sex'].values.reshape(-1, 1)
 
             # --- Convert to R data frames ---
             with localconverter(robjects.default_converter + pandas2ri.converter):
                 X_train_r = robjects.conversion.py2rpy(X_train_boot_temp.drop(columns=['Site', 'Sex']))
-                X_test_r = robjects.conversion.py2rpy(X_test_temp.drop(columns=['Site', 'Sex']))
+                X_val_r = robjects.conversion.py2rpy(X_val_temp.drop(columns=['Site', 'Sex']))
 
             batch_train_r = robjects.FactorVector(X_train_boot_temp['Site'])
-            batch_test_r = robjects.FactorVector(X_test_temp['Site'])
+            batch_val_r = robjects.FactorVector(X_val_temp['Site'])
 
             # --- Fit CovBat on training data ---
             covbat_fit = fit_covbat(X_train_r, batch_train_r)
 
             # --- Apply CovBat ---
             X_train_boot_harmonized_r = apply_covbat(covbat_fit, X_train_r, batch_train_r)
-            X_test_harmonized_r = apply_covbat(covbat_fit, X_test_r, batch_test_r)
+            X_val_harmonized_r = apply_covbat(covbat_fit, X_val_r, batch_val_r)
 
             # --- Convert back to pandas ---
             with localconverter(robjects.default_converter + pandas2ri.converter):
                 X_train_boot_harmonized = robjects.conversion.rpy2py(X_train_boot_harmonized_r)
-                X_test_harmonized = robjects.conversion.rpy2py(X_test_harmonized_r)
+                X_val_harmonized = robjects.conversion.rpy2py(X_val_harmonized_r)
 
             # --- Restore NaNs ---
             X_train_boot_harmonized[nan_indices_train] = np.nan
-            X_test_harmonized[nan_indices_test] = np.nan
+            X_val_harmonized[nan_indices_val] = np.nan
 
             # Add sex values back into array for xgboost now that the brain measures have been harmonized
             X_train_boot_harmonized = np.hstack([sex_train,X_train_boot_harmonized])
-            X_test_harmonized = np.hstack([sex_test, X_test_harmonized])
+            X_val_harmonized = np.hstack([sex_val, X_val_harmonized])
 
             if set_parameters_manually == 0:
                 # Fit model to train set
                 print("fitting")
                 opt.fit(X_train_boot_harmonized, y_train_boot)
 
-                # Use model to predict on test set
-                test_predictions[test_index] = opt.predict(X_test_harmonized)
+                # Use model to predict on validation set
+                val_predictions[val_index] = opt.predict(X_val_harmonized)
 
                 # Predict for train set
                 train_predictions[train_index] += opt.predict(X_train_boot_harmonized)
@@ -157,32 +157,32 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
                 # Fit xgboost model using specified parameters
                 xgb.fit(X_train_boot_harmonized, y_train_boot)
                 model = xgb
-                test_predictions[test_index] = xgb.predict(X_test_harmonized)
+                val_predictions[val_index] = xgb.predict(X_val_harmonized)
                 train_predictions[train_index] += xgb.predict(X_train_boot_harmonized)
 
                 # explain the GAM model with SHAP
                 explainer= shap.Explainer(xgb, X_train_boot_harmonized)
-                shap_values = explainer(X_test_harmonized)
+                shap_values = explainer(X_val_harmonized)
                 shap_feature_names = list(X_train_boot.drop(columns="Site"))
 
                 # Save SHAP values and metadata
                 if b == 0 and i == 0 and n_bootstraps==1 and set_parameters_manually == 1:
                     all_shap_values = shap_values.values
-                    all_feature_values = X.iloc[test_index].copy()
-                    all_group_labels = group_vals.iloc[test_index].copy()
-                    all_sex_labels = sex_vals.iloc[test_index].copy()
+                    all_feature_values = X.iloc[val_index].copy()
+                    all_group_labels = group_vals.iloc[val_index].copy()
+                    all_sex_labels = sex_vals.iloc[val_index].copy()
                 elif set_parameters_manually == 1 and n_bootstraps ==1:
                     all_shap_values = np.vstack([all_shap_values, shap_values.values])
                     all_feature_values = pd.concat(
-                        [all_feature_values, X.iloc[test_index].copy().reset_index(drop=True)],
+                        [all_feature_values, X.iloc[val_index].copy().reset_index(drop=True)],
                         axis=0
                     ).reset_index(drop=True)
                     all_group_labels = pd.concat(
-                        [all_group_labels, group_vals.iloc[test_index].copy().reset_index(drop=True)],
+                        [all_group_labels, group_vals.iloc[val_index].copy().reset_index(drop=True)],
                         axis=0
                     ).reset_index(drop=True)
                     all_sex_labels = pd.concat(
-                            [all_sex_labels, sex_vals.iloc[test_index].copy().reset_index(drop=True)],
+                            [all_sex_labels, sex_vals.iloc[val_index].copy().reset_index(drop=True)],
                         axis=0
                     ).reset_index(drop=True)
 
@@ -202,10 +202,10 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
             best_params = params
 
         # Compute R2
-        r2_test = r2_score(y, test_predictions)
+        r2_val = r2_score(y, val_predictions)
         r2_train = r2_score(y, train_predictions)
 
-        print(f"R2test = {r2_test:.3f}")
+        print(f"R2val = {r2_val:.3f}")
 
         # Calculate and print time it took to complete all model creations and predictions across all cv splits
         end_time = time.time()
@@ -214,12 +214,12 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
 
         if bootstrap == 0:
             write_modeling_data_and_outcome_to_file(run_dummy_quick_fit, metric, params, set_parameters_manually, target, X,
-                                                 r2_train, r2_test, best_params, bootstrap, elapsed_time)
+                                                 r2_train, r2_val, best_params, bootstrap, elapsed_time)
 
-        # plot_xgb_actual_vs_pred(metric, target, r2_train, r2_test, df, best_params, show_results_plot)
-        r2_test_all_bootstraps.append(r2_test)
+        # plot_xgb_actual_vs_pred(metric, target, r2_train, r2_val, df, best_params, show_results_plot)
+        r2_val_all_bootstraps.append(r2_val)
 
-    r2_test_array_xgb = np.array(r2_test_all_bootstraps)
+    r2_val_array_xgb = np.array(r2_val_all_bootstraps)
 
     feature_names = ['Sex'] + X.drop(columns=['Site', 'Sex']).columns.tolist()
     feature_importance_df = aggregate_feature_importances(feature_importance_list, feature_names, n_bootstraps,
@@ -268,4 +268,4 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
             sex_feature_name='Sex'
         )
 
-    return r2_test_array_xgb, feature_importance_df
+    return r2_val_array_xgb, feature_importance_df

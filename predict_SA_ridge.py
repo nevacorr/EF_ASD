@@ -43,7 +43,7 @@ def predict_SA_ridge(X, y, target, alpha_value, n_bootstraps):
     # Suppress all FutureWarnings
     warnings.simplefilter(action='ignore', category=FutureWarning)
 
-    r2_test_all_bootstraps = []
+    r2_val_all_bootstraps = []
     coefs_bootstrap = np.zeros((n_bootstraps, X.shape[1]-1))
 
     start_time = time.time()
@@ -51,19 +51,19 @@ def predict_SA_ridge(X, y, target, alpha_value, n_bootstraps):
     for b in range(n_bootstraps):
 
         train_predictions = np.zeros_like(y, dtype=np.float64)
-        test_predictions = np.zeros_like(y, dtype=np.float64)
+        val_predictions = np.zeros_like(y, dtype=np.float64)
         train_counts = np.zeros_like(y, dtype=np.int64)
 
         kf = KFold(n_splits=10, shuffle=True, random_state=42)
 
-        for i, (train_index, test_index) in enumerate(kf.split(X, y)):
+        for i, (train_index, val_index) in enumerate(kf.split(X, y)):
 
             combat = CombatModel()
 
             X_train = X.iloc[train_index].copy()
             y_train = y[train_index].copy()
-            X_test = X.iloc[test_index].copy()
-            y_test = y[test_index].copy()
+            X_val = X.iloc[val_index].copy()
+            y_val = y[val_index].copy()
 
             # Bootstrap the training data only
             bootstrap_indices = np.random.choice(len(train_index), size=len(train_index), replace=True)
@@ -79,30 +79,30 @@ def predict_SA_ridge(X, y, target, alpha_value, n_bootstraps):
             # Replace the 'Site' column in X_train with the codes
             X_train_boot['Site'] = sites_train
 
-            # Apply the same categorical mapping to the test set sites
-            test_sites = pd.Categorical(X_test['Site'], categories=train_sites.categories)
-            sites_test = test_sites.codes
+            # Apply the same categorical mapping to the val set sites
+            val_sites = pd.Categorical(X_val['Site'], categories=train_sites.categories)
+            sites_val = val_sites.codes
 
-            # Replace the 'Site' column in X_test with the codes
-            X_test['Site'] = sites_test
+            # Replace the 'Site' column in X_val with the codes
+            X_val['Site'] = sites_val
 
             # Keep a copy of Sex
             sex_train = X_train_boot['Sex'].values.reshape(-1,1)
-            sex_test = X_test['Sex'].values.reshape(-1, 1)
+            sex_val = X_val['Sex'].values.reshape(-1, 1)
 
             # Fill NaNs (important for Ridge)
             X_train_boot = X_train_boot.fillna(X_train_boot.mean())
-            X_test = X_test.fillna(X_train_boot.mean())
+            X_val = X_val.fillna(X_train_boot.mean())
 
             # Harmonize the training data
             X_train_boot_combat = combat.fit_transform(X_train_boot.drop(columns=['Site', 'Sex']), sites_train.reshape(-1, 1))
 
-            # Harmonize the test data (using the same harmonization model fitted on the training data)
-            X_test_combat = combat.transform(X_test.drop(columns=['Site', 'Sex']), sites_test.reshape(-1, 1))
+            # Harmonize the val data (using the same harmonization model fitted on the training data)
+            X_val_combat = combat.transform(X_val.drop(columns=['Site', 'Sex']), sites_val.reshape(-1, 1))
 
             # Add sex values back into array for xgboost now that the brain measures have been harmonized
             X_train_boot_combat = np.hstack([sex_train,X_train_boot_combat])
-            X_test_combat = np.hstack([sex_test, X_test_combat])
+            X_val_combat = np.hstack([sex_val, X_val_combat])
 
             # Initialize and fit Ridge regression
             ridge = Ridge(alpha=alpha_value)
@@ -112,7 +112,7 @@ def predict_SA_ridge(X, y, target, alpha_value, n_bootstraps):
             coefs_bootstrap[b, :] = ridge.coef_
 
             # Predict
-            test_predictions[test_index] = ridge.predict(X_test_combat)
+            val_predictions[val_index] = ridge.predict(X_val_combat)
             train_predictions[train_index] += ridge.predict(X_train_boot_combat)
 
             train_counts[train_index] += 1
@@ -121,20 +121,20 @@ def predict_SA_ridge(X, y, target, alpha_value, n_bootstraps):
         train_predictions /= train_counts
 
         # Compute R²
-        r2_test = r2_score(y, test_predictions)
+        r2_val = r2_score(y, val_predictions)
         r2_train = r2_score(y, train_predictions)
 
-        print(f"R2test = {r2_test:.3f}")
+        print(f"R2val = {r2_val:.3f}")
 
         end_time = time.time()
         elapsed_time = (end_time - start_time) / 60.0
         print(f"Ridge Bootstrap {b + 1}/{n_bootstraps} complete. Time to run this bootstrap: {elapsed_time:.2f} minutes")
 
-        r2_test_all_bootstraps.append(r2_test)
+        r2_val_all_bootstraps.append(r2_val)
 
-    r2_test_array_ridge = np.array(r2_test_all_bootstraps)
+    r2_val_array_ridge = np.array(r2_val_all_bootstraps)
     colnames = X.columns.tolist()
     colnames.remove('Site')
     summary_df = summarize_ridge_coefficients(coefs_bootstrap, colnames, top_n=10)
 
-    return r2_test_array_ridge, summary_df
+    return r2_val_array_ridge, summary_df
