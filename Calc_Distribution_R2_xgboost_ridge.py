@@ -18,7 +18,7 @@ show_heat_map = 0
 remove_colinear = 0
 run_dummy_quick_fit_xgb = 0
 alpha=0.05
-include_asd_in_train = 1
+include_asd_in_train = 0
 
 run_ridge_regression_fit = 0
 run_xgboost_fit = 1
@@ -68,7 +68,8 @@ print(f"Running with target = {target} metric = {metric} include_asd_in_train= {
 if run_xgboost_fit:
     # Use XGBoost to predict school age behavior from brain metric
     r2_test_array_xgb, feature_importance_df = predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params,
-                    run_dummy_quick_fit_xgb, set_xgb_params_man,0, bootstrap, n_bootstraps, X_test, y_test)
+                    run_dummy_quick_fit_xgb, set_xgb_params_man,0, bootstrap, n_bootstraps, X_test, y_test,
+                    include_asd_in_train)
 
     # Calculate_xgb_percentile for r2test
     result_text_xgb, percentile_value_xgb = calculate_percentile(r2_test_array_xgb, alpha)
