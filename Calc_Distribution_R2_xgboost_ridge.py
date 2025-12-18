@@ -50,8 +50,9 @@ else:
 # Load and clean data for selected target and metric
 df = load_all_data()
 
-X, y, group_vals, sex_vals = create_predictor_target_vars(df, target, metric, include_group, run_dummy_quick_fit_xgb,
-                                    show_heat_map, remove_colinear, include_asd_in_train)
+X, y, group_vals, sex_vals, X_test, y_test = (
+    create_predictor_target_vars(df, target, metric, include_group, run_dummy_quick_fit_xgb,
+                                    show_heat_map, remove_colinear, include_asd_in_train))
 
 # # Plot histogram of target variable
 # plt.hist(y, bins=30, edgecolor='black')
@@ -67,7 +68,7 @@ print(f"Running with target = {target} metric = {metric} include_asd_in_train= {
 if run_xgboost_fit:
     # Use XGBoost to predict school age behavior from brain metric
     r2_test_array_xgb, feature_importance_df = predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params,
-                    run_dummy_quick_fit_xgb, set_xgb_params_man,0, bootstrap, n_bootstraps)
+                    run_dummy_quick_fit_xgb, set_xgb_params_man,0, bootstrap, n_bootstraps, X_test, y_test)
 
     # Calculate_xgb_percentile for r2test
     result_text_xgb, percentile_value_xgb = calculate_percentile(r2_test_array_xgb, alpha)

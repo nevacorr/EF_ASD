@@ -187,6 +187,8 @@ def plot_r2_distribution(r2_test_array, result_text, percentile_value,
 
     if include_asd_in_train == 0:
         subj_str = 'ASD- only'
+    else:
+        subj_str = 'All study subjects'
 
     # Add title and labels
     plt.title(

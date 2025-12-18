@@ -68,6 +68,9 @@ def create_predictor_target_vars(dforig, target, metric, include_group, run_dumm
         df = df[df['Combined_ASD_DX'] == 'ASD-']
         df.reset_index(inplace=True)
         df_excluded.reset_index(inplace=True)
+    else:
+        df_excluded = []
+        df.reset_index(inplace=True)
 
     if run_dummy_quick_fit_xgb == 1:
         df = df.sample(frac=0.1, random_state=42)
@@ -84,9 +87,18 @@ def create_predictor_target_vars(dforig, target, metric, include_group, run_dumm
     # Make matrix of predictors
     X = df[predictor_list].copy()
     X.drop(columns=['Group'], inplace=True)
+    if include_asd_in_train == 0:
+        X_test = df_excluded[predictor_list].copy()
+        X_test.drop(columns=['Group'], inplace=True)
+    else:
+        X_test = []
 
     # Make vector with target value
     y = df[target].values
+    if include_asd_in_train == 0:
+        y_test = df_excluded[target].values
+    else:
+        y_test = []
 
     if show_heat_map:
         # plot feature correlation heatmap
@@ -101,4 +113,4 @@ def create_predictor_target_vars(dforig, target, metric, include_group, run_dumm
         corr_matrix = plot_correlations(X, plot_title)
         plt.show()
 
-    return X, y, group_vals, sex_vals
+    return X, y, group_vals, sex_vals, X_test, y_test
