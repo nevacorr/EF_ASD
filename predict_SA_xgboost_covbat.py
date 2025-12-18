@@ -10,21 +10,11 @@ import shap
 from Utility_Functions_XGBoost import write_modeling_data_and_outcome_to_file, aggregate_feature_importances
 from Utility_Functions_XGBoost import plot_top_shap_scatter_by_group, plot_top_shap_distributions_by_group
 from Utility_Functions_XGBoost import plot_shap_magnitude_histograms_equal_bins, plot_shap_magnitude_by_sex_and_group
-from Utility_Functions_XGBoost import plot_shap_magnitude_kde, impute_by_site_median_with_nan_indices
-import os
-os.environ["R_HOME"] = "/Library/Frameworks/R.framework/Resources"
-import rpy2.robjects as robjects
-from rpy2.robjects.conversion import localconverter
-from rpy2.robjects import pandas2ri
-import rpy2.robjects as ro
-
-# Source your R wrapper script
-robjects.r('source("~/R_Projects/IBIS_EF_xgboost/covbat_wrapper_for_use_with_python.R")')
-
-# np.int = int   #patch because of bug in numpy version that affects gridsearchCV
+from Utility_Functions_XGBoost import plot_shap_magnitude_kde
+from covbat_harmonize import covbat_harmonize
 
 def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params, run_dummy_quick_fit, set_params_man,
-                       show_results_plot, bootstrap, n_bootstraps):
+                       show_results_plot, bootstrap, n_bootstraps, X_test, y_test):
 
     # Suppress all FutureWarnings
     warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -94,51 +84,7 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
                 X_train_boot = X_train
                 y_train_boot = y_train
 
-            # Assign covbat functions
-            fit_covbat = robjects.r['fit_covbat']
-            apply_covbat = robjects.r['apply_covbat']
-
-            #  Replace NaN values with column median for harmonization
-            fcols = X_train_boot.columns.difference(['Site', 'Sex'])
-
-            X_train_boot_temp, X_val_temp, nan_indices_train, nan_indices_val = impute_by_site_median_with_nan_indices(
-                X_train_boot,
-                X_val,
-                feature_cols=fcols,
-                site_col='Site'
-            )
-
-            # Keep a copy of Sex
-            sex_train = X_train_boot_temp['Sex'].values.reshape(-1,1)
-            sex_val = X_val_temp['Sex'].values.reshape(-1, 1)
-
-            # --- Convert to R data frames ---
-            with localconverter(robjects.default_converter + pandas2ri.converter):
-                X_train_r = robjects.conversion.py2rpy(X_train_boot_temp.drop(columns=['Site', 'Sex']))
-                X_val_r = robjects.conversion.py2rpy(X_val_temp.drop(columns=['Site', 'Sex']))
-
-            batch_train_r = robjects.FactorVector(X_train_boot_temp['Site'])
-            batch_val_r = robjects.FactorVector(X_val_temp['Site'])
-
-            # --- Fit CovBat on training data ---
-            covbat_fit = fit_covbat(X_train_r, batch_train_r)
-
-            # --- Apply CovBat ---
-            X_train_boot_harmonized_r = apply_covbat(covbat_fit, X_train_r, batch_train_r)
-            X_val_harmonized_r = apply_covbat(covbat_fit, X_val_r, batch_val_r)
-
-            # --- Convert back to pandas ---
-            with localconverter(robjects.default_converter + pandas2ri.converter):
-                X_train_boot_harmonized = robjects.conversion.rpy2py(X_train_boot_harmonized_r)
-                X_val_harmonized = robjects.conversion.rpy2py(X_val_harmonized_r)
-
-            # --- Restore NaNs ---
-            X_train_boot_harmonized[nan_indices_train] = np.nan
-            X_val_harmonized[nan_indices_val] = np.nan
-
-            # Add sex values back into array for xgboost now that the brain measures have been harmonized
-            X_train_boot_harmonized = np.hstack([sex_train,X_train_boot_harmonized])
-            X_val_harmonized = np.hstack([sex_val, X_val_harmonized])
+            X_train_boot_harmonized, X_val_harmonized = covbat_harmonize(X_train_boot, X_val)
 
             if set_parameters_manually == 0:
                 # Fit model to train set
