@@ -14,7 +14,7 @@ from Utility_Functions_XGBoost import plot_shap_magnitude_kde
 from covbat_harmonize import covbat_harmonize
 
 def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params, run_dummy_quick_fit, set_params_man,
-                       show_results_plot, bootstrap, n_bootstraps, X_test, y_test):
+                       show_results_plot, bootstrap, n_bootstraps, X_test, y_test, include_asd_in_train):
 
     # Suppress all FutureWarnings
     warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -106,32 +106,6 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
                 val_predictions[val_index] = xgb.predict(X_val_harmonized)
                 train_predictions[train_index] += xgb.predict(X_train_boot_harmonized)
 
-                # explain the GAM model with SHAP
-                explainer= shap.Explainer(xgb, X_train_boot_harmonized)
-                shap_values = explainer(X_val_harmonized)
-                shap_feature_names = list(X_train_boot.drop(columns="Site"))
-
-                # Save SHAP values and metadata
-                if b == 0 and i == 0 and n_bootstraps==1 and set_parameters_manually == 1:
-                    all_shap_values = shap_values.values
-                    all_feature_values = X.iloc[val_index].copy()
-                    all_group_labels = group_vals.iloc[val_index].copy()
-                    all_sex_labels = sex_vals.iloc[val_index].copy()
-                elif set_parameters_manually == 1 and n_bootstraps ==1:
-                    all_shap_values = np.vstack([all_shap_values, shap_values.values])
-                    all_feature_values = pd.concat(
-                        [all_feature_values, X.iloc[val_index].copy().reset_index(drop=True)],
-                        axis=0
-                    ).reset_index(drop=True)
-                    all_group_labels = pd.concat(
-                        [all_group_labels, group_vals.iloc[val_index].copy().reset_index(drop=True)],
-                        axis=0
-                    ).reset_index(drop=True)
-                    all_sex_labels = pd.concat(
-                            [all_sex_labels, sex_vals.iloc[val_index].copy().reset_index(drop=True)],
-                        axis=0
-                    ).reset_index(drop=True)
-
             # Store importances
             feature_importance_list.append(model.feature_importances_)
 
@@ -171,47 +145,18 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
     feature_importance_df = aggregate_feature_importances(feature_importance_list, feature_names, n_bootstraps,
                 outputfilename=f"{target}_{metric}_{n_bootstraps}_xgb_feature_importance.txt", top_n=25)
 
-    if set_parameters_manually == 1 and n_bootstraps == 1:
-        # all_shap_values shape: (n_samples, n_features)
-        mean_abs_shap = np.abs(all_shap_values).mean(axis=0)
+    if set_parameters_manually == 1 & include_asd_in_train==0:
+        X_train_fullsample = X
+        y_train_fullsample = y
+        X_train_fullsample_harmonized, X_test_harmonized = covbat_harmonize(X_train_fullsample, X_test)
 
-        # Create a DataFrame for easier handling and plotting
-        shap_feature_importance_df = pd.DataFrame({
-            'feature': feature_names,
-            'mean_abs_shap': mean_abs_shap
-        }).sort_values('mean_abs_shap', ascending=False)
+        xgb.fit(X_train_fullsample_harmonized, y_train_fullsample)
+        model_fullsample = xgb
+        test_predictions = xgb.predict(X_test_harmonized)
+        train_fullsample_predictions= xgb.predict(X_train_fullsample_harmonized)
+        r2_test = r2_score(y_test, test_predictions)
+        r2_train_fullsample = r2_score(y_train_fullsample, train_fullsample_predictions)
+        print(f"R2train_fullset = {r2_train_fullsample:.3f}, R2test (ASD+group) = {r2_test}")
 
-        # plot_top_shap_distributions_by_group(
-        #     shap_feature_importance_df,
-        #     all_shap_values,
-        #     all_group_labels,
-        #     all_sex_labels,
-        #     feature_names,
-        #     top_n=20
-        # )
-
-        plot_shap_magnitude_histograms_equal_bins(
-            all_shap_values,
-            all_group_labels,
-            all_sex_labels,
-            feature_names,
-            sex_feature_name='Sex'
-        )
-
-        plot_shap_magnitude_by_sex_and_group(
-            all_shap_values,
-            all_group_labels,
-            all_sex_labels,
-            feature_names,
-            sex_feature_name='Sex'
-        )
-
-        plot_shap_magnitude_kde(
-            all_shap_values,
-            all_group_labels,
-            all_sex_labels,
-            feature_names,
-            sex_feature_name='Sex'
-        )
 
     return r2_val_array_xgb, feature_importance_df
