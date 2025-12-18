@@ -12,12 +12,13 @@ metric = 'subcort_infant'
 #options 'volume_infant', 'volume_VSA', 'subcort_VSA', 'subcort_infant', 'ad_VSA', 'rd_VSA', 'md_VSA', 'fa_VSA'
 #        'surface_area_VSA', 'cortical_thickness_VSA', 'subcort_infant+volume_infant'
 include_group = 0
-bootstrap = 1
+bootstrap = 0
 n_bootstraps = 100
 show_heat_map = 0
 remove_colinear = 0
 run_dummy_quick_fit_xgb = 0
 alpha=0.05
+include_asd_in_train = 1
 
 run_ridge_regression_fit = 0
 run_xgboost_fit = 1
@@ -50,7 +51,7 @@ else:
 df = load_all_data()
 
 X, y, group_vals, sex_vals = create_predictor_target_vars(df, target, metric, include_group, run_dummy_quick_fit_xgb,
-                                    show_heat_map, remove_colinear)
+                                    show_heat_map, remove_colinear, include_asd_in_train)
 
 # # Plot histogram of target variable
 # plt.hist(y, bins=30, edgecolor='black')
@@ -60,7 +61,7 @@ X, y, group_vals, sex_vals = create_predictor_target_vars(df, target, metric, in
 # plt.grid(True)
 # plt.show()
 
-print(f"Running with target = {target} metric = {metric} include_group = {include_group} "
+print(f"Running with target = {target} metric = {metric} include_asd_in_train= {include_asd_in_train} include_group = {include_group} "
       f"quick fit = {run_dummy_quick_fit_xgb}")
 
 if run_xgboost_fit:
@@ -73,7 +74,7 @@ if run_xgboost_fit:
 
     # Plot distribution of r2 test
     plot_r2_distribution(r2_test_array_xgb, result_text_xgb, percentile_value_xgb, target, metric,
-                         alpha, n_bootstraps, alg='XGBoost')
+                         alpha, n_bootstraps, include_asd_in_train, alg='XGBoost')
     plt.show()
 
 if run_ridge_regression_fit:
@@ -88,7 +89,7 @@ if run_ridge_regression_fit:
 
     # Plot distribution of r2 test
     plot_r2_distribution(r2_test_array_ridge, result_text_ridge, percentile_value_ridge, target, metric,
-                         alpha, n_bootstraps, alg='Ridge regression')
+                         alpha, n_bootstraps, include_asd_in_train, alg='Ridge regression')
     plt.show()
 
     coef_summary_ridge.to_csv(f'Ridge_Regression_top_10_coefficients_{target}_{metric}_{n_bootstraps}.csv', index=False)

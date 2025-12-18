@@ -1,7 +1,7 @@
 from Utility_Functions_XGBoost import plot_correlations, remove_collinearity
 from matplotlib import pyplot as plt
 def create_predictor_target_vars(dforig, target, metric, include_group, run_dummy_quick_fit_xgb,
-                                 show_heat_map, remove_colinear):
+                                 show_heat_map, remove_colinear, include_asd_in_train):
 
     df = dforig.copy()
 
@@ -62,6 +62,12 @@ def create_predictor_target_vars(dforig, target, metric, include_group, run_dumm
 
     # Keep only rows where the target variable is not NA
     df = df[df[target].notna()]
+
+    if include_asd_in_train == 0:
+        df_excluded = df[df['Combined_ASD_DX'] == 'ASD+']
+        df = df[df['Combined_ASD_DX'] == 'ASD-']
+        df.reset_index(inplace=True)
+        df_excluded.reset_index(inplace=True)
 
     if run_dummy_quick_fit_xgb == 1:
         df = df.sample(frac=0.1, random_state=42)

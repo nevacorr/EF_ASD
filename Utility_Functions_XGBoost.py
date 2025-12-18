@@ -176,7 +176,7 @@ def calculate_percentile(r2_test_array, alpha):
     return result_text, percentile_value
 
 def plot_r2_distribution(r2_test_array, result_text, percentile_value,
-                         target, metric, alpha, n_bootstraps, alg):
+                         target, metric, alpha, n_bootstraps, include_asd_in_train, alg):
     # Plot the distribution
     plt.figure(figsize=(10, 8))
     sns.histplot(r2_test_array, bins=30, kde=True, color='skyblue')
@@ -185,9 +185,12 @@ def plot_r2_distribution(r2_test_array, result_text, percentile_value,
     plt.axvline(percentile_value, color='red', linestyle='--', linewidth=2,
                 label=f'5th percentile = {percentile_value:.3f}')
 
+    if include_asd_in_train == 0:
+        subj_str = 'ASD- only'
+
     # Add title and labels
     plt.title(
-        f'{target} predicted from {metric} with {alg}\nBootstrap r²test Distribution '
+        f'{subj_str} {target} predicted from {metric} with {alg}\nBootstrap r²test Distribution '
         f'with {alpha * 100:.0f}% Percentile Marked\n{result_text}\nnbootstraps={n_bootstraps}')
     plt.xlabel('r² test')
     plt.ylabel('Frequency')
