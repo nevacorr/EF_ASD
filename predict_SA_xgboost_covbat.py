@@ -6,12 +6,9 @@ import time
 import pandas as pd
 from sklearn.metrics import mean_squared_error, r2_score
 import warnings
-import shap
 from Utility_Functions_XGBoost import write_modeling_data_and_outcome_to_file, aggregate_feature_importances
-from Utility_Functions_XGBoost import plot_top_shap_scatter_by_group, plot_top_shap_distributions_by_group
-from Utility_Functions_XGBoost import plot_shap_magnitude_histograms_equal_bins, plot_shap_magnitude_by_sex_and_group
-from Utility_Functions_XGBoost import plot_shap_magnitude_kde
 from covbat_harmonize import covbat_harmonize
+from skopt.callbacks import VerboseCallback
 
 def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params, run_dummy_quick_fit, set_params_man,
                        show_results_plot, bootstrap, n_bootstraps, X_test, y_test, include_asd_in_train):
@@ -29,10 +26,23 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
     else:
         n_iter = 100
 
+    # record start time
+    start_time = time.time()
+    rng = np.random.default_rng(42)  # Fixed seed for reproducibility
+
     if set_parameters_manually == 0: #if search for best parameters
 
         xgb = XGBRegressor(objective="reg:squarederror", n_jobs=-1)
-        opt = BayesSearchCV(xgb, params, n_iter=n_iter, n_jobs=-1)
+        opt = BayesSearchCV(xgb, params, n_iter=n_iter, cv=5, n_jobs=-1, verbose=2)
+
+        # Use VerboseCallback to print iteration number only
+        callback = [VerboseCallback(n_total=n_iter)]
+
+        # Fit on all of Group A
+        X_train_h, _ = covbat_harmonize(X, X)  # harmonize covariates if needed
+        opt.fit(X_train_h, y, callback=callback)
+        best_params = opt.best_params_
+        print("Best hyperparameters for Group A:", best_params)
 
     else:  # if parameters are to be set manually at fixed values
 
@@ -47,9 +57,7 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
             n_estimators=params["n_estimators"],  # Number of trees to create during training
             subsample=params["subsample"]  # Fraction of training dta that is sampled for each boosting round
         )
-    # record start time
-    start_time = time.time()
-    rng = np.random.default_rng(42)  # Fixed seed for reproducibility
+
 
     if bootstrap == 0:
         n_bootstraps = 1 # force one iteration with no bootstrapping
@@ -86,20 +94,7 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
 
             X_train_boot_harmonized, X_val_harmonized = covbat_harmonize(X_train_boot, X_val)
 
-            if set_parameters_manually == 0:
-                # Fit model to train set
-                print("fitting")
-                opt.fit(X_train_boot_harmonized, y_train_boot)
-
-                # Use model to predict on validation set
-                val_predictions[val_index] = opt.predict(X_val_harmonized)
-
-                # Predict for train set
-                train_predictions[train_index] += opt.predict(X_train_boot_harmonized)
-
-                model = opt.best_estimator_
-
-            else:
+            if set_parameters_manually == 1:
                 # Fit xgboost model using specified parameters
                 xgb.fit(X_train_boot_harmonized, y_train_boot)
                 model = xgb
@@ -145,7 +140,7 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
     feature_importance_df = aggregate_feature_importances(feature_importance_list, feature_names, n_bootstraps,
                 outputfilename=f"{target}_{metric}_{n_bootstraps}_xgb_feature_importance.txt", top_n=25)
 
-    if set_parameters_manually == 1 & include_asd_in_train==0:
+    if set_parameters_manually == 1 and not include_asd_in_train:
         X_train_fullsample = X
         y_train_fullsample = y
         X_train_fullsample_harmonized, X_test_harmonized = covbat_harmonize(X_train_fullsample, X_test)
@@ -156,7 +151,6 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
         train_fullsample_predictions= xgb.predict(X_train_fullsample_harmonized)
         r2_test = r2_score(y_test, test_predictions)
         r2_train_fullsample = r2_score(y_train_fullsample, train_fullsample_predictions)
-        print(f"R2train_fullset = {r2_train_fullsample:.3f}, R2test (ASD+group) = {r2_test}")
-
+        print(f"R2train_fullset = {r2_train_fullsample:.3f}\n R2test (ASD+group) = {r2_test}")
 
     return r2_val_array_xgb, feature_importance_df
