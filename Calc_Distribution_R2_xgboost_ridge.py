@@ -12,7 +12,7 @@ metric = 'subcort_infant'
 #options 'volume_infant', 'volume_VSA', 'subcort_VSA', 'subcort_infant', 'ad_VSA', 'rd_VSA', 'md_VSA', 'fa_VSA'
 #        'surface_area_VSA', 'cortical_thickness_VSA', 'subcort_infant+volume_infant'
 include_group = 0
-bootstrap = 0
+bootstrap = 1
 n_bootstraps = 100
 show_heat_map = 0
 remove_colinear = 0
@@ -29,11 +29,11 @@ if set_xgb_params_man:
     params = {"n_estimators": 50,  # (50, 2001),# Number of trees to create during training
               "min_child_weight": 1,
               # (1,11) # the number of samples required in each child node before attempting to split further
-              "gamma": 0.01,
+              "gamma": 5.0, #0.01,
               # (0.01, 5.0, "log-uniform"),# regularization. Low values allow splits as long as they improve the loss function, no matter how small
-              "eta": 0.01542,  # (0.005, 0.5, "log-uniform"),# learning rate
-              "subsample": 0.576,  # (0.2, 1.0),# Fraction of training dta that is sampled for each boosting round
-              "colsample_bytree": 0.2,  # (0.2, 1.0)  the fraction of features to be selected for each tree
+              "eta": 0.0215,#0.01542,  # (0.005, 0.5, "log-uniform"),# learning rate
+              "subsample": 0.2, #0.576,  # (0.2, 1.0),# Fraction of training dta that is sampled for each boosting round
+              "colsample_bytree": 1.0, #0.2,  # (0.2, 1.0)  the fraction of features to be selected for each tree
               "max_depth": 6  # (2, 6), }#maximum depth of each decision tree
               }
 else:
