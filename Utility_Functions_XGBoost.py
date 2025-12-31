@@ -5,7 +5,7 @@ import numpy as np
 from datetime import datetime
 
 # Function to fill NaNs using site-wise medians
-def impute_by_site_median_with_nan_indices(X_train, X_val, X_test, feature_cols, site_col='Site'):
+def impute_by_site_median_with_nan_indices(X_train, X_test, feature_cols, site_col='Site'):
     """
     Impute missing values in X_train and X_test using site-specific medians,
     and record NaN positions to restore them later.
@@ -14,8 +14,6 @@ def impute_by_site_median_with_nan_indices(X_train, X_val, X_test, feature_cols,
     ----------
     X_train : pd.DataFrame
         Training data including 'Site' column.
-    X_val : pd.Dataframe
-        Validation data including 'Site' column
     X_test : pd.DataFrame
         Test data including 'Site' column.
     feature_cols : list-like
@@ -26,7 +24,6 @@ def impute_by_site_median_with_nan_indices(X_train, X_val, X_test, feature_cols,
     Returns
     -------
     X_train_imputed : pd.DataFrame
-    X_val_imputed : pd.DataFrame
     X_test_imputed : pd.DataFrame
     nan_indices_train : np.ndarray
         Boolean array marking original NaNs in training features.
@@ -34,12 +31,10 @@ def impute_by_site_median_with_nan_indices(X_train, X_val, X_test, feature_cols,
         Boolean array marking original NaNs in test features.
     """
     X_train_imputed = X_train.copy()
-    X_val_imputed = X_val.copy()
     X_test_imputed = X_test.copy()
 
     # Keep track of original NaNs
     nan_indices_train = X_train_imputed[feature_cols].isna().to_numpy()
-    nan_indices_val = X_val_imputed[feature_cols].isna().to_numpy()
     nan_indices_test = X_test_imputed[feature_cols].isna().to_numpy()
 
     # Impute each column separately by site median
@@ -51,19 +46,13 @@ def impute_by_site_median_with_nan_indices(X_train, X_val, X_test, feature_cols,
             axis=1
         )
 
-        # Fill validation using training medians
-        X_val_imputed[col] = X_val_imputed.apply(
-            lambda row: medians_by_site[row[site_col]] if pd.isna(row[col]) else row[col],
-            axis=1
-        )
-
         # Fill test using training medians
         X_test_imputed[col] = X_test_imputed.apply(
             lambda row: medians_by_site[row[site_col]] if pd.isna(row[col]) else row[col],
             axis=1
         )
 
-    return X_train_imputed, X_val_imputed, X_test_imputed, nan_indices_train, nan_indices_val, nan_indices_test
+    return X_train_imputed, X_test_imputed, nan_indices_train, nan_indices_test
 
 def plot_correlations(df, title):
     correlation_matrix = df.corr()
