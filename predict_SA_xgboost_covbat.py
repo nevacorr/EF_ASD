@@ -6,11 +6,7 @@ import time
 import pandas as pd
 from sklearn.metrics import mean_squared_error, r2_score
 import warnings
-import shap
 from Utility_Functions_XGBoost import write_modeling_data_and_outcome_to_file, aggregate_feature_importances
-from Utility_Functions_XGBoost import plot_top_shap_scatter_by_group, plot_top_shap_distributions_by_group
-from Utility_Functions_XGBoost import plot_shap_magnitude_histograms_equal_bins, plot_shap_magnitude_by_sex_and_group
-from Utility_Functions_XGBoost import plot_shap_magnitude_kde
 from covbat_harmonize import covbat_harmonize
 
 def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params, run_dummy_quick_fit, set_params_man,
