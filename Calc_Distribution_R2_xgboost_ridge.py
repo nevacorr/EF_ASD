@@ -22,7 +22,7 @@ include_asd_in_train = 0
 
 run_ridge_regression_fit = 0
 run_xgboost_fit = 1
-set_xgb_params_man = 1
+set_xgb_params_man = 0
 
 if set_xgb_params_man:
     # Define parameter ranges to be used (ranges if BayesCV will be used)
@@ -38,13 +38,13 @@ if set_xgb_params_man:
               }
 else:
     # Define parameter ranges to be used (ranges if BayesCV will be used)
-    params = {"n_estimators": (20, 2001), #(50, 2001),# Number of trees to create during training
+    params = {"n_estimators": (50, 2001),# Number of trees to create during training
               "min_child_weight": (1,11), # the number of samples required in each child node before attempting to split further
-              "gamma": (0.01, 8.0, "log-uniform"),#(0.01, 5.0, "log-uniform"),# regularization. Low values allow splits as long as they improve the loss function, no matter how small
+              "gamma": (0.01, 5.0, "log-uniform"),# regularization. Low values allow splits as long as they improve the loss function, no matter how small
               "eta": (0.005, 0.5, "log-uniform"),# learning rate
               "subsample": (0.2, 1.0),# Fraction of training dta that is sampled for each boosting round
               "colsample_bytree": (0.2, 1.0), # the fraction of features to be selected for each tree
-              "max_depth": (2, 10) #(2, 6) #maximum depth of each decision tree
+              "max_depth": (2, 6) #maximum depth of each decision tree
               }
 
 # Load and clean data for selected target and metric
@@ -68,7 +68,7 @@ print(f"Running with target = {target} metric = {metric} include_asd_in_train= {
 if run_xgboost_fit:
     # Use XGBoost to predict school age behavior from brain metric
     r2_val_xgb, feature_importance_df, r2_test_xgb = predict_SA_xgboost_covbat(X, y, target, metric, params,
-                    run_dummy_quick_fit_xgb, n_repeats=20, X_test=X_test, y_test=y_test)
+                    run_dummy_quick_fit_xgb, n_repeats=40, X_test=X_test, y_test=y_test)
 
     # Calculate_xgb_percentile for r2test
     result_text_xgb, percentile_value_xgb = calculate_percentile(r2_val_xgb, alpha)

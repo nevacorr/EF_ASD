@@ -8,10 +8,13 @@ from Utility_Functions_XGBoost import write_modeling_data_and_outcome_to_file, a
 from covbat_harmonize import covbat_harmonize
 from skopt.callbacks import VerboseCallback
 from sklearn.model_selection import train_test_split
+import json
+import os
+from analyze_hyperparameter_repeats import analyze_hyperparameter_repeats
 
 def predict_SA_xgboost_covbat(
         X, y, target, metric, params, run_dummy_quick_fit,
-        n_repeats=20, test_size=0.2, random_state=42,  X_test=None, y_test=None):
+        n_repeats=20, random_state=42,  X_test=None, y_test=None):
 
     """
     Train XGBoost with hyperparameter tuning and evaluate:
@@ -23,6 +26,7 @@ def predict_SA_xgboost_covbat(
         feature_importance_df: aggregated feature importances
         r2_test (optional): R² on unseen test set if X_test/y_test provided
     """
+    working_dir = os.getcwd()
 
     # Suppress all FutureWarnings
     warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -83,7 +87,7 @@ def predict_SA_xgboost_covbat(
     feature_names = ['Sex'] + X.drop(columns=['Site', 'Sex']).columns.tolist()
     feature_importance_df = aggregate_feature_importances(
         feature_importance_list, feature_names, n_repeats,
-        outputfilename=f"{target}_{metric}_{n_repeats}_xgb_feature_importance.txt",
+        outputfilename=f"{working_dir}/{target}_{metric}_{n_repeats}_xgb_feature_importance.txt",
         top_n=25)
     # ----------------------------------
     # Optional test set evaluation
@@ -111,5 +115,25 @@ def predict_SA_xgboost_covbat(
     #     write_modeling_data_and_outcome_to_file(run_dummy_quick_fit, metric, params, set_parameters_manually, target, X,
     #                                          r2_train, r2_val, best_params, bootstrap, elapsed_time)
 
+    with open(f"{working_dir}/{target}_{metric}_best_params.txt", "w") as f:
+        json.dump(best_params_list, f, indent=4)
+
+    np.save(f"{working_dir}/{target}_{metric}_{n_iter}_{n_repeats}_r2_vals.npy", np.array(r2_vals))
+
+    ci_percentile = 95
+    lower = np.percentile(r2_vals, (100 - ci_percentile) / 2)
+    upper = np.percentile(r2_vals, 100 - (100 - ci_percentile) / 2)
+    print(f"{ci_percentile:.1f}% confidence interval: [{lower:.4f}, {upper:.4f}]")
+
+    ci_file = f"{working_dir}/{target}_{metric}_{n_iter}_{n_repeats}_r2_summary.txt"
+    with open(ci_file, "w") as f:
+        f.write(f"Validation R2 (all repeats): {r2_vals.tolist()}\n")
+        f.write(f"Mean validation R2: {np.mean(r2_vals):.4f}\n")
+        f.write(f"Best validation R2: {np.max(r2_vals):.4f}\n")
+        f.write(f"{ci_percentile}% confidence interval: [{lower:.4f}, {upper:.4f}]\n")
+        if r2_test is not None:
+            f.write(f"R2 on unseen test set: {r2_test:.4f}\n")
+
+    analyze_hyperparameter_repeats(best_params_list, r2_vals, top_n=5)
 
     return r2_vals, feature_importance_df, r2_test
