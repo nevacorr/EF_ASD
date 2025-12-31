@@ -147,7 +147,7 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
     feature_importance_df = aggregate_feature_importances(feature_importance_list, feature_names, n_bootstraps,
                 outputfilename=f"{target}_{metric}_{n_bootstraps}_xgb_feature_importance.txt", top_n=25)
 
-    if set_parameters_manually == 1 & include_asd_in_train==0:
+    if set_parameters_manually == 1 and not include_asd_in_train:
         X_train_fullsample = X
         y_train_fullsample = y
         X_train_fullsample_harmonized, X_test_harmonized = covbat_harmonize(X_train_fullsample, X_test)
