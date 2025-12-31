@@ -6,12 +6,17 @@ import time
 import pandas as pd
 from sklearn.metrics import mean_squared_error, r2_score
 import warnings
+from sklearn.model_selection import train_test_split
 from Utility_Functions_XGBoost import write_modeling_data_and_outcome_to_file, aggregate_feature_importances
 from covbat_harmonize import covbat_harmonize
 from skopt.callbacks import VerboseCallback
 
 def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params, run_dummy_quick_fit, set_params_man,
                        show_results_plot, bootstrap, n_bootstraps, X_test, y_test, include_asd_in_train):
+    # X is features for all neurotypical subjects (to be used for training and validation)
+    # X_test is features for all ASD subjects
+    # y is target (EF) for neurotypical subjects
+    # y_test is target (EF) for ASD subjects
 
     # Suppress all FutureWarnings
     warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -30,23 +35,40 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
     start_time = time.time()
     rng = np.random.default_rng(42)  # Fixed seed for reproducibility
 
+    X_train_orig, X_val, y_train_orig, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Harmonize features for all neurotypical subjects, taking into account covariance patterns by site
+    X_train_h, X_val_h, X_test_h = covbat_harmonize(X_train_orig, X_val, X_test)  # harmonize covariates
+
+    # If using BayesSearchCV to find optimal xgb parameters
     if set_parameters_manually == 0: #if search for best parameters
 
+        # Create xgb object without specifying parameters
         xgb = XGBRegressor(objective="reg:squarederror", n_jobs=-1)
+        # Create BayesSearchCV  object using xfb object, specify 5 folds
+        # This means that it will do 5 splits of the data for each fold for training and validation
         opt = BayesSearchCV(xgb, params, n_iter=n_iter, cv=5, n_jobs=-1, verbose=2)
 
         # Use VerboseCallback to print iteration number only
         callback = [VerboseCallback(n_total=n_iter)]
 
-        # Fit on all of Group A
-        X_train_h, _ = covbat_harmonize(X, X)  # harmonize covariates if needed
-        opt.fit(X_train_h, y, callback=callback)
+        # Perform BayesCV optimization
+        opt.fit(X_train_h, y_train_orig, callback=callback)
+        # Save the best parameters and print them to screen
         best_params = opt.best_params_
-        print("Best hyperparameters for Group A:", best_params)
+        print("Best hyperparameters for neurotypical group:", best_params)
+
+        # Recreate xgb_final object, this time with the best parameters found with BayesSearchCV based on all neurotypical
+        # subjects
+        xgb_final = XGBRegressor(
+            objective="reg:squarederror",
+            n_jobs=16,
+            **best_params)
 
     else:  # if parameters are to be set manually at fixed values
 
-        xgb = XGBRegressor(
+        # set xgb parameters, according to values sent to this function
+        xgb_final = XGBRegressor(
             objective="reg:squarederror",
             n_jobs=16,
             colsample_bytree=params["colsample_bytree"],#the fraction of features to be selected for each tree
@@ -58,15 +80,19 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
             subsample=params["subsample"]  # Fraction of training dta that is sampled for each boosting round
         )
 
+        best_params = params
 
+    # If not bootstrapping, only run xgboost once on neurotypical training set and once on validation set. This will give only
+    # one R2 values; it will not give confidence intervals for R2
     if bootstrap == 0:
         n_bootstraps = 1 # force one iteration with no bootstrapping
 
+    # Make variable to store xgb feature importance
     feature_importance_list = []
 
     for b in range(n_bootstraps):
 
-        # make variables to hold predictions for train and validation run, as well as counts for how many times each subject appears in a train set
+        # Make variables to hold predictions for train and validation run, as well as counts for how many times each subject appears in a train set
         train_predictions = np.zeros_like(y, dtype=np.float64)
         val_predictions = np.zeros_like(y, dtype=np.float64)
         train_counts = np.zeros_like(y, dtype=np.int64)
@@ -74,34 +100,38 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
         # define cross validation scheme
         kf = KFold(n_splits=10, shuffle=True, random_state=42)
 
-        # make indexes for train/validation subjects for each fold
-        for i, (train_index, val_index) in enumerate(kf.split(X, y)):
-            # print(f"bootstrap={b}/{n_bootstraps} {metric} Split {i + 1} - Training on {len(train_index)} samples, Testing on {len(val_index)} samples")
+        # make indexes for train/validation subjects for each fold. Number of folds is specified above.
+        for i, (train_index, val_index) in enumerate(kf.split(X_train_h, y_train_orig)):
+            # print(f"bootstrap={b}/{n_bootstraps} {metric} Split {i + 1} - Training on {len(train_index)} samples, Validation set has {len(val_index)} samples")
 
-            X_train = X.iloc[train_index].copy()
-            y_train = y[train_index].copy()
-            X_val = X.iloc[val_index].copy()
-            y_val = y[val_index].copy()
+            # Split the data into train and validation sets. This is not bootstrapping.
+            # This just splits the data, one out of n_splits folds.
+            X_train = X_train_h.iloc[train_index].copy()
+            y_train = y_train_orig[train_index].copy()
+            X_val = X_train_h.iloc[val_index].copy()
+            y_val = y_train_orig[val_index].copy()
 
             if bootstrap:
-                # Bootstrap the training data only
+                # Bootstrap (resample with replacement) the training data only.
                 bootstrap_indices = rng.choice(len(train_index), size=len(train_index), replace=True)
                 X_train_boot = X_train.iloc[bootstrap_indices].reset_index(drop=True)
                 y_train_boot = y_train[bootstrap_indices]
             else:
+                # Do not bootstrap the training data. Just use whole training set as it is, but assign
+                # the name "X_train_boot" and "y_train_boot" to the training set features and target variables.
                 X_train_boot = X_train
                 y_train_boot = y_train
 
-            X_train_boot_harmonized, X_val_harmonized = covbat_harmonize(X_train_boot, X_val)
+            # Fit xgboost model using xgb object created above
+            xgb_final.fit(X_train_boot, y_train_boot)
+            # Assign the name "model" to the xgb object
+            model = xgb_final
+            # Predict the target variable for the validation set for this fold
+            val_predictions[val_index] = xgb_final.predict(X_val)
+            # Predict teh target variable for train_boot for this fold
+            train_predictions[train_index] += xgb_final.predict(X_train_boot)
 
-            if set_parameters_manually == 1:
-                # Fit xgboost model using specified parameters
-                xgb.fit(X_train_boot_harmonized, y_train_boot)
-                model = xgb
-                val_predictions[val_index] = xgb.predict(X_val_harmonized)
-                train_predictions[train_index] += xgb.predict(X_train_boot_harmonized)
-
-            # Store importances
+            # Store feature importance for this fold and bootstrap sample
             feature_importance_list.append(model.feature_importances_)
 
             # Keep track of the number of times that each subject is included in the train set
@@ -117,12 +147,12 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
             best_params = params
 
         # Compute R2
-        r2_val = r2_score(y, val_predictions)
-        r2_train = r2_score(y, train_predictions)
+        r2_val = r2_score(y_val, val_predictions)
+        r2_train = r2_score(y_train_boot, train_predictions)
 
         print(f"R2val = {r2_val:.3f}")
 
-        # Calculate and print time it took to complete all model creations and predictions across all cv splits
+        # Calculate and print time it took to complete all model creations and predictions across all cv splits for this bootstrap
         end_time = time.time()
         elapsed_time = (end_time - start_time) / 60.0
         print(f"XGB Bootstrap {b + 1}/{n_bootstraps} complete. Time since beginning of program: {elapsed_time:.2f} minutes")
@@ -145,10 +175,10 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
         y_train_fullsample = y
         X_train_fullsample_harmonized, X_test_harmonized = covbat_harmonize(X_train_fullsample, X_test)
 
-        xgb.fit(X_train_fullsample_harmonized, y_train_fullsample)
-        model_fullsample = xgb
-        test_predictions = xgb.predict(X_test_harmonized)
-        train_fullsample_predictions= xgb.predict(X_train_fullsample_harmonized)
+        xgb_final.fit(X_train_fullsample_harmonized, y_train_fullsample)
+        model_fullsample = xgb_final
+        test_predictions = xgb_final.predict(X_test_harmonized)
+        train_fullsample_predictions= xgb_final.predict(X_train_fullsample_harmonized)
         r2_test = r2_score(y_test, test_predictions)
         r2_train_fullsample = r2_score(y_train_fullsample, train_fullsample_predictions)
         print(f"R2train_fullset = {r2_train_fullsample:.3f}\n R2test (ASD+group) = {r2_test}")
