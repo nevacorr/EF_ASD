@@ -8,6 +8,7 @@ from sklearn.metrics import mean_squared_error, r2_score
 import warnings
 from Utility_Functions_XGBoost import write_modeling_data_and_outcome_to_file, aggregate_feature_importances
 from covbat_harmonize import covbat_harmonize
+from skopt.callbacks import VerboseCallback
 
 def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params, run_dummy_quick_fit, set_params_man,
                        show_results_plot, bootstrap, n_bootstraps, X_test, y_test, include_asd_in_train):
@@ -28,7 +29,10 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
     if set_parameters_manually == 0: #if search for best parameters
 
         xgb = XGBRegressor(objective="reg:squarederror", n_jobs=-1)
-        opt = BayesSearchCV(xgb, params, n_iter=n_iter, n_jobs=-1)
+        opt = BayesSearchCV(xgb, params, n_iter=n_iter, n_jobs=-1, verbose=2)
+
+        # Use VerboseCallback to print iteration number only
+        callback = [VerboseCallback(n_total=n_iter)]
 
     else:  # if parameters are to be set manually at fixed values
 
@@ -85,7 +89,9 @@ def predict_SA_xgboost_covbat(X, y, group_vals, sex_vals, target, metric, params
             if set_parameters_manually == 0:
                 # Fit model to train set
                 print("fitting")
-                opt.fit(X_train_boot_harmonized, y_train_boot)
+                opt.fit(X_train_boot_harmonized, y_train_boot, callback=callback)
+                best_params = opt.best_params_
+                print("Best hyperparameters for X_train:", best_params)
 
                 # Use model to predict on validation set
                 val_predictions[val_index] = opt.predict(X_val_harmonized)
