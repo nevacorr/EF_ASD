@@ -68,7 +68,7 @@ print(f"Running with target = {target} metric = {metric} include_asd_in_train= {
 if run_xgboost_fit:
     # Use XGBoost to predict school age behavior from brain metric
     r2_val_xgb, feature_importance_df, r2_test_xgb = predict_SA_xgboost_covbat(X, y, target, metric, params,
-                    run_dummy_quick_fit_xgb, n_repeats=40, X_test=X_test, y_test=y_test)
+                    run_dummy_quick_fit_xgb, n_repeats=20, X_test=X_test, y_test=y_test)
 
     # Calculate_xgb_percentile for r2test
     result_text_xgb, percentile_value_xgb = calculate_percentile(r2_val_xgb, alpha)
