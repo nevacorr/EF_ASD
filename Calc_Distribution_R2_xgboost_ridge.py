@@ -6,6 +6,7 @@ from load_data_for_ML import load_all_data
 from predict_SA_xgboost_covbat import predict_SA_xgboost_covbat
 from predict_SA_ridge import predict_SA_ridge
 from create_predictor_target_vars import create_predictor_target_vars
+import pandas as pd
 
 target = "BRIEF2_GEC_T_score"
 metric = 'subcort_infant'
@@ -66,9 +67,11 @@ print(f"Running with target = {target} metric = {metric} include_asd_in_train= {
       f"quick fit = {run_dummy_quick_fit_xgb}")
 
 if run_xgboost_fit:
+    y = pd.Series(y)
+    y = pd.Series(y)
     # Use XGBoost to predict school age behavior from brain metric
     r2_val_xgb, feature_importance_df, r2_test_xgb = predict_SA_xgboost_covbat(X, y, target, metric, params,
-                    run_dummy_quick_fit_xgb, n_repeats=20, X_test=X_test, y_test=y_test)
+                    run_dummy_quick_fit_xgb, X_test=X_test, y_test=y_test)
 
     # Calculate_xgb_percentile for r2test
     result_text_xgb, percentile_value_xgb = calculate_percentile(r2_val_xgb, alpha)
