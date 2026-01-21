@@ -123,7 +123,7 @@ def load_and_clean_infant_volume_data_and_all_behavior(filepath, filename):
     df = pd.read_csv(f"{filepath}/{filename}")
 
     # Encode Sex column Female = 0 Male = 1
-    df["Sex"] = df["Sex"].replace({"Female": 0, "Male": 1})
+    df["Sex"] = df["Sex"].map({"Female": 0, "Male": 1}).astype(int)
 
     # One-hot encode the 'Group' column but do not remove the "Group" column
     group_dummies = pd.get_dummies(df['Group'], prefix='Group', drop_first=False)
