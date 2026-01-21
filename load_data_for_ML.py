@@ -13,7 +13,7 @@ def load_all_data():
     # Define directories to be used
     working_dir = os.getcwd()
     vol_infant_dir = "/Users/nevao/R_Projects/IBIS_EF/"
-    volume_infant_datafilename = "final_df_for_xgboost.csv"
+    volume_infant_datafilename = "final_df_for_ml.csv"
 
     #############################
     #### Load infant lobe volume data and all age behavioral data ######
