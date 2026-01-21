@@ -150,3 +150,44 @@ def cluster_and_summarize(df, brain_cols=[], ef_cols=[], cluster_type='combined'
         ef_means = None
 
     return df, hr_summary, ef_means
+
+def compute_lr_correlation_matrix(df):
+    lr_pairs = {
+        "Caudate": ("Caudate_Left_vol_VSA", "Caudate_Right_vol_VSA"),
+        "Putamen": ("Putamen_Left_vol_VSA", "Putamen_Right_vol_VSA"),
+        "Pallidum": ("Globus_Pallidus_Left_vol_VSA", "Globus_Pallidus_Right_vol_VSA"),
+        "Thalamus": ("Thalamus_Left_vol_VSA", "Thalamus_Right_vol_VSA"),
+        "Hippocampus": ("Hippocampus_Left_vol_VSA", "Hippocampus_Right_vol_VSA"),
+        "Amygdala": ("Amygdala_Left_vol_VSA", "Amygdala_Right_vol_VSA"),
+
+    }
+    structures = list(lr_pairs.keys())
+    corr_mat = pd.DataFrame(index=structures, columns=structures, dtype=float)
+
+    for left_name, (l_col, _) in lr_pairs.items():
+        for right_name, (_, r_col) in lr_pairs.items():
+            valid = df[[l_col, r_col]].dropna()
+            if len(valid) < 10:
+                corr = np.nan
+            else:
+                corr = valid[l_col].corr(valid[r_col])
+            corr_mat.loc[left_name, right_name] = corr
+
+    return corr_mat
+
+def plot_lr_heatmap(corr_mat, title):
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(
+        corr_mat,
+        vmin=0,
+        vmax=1,
+        cmap="viridis",
+        annot=True,
+        fmt=".2f",
+        square=True,
+        cbar_kws={"label": "Pearson r"}
+    )
+    plt.title(title)
+    plt.tight_layout()
+    plt.show()
+
