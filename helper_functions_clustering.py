@@ -15,7 +15,7 @@ def compute_features(df, brain_cols, ef_cols, cluster_mode='absolute', time1=Non
     if cluster_mode == 'absolute':
         features = []
         if brain_cols:
-            features.append(df[[f"{col}_{time2}" for col in brain_cols]] if time2 else df[brain_cols])
+            features.append(df[brain_cols])
         if ef_cols:
             features.append(df[[f"{col}_{time2}" for col in ef_cols]] if time2 else df[ef_cols])
         X = pd.concat(features, axis=1)
@@ -36,7 +36,7 @@ def compute_features(df, brain_cols, ef_cols, cluster_mode='absolute', time1=Non
 # Main clustering + summary workflow
 def cluster_and_summarize(df, brain_cols=[], ef_cols=[], cluster_type='combined',
                           cluster_mode='absolute', time1=None, time2=None,
-                          method='kmeans', max_clusters=6, hr_col='HR_status',
+                          method='kmeans', max_clusters=6, hr_col='Group',
                           random_state=42):
     # Prepare features
     if cluster_type == 'brain':

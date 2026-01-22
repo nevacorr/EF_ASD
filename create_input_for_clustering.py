@@ -57,7 +57,7 @@ def create_input_for_clustering(dforig, target, metric):
     # else:
     pred_non_brain_cols = ["Site", "Sex", "Group"]
 
-    predictor_list = pred_non_brain_cols + pred_brain_cols + [target]
+    predictor_list = pred_non_brain_cols + pred_brain_cols
 
     # Keep only rows where the target variable is not NA
     # df = df[df[target].notna()]
@@ -84,7 +84,7 @@ def create_input_for_clustering(dforig, target, metric):
     # sex_vals = sex_vals.reset_index(drop=True)
 
     # Make matrix of predictors
-    X = df[predictor_list].copy()
+    X = df[pred_non_brain_cols + predictor_list].copy()
     # X.drop(columns=['Group'], inplace=True)
     # if include_asd_in_train == 0:
     #     X_test = df_excluded[predictor_list].copy()
@@ -112,4 +112,4 @@ def create_input_for_clustering(dforig, target, metric):
     #     corr_matrix = plot_correlations(X, plot_title)
     #     plt.show()
 
-    return X, pred_brain_cols,pred_non_brain_cols
+    return X, pred_brain_cols, pred_non_brain_cols
