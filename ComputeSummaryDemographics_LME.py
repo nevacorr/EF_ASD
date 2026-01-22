@@ -93,6 +93,8 @@ final_data = add_race(final_data, V06_V12_race_filename, tsi_filename, nihtoolbo
 
 final_data = add_missing_ages_from_brief2(final_data, brief2_ages)
 
+final_data.to_csv(os.path.join(working_dir, 'demographics_by_subject.csv'))
+
 demo_stats_ages_combined_by_group = summarize_by_group(final_data)
 
 demo_stats = compute_stats_conditioned_on_identifiers(final_data, categorical_columns=[])
