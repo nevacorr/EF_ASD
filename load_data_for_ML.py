@@ -6,8 +6,10 @@ from load_brain_data import load_and_clean_vsa_volume_data, load_vsa_subcortical
 from load_brain_data import load_vsa_ct_sa_data
 from functools import reduce
 from Utility_Functions import divide_columns_by_tottiss
+from helper_functions_clustering import remove_duplicate_rows
 from Utility_Functions_XGBoost import plot_correlations, remove_collinearity
 from matplotlib import pyplot as plt
+
 def load_all_data():
 
     # Define directories to be used
@@ -20,6 +22,7 @@ def load_all_data():
     #############################
     datafilename = volume_infant_datafilename
     df_infant_dem_lobe = load_and_clean_infant_volume_data_and_all_behavior(vol_infant_dir, datafilename)
+    df_infant_dem_lobe = remove_duplicate_rows(df_infant_dem_lobe)
 
     #############################
     #### Load school age lobe volume data and age data ######
@@ -30,6 +33,8 @@ def load_all_data():
     tot_tiss_SA_datafilename = 'IBISandDS_VSA_TissueSeg_Vols_v01.04_20250221.csv'
     df_vsa_lobe = load_and_clean_vsa_volume_data(vol_dir_SA, volume_SA_datafilename,
                                                  tot_tiss_dir_SA, tot_tiss_SA_datafilename)
+    df_vsa_lobe = remove_duplicate_rows(df_vsa_lobe)
+
 
     #############################
     #### Load infant subcort volume data ######
@@ -37,6 +42,7 @@ def load_all_data():
     subcort_infant_dir = '/Users/nevao/Documents/IBIS_EF/source data/Brain_Data/IBIS1&2_volumes_v3.13'
     df = load_infant_subcortical_data(subcort_infant_dir)
     df_infant_subcort = df.reset_index(drop=True)
+    df_infant_subcort = remove_duplicate_rows(df_infant_subcort)
 
     #############################
     #### Load school age subcort volume data ######
@@ -44,6 +50,7 @@ def load_all_data():
     subcort_vsa_dir = "/Users/nevao/Documents/IBIS_EF/source data/Brain_Data/updated imaging_2-27-25/IBISandDS_VSA_Subcort_and_LV_Vols_v01.04_20250221"
     subcort_vsa_datafilename = 'IBISandDS_VSA_Subcort_and_LV_Vols_v01.04_20250221.csv'
     df_vsa_subcort = load_vsa_subcortical_data(subcort_vsa_dir, subcort_vsa_datafilename)
+    df_vsa_subcort = remove_duplicate_rows(df_vsa_subcort)
 
     #############################
     #### Load school age cortical thickness data ######
@@ -51,6 +58,7 @@ def load_all_data():
     ct_vsa_dir = "/Users/nevao/Documents/IBIS_EF/source data/Brain_Data/IBISandDS_VSA_SurfaceData_v01.02_20210809"
     ct_vsa_datafilename = 'IBISandDS_VSA_CorticalThickness_DKT_v01.02_20210708.csv'
     df_vsa_ct = load_vsa_ct_sa_data(ct_vsa_dir, ct_vsa_datafilename, 'CT')
+    df_vsa_ct = remove_duplicate_rows(df_vsa_ct)
 
     #############################
     #### Load school age surface area data ######
@@ -58,6 +66,7 @@ def load_all_data():
     sa_vsa_dir = "/Users/nevao/Documents/IBIS_EF/source data/Brain_Data/IBISandDS_VSA_SurfaceData_v01.02_20210809"
     sa_vsa_datafilename = 'IBISandDS_VSA_SurfaceArea_DKT_v01.02_20210708.csv'
     df_vsa_sa = load_vsa_ct_sa_data(sa_vsa_dir, sa_vsa_datafilename, 'SA')
+    df_vsa_sa = remove_duplicate_rows(df_vsa_sa)
 
     #############################
     #### Load VSA DTI data ######
@@ -83,13 +92,18 @@ def load_all_data():
 
     # Concatenate all DataFrames column-wise
     df_vsa_dti = pd.concat(dfs, axis=1)
+    df_vsa_dti = remove_duplicate_rows(df_vsa_dti)
 
     #############################
     #### Combine all data ######
     #############################
 
+    #DTI has too many duplicate IDS with not duplicate measurements. Don't include for now
     dfs_list= [df_infant_dem_lobe, df_vsa_lobe, df_infant_subcort, df_vsa_subcort,
-               df_vsa_ct, df_vsa_sa, df_vsa_dti]
+               df_vsa_ct, df_vsa_sa]
+
+    # dfs_list= [df_infant_dem_lobe, df_vsa_lobe, df_infant_subcort, df_vsa_subcort,
+    #            df_vsa_ct, df_vsa_sa, df_vsa_dti]
 
     dfs_combined = reduce(lambda left, right: pd.merge(left, right, on='CandID', how='outer'), dfs_list)
 

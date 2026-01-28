@@ -24,35 +24,44 @@ def normative_clustering(df, group_col='Group', lr_label='LR-', hr_labels=['HR+'
 
     # --------------- 2. Compute z-scores ---------------
     z_cols = []
+    df_hr_z = pd.DataFrame()
+    df_hr_z['CandID'] = df_hr['CandID']
+    df_hr_z.reset_index(inplace=True, drop=True)
     for col in brain_cols:
         # Keep only rows without NaN in covariates or the brain metric
-        df_clean = df_lr.dropna(subset=covariates + [col]).copy()
+        df_lr_clean = df_lr.dropna(subset=covariates + [col]).copy()
         # Fit linear model: brain ~ covariates in LR kids
-        X_lr = df_clean[covariates].values
-        y_lr = df_clean[col].values
+        X_lr = df_lr_clean[covariates].values
+        y_lr = df_lr_clean[col].values
         model = LinearRegression()
         model.fit(X_lr, y_lr)
 
-        plot_brain_vs_age_by_sex_from_model(X_lr, y_lr, col, model)
+        # plot_brain_vs_age_by_sex_from_model(X_lr, y_lr, col, model)
 
         # Predicted for HR kids
-        X_hr = df_hr[covariates].values
+        df_hr_clean = df_hr.dropna(subset=covariates + [col]).copy()
+        X_hr = df_hr_clean[covariates].values
         y_pred_hr = model.predict(X_hr)
-        y_actual_hr = df_hr[col].values
+        y_actual_hr = df_hr_clean[col].values
 
         # SD of residuals in LR
         resid_std = np.std(y_lr - model.predict(X_lr))
 
         # Z-score for HR kids
+
         z_col = f"{col}_z"
-        df_hr[z_col] = (y_actual_hr - y_pred_hr) / resid_std
         z_cols.append(z_col)
+        df_tmp = pd.DataFrame({'CandID': df_hr_clean['CandID'], z_col:(y_actual_hr - y_pred_hr) / resid_std})
+        df_tmp.reset_index(inplace=True, drop=True)
+        df_hr_z = df_hr_z.merge(df_tmp, on='CandID', how='left')
+
+        mystop=1
 
     # Drop HR rows with any NaNs in z-scores
-    df_hr = df_hr.dropna(subset=z_cols)
+    df_hr_z= df_hr_z.dropna(subset=z_cols, how='any')
 
     # --------------- 3. Cluster HR kids based on z-scores ---------------
-    X = df_hr[z_cols].values
+    X = df_hr_z[z_cols].values
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
