@@ -40,7 +40,7 @@ df.drop(columns=['Identifiers'], inplace=True)
 
 df = df[['CandID'] + [c for c in df.columns if c != 'CandID']]
 
-ef_cols = [target]
+ef_cols = target
 
 Age = "Final_Age_School_Age" if "BRIEF2" in target else None
 

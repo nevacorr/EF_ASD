@@ -9,16 +9,16 @@ from sklearn.metrics import silhouette_score
 from scipy.stats import f_oneway
 
 
-def cluster_hr_group(df, hr_group='HR-', brain_cols=None, ef_cols=None,
+def cluster_hr_group(df, dx_group='HR', brain_cols=None, ef_cols=None,
                      method='kmeans', max_clusters=4, random_state=42):
     """
-    Cluster HR+ or HR- kids based on subcortical brain volumes and examine EF profiles.
+    Cluster HR kids based on subcortical brain volumes and examine EF profiles.
 
     Parameters
     ----------
     df : pd.DataFrame
         Data containing HR_status, brain_cols, ef_cols.
-    hr_group : str
+    dx_group : str
         'HR+' or 'HR-' (group to subset for clustering)
     brain_cols : list
         List of brain volume column names
@@ -41,9 +41,9 @@ def cluster_hr_group(df, hr_group='HR-', brain_cols=None, ef_cols=None,
         Mean EF subscales per cluster
     """
     # 1️⃣ Subset HR group
-    df_group = df[df['HR_status'] == hr_group].copy()
+    df_group = df[df['Risk'] == dx_group].copy()
     if df_group.empty:
-        raise ValueError(f"No subjects found for HR group {hr_group}")
+        raise ValueError(f"No subjects found for HR group {dx_group}")
 
     # 2️⃣ Drop rows with NaNs in brain columns
     X = df_group[brain_cols].dropna()
@@ -77,7 +77,7 @@ def cluster_hr_group(df, hr_group='HR-', brain_cols=None, ef_cols=None,
     cluster_means = df_group.groupby('cluster')[brain_cols].mean()
     plt.figure(figsize=(10, 6))
     sns.heatmap(cluster_means, annot=True, cmap='vlag')
-    plt.title(f"{hr_group} Brain Volume Cluster Means")
+    plt.title(f"{dx_group} Brain Volume Cluster Means")
     plt.show()
 
     # 6️⃣ EF comparison across clusters
@@ -104,7 +104,7 @@ def cluster_hr_group(df, hr_group='HR-', brain_cols=None, ef_cols=None,
             values = df_group[df_group['cluster'] == c][ef_cols].mean().tolist()
             values += values[:1]
             plt.polar(angles, values, label=f'Cluster {c}')
-        plt.title(f"EF Profiles by Brain Cluster ({hr_group})")
+        plt.title(f"EF Profiles by Brain Cluster ({dx_group})")
         plt.legend(loc='upper right')
         plt.show()
     else:
@@ -115,7 +115,7 @@ def cluster_hr_group(df, hr_group='HR-', brain_cols=None, ef_cols=None,
     X_pca = pca.fit_transform(X_scaled)
     plt.figure(figsize=(8, 6))
     sns.scatterplot(x=X_pca[:, 0], y=X_pca[:, 1], hue=df_group['cluster'], palette='tab10')
-    plt.title(f"PCA of Brain Volumes ({hr_group})")
+    plt.title(f"PCA of Brain Volumes ({dx_group})")
     plt.xlabel("PC1")
     plt.ylabel("PC2")
     plt.show()
