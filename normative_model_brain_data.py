@@ -10,9 +10,9 @@ from sklearn.decomposition import PCA
 import statsmodels.formula.api as smf
 from helper_functions_clustering import plot_brain_vs_age_by_sex_from_model
 
-def normative_clustering(df, group_col='Group', lr_label='LR-', hr_labels=['HR+', 'HR-'],
-                         brain_cols=None, ef_cols=None, covariates=['Sex', 'Age'],
-                         n_clusters=2, random_state=42):
+def calc_normative_data(df, group_col='Group', lr_label='LR-', hr_labels=['HR+', 'HR-'],
+                        brain_cols=None, ef_cols=None, covariates=['Sex', 'Age'],
+                        n_clusters=2, random_state=42):
     """
     1. Fit normative models on LR kids
     2. Compute z-scores for HR kids

@@ -8,7 +8,7 @@ from load_data_for_ML import load_all_data
 from create_input_for_clustering import create_input_for_clustering
 from cluster_hr_group import cluster_hr_group
 from helper_functions_clustering import compute_lr_correlation_matrix, plot_lr_heatmap
-from cluster_deviations_from_norm import normative_clustering
+from normative_model_brain_data import calc_normative_data
 import os
 
 target = "BRIEF2_GEC_T_score"
@@ -78,7 +78,7 @@ cov_cols.append('Final_Age_School_Age')
 #     max_clusters=4
 # )
 
-df_hr_clustered, cluster_means, ef_means = normative_clustering(df,
+df_hr_clustered, cluster_means, ef_means = calc_normative_data(df,
                                                                 group_col='Group',
                                                                 lr_label='LR-',
                                                                 hr_labels=['HR+', 'HR-'],
