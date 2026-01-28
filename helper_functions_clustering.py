@@ -191,3 +191,43 @@ def plot_lr_heatmap(corr_mat, title):
     plt.tight_layout()
     plt.show()
 
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+def plot_brain_vs_age_by_sex_from_model(X_lr, y_lr, brain_col, model):
+
+    sex_col = 0
+    age_col = 1
+
+    colors = {0: 'blue', 1: 'red'}
+    labels = {0: 'Female', 1: "Male"}
+
+    # Create smooth age range
+    age_range = np.linspace(X_lr[:,age_col].min(), X_lr[:,age_col].max(), 100)
+
+    plt.figure(figsize=(8, 6))
+
+    for sex in [0, 1]:
+        mask = X_lr[:, sex_col] ==sex
+        # Scatter LR data points
+        plt.scatter(X_lr[mask,age_col], y_lr[mask], color=colors[sex], alpha=0.5, label=labels[sex])
+
+        # Plot regression line
+        X_plot = np.c_[np.full_like(age_range, sex), age_range]
+        # Predict brain metric
+        y_plot = model.predict(X_plot)
+        plt.plot(age_range, y_plot, color=colors[sex])
+        mystop=1
+
+    plt.xlabel('Age')
+    plt.ylabel(brain_col)
+    plt.title(f'{brain_col} vs Age (LR normative model)')
+    plt.legend(
+        loc='center left',
+        bbox_to_anchor=(1, 0.5)
+    )
+    plt.tight_layout()
+    plt.show()
+
