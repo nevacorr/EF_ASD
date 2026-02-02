@@ -13,7 +13,8 @@ import os
 from sklearn.utils import resample
 from analyze_hyperparameter_repeats import analyze_hyperparameter_repeats
 
-def predict_SA_xgboost_covbat(
+
+def predict_SA_xgboost_nm(
         X, y, target, metric, params, run_dummy_quick_fit,
         n_outer_splits=10, random_state=42,  X_test=None, y_test=None):
 
@@ -53,23 +54,18 @@ def predict_SA_xgboost_covbat(
         y_train, y_val = y.iloc[train_idx], y.iloc[val_idx]
 
         # ----------------------------------
-        #  CovBat harmonization
-        # ----------------------------------
-        X_train_h, X_val_h = covbat_harmonize(X_train, X_val)
-
-        # ----------------------------------
         # Inner loop: hyperparameter tuning on outer training fold
         # ----------------------------------
         xgb = XGBRegressor(verbosity=0, objective="reg:squarederror", n_jobs=-1)
         opt = BayesSearchCV(xgb, params, n_iter=n_iter, cv=3, n_jobs=-1, verbose=0)
-        opt.fit(X_train_h, y_train, callback=[VerboseCallback(n_total=n_iter)])
+        opt.fit(X_train, y_train, callback=[VerboseCallback(n_total=n_iter)])
         best_model = opt.best_estimator_
         best_params_list.append(opt.best_params_)
 
         #----------------------------------
         # Evaluate R2 on outer validation fold
         #----------------------------------
-        val_preds = best_model.predict(X_val_h)
+        val_preds = best_model.predict(X_val)
         r2_val = r2_score(y_val, val_preds)
         print(f"R2 (validation fold) = {r2_val:.3f}")
         r2_vals.append(r2_val)

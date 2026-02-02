@@ -143,6 +143,6 @@ def load_all_data():
     df_all_brain_behav = divide_columns_by_tottiss(df_all_brain_behav, df_infant_subcort, "v24")
     df_all_brain_behav = divide_columns_by_tottiss(df_all_brain_behav, df_vsa_subcort, "VSA")
 
-    df_all_brain_behav = df_all_brain_behav.loc[:, ~df_all_brain_behav.columns.str.contains('Tiss|ICV')]
+    df_all_brain_behav = df_all_brain_behav.loc[:, ~df_all_brain_behav.columns.str.contains('Tiss')]
 
     return df_all_brain_behav
