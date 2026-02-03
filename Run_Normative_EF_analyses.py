@@ -10,9 +10,10 @@ from scipy.stats import pearsonr
 from sklearn.linear_model import ElasticNetCV
 from sklearn.model_selection import cross_val_score
 from xgboost import XGBRegressor
+from plot_feature_histograms import plot_feature_histograms
 
 target = "BRIEF2_GEC_T_score"
-metric = 'subcort_VSA'
+metric = 'cortical_thickness_VSA'
 #options 'volume_infant', 'volume_VSA', 'subcort_VSA', 'subcort_infant', 'ad_VSA', 'rd_VSA', 'md_VSA', 'fa_VSA'
 #        'surface_area_VSA', 'cortical_thickness_VSA', 'subcort_infant+volume_infant'
 working_dir = os.getcwd()
@@ -72,16 +73,9 @@ print(summary)
 sig_counts = (df_hr_z_nocandID.abs() > 2).sum()
 print("Subjects with |z|>2 per region:\n", sig_counts)
 
-plt.figure(figsize=(12, 8))
+
 region_names_z = [name + "_z" for name in brain_cols]
-for i, region in enumerate(region_names_z):
-    plt.subplot(3, 4, i+1)  # 3 rows x 4 columns for 12 regions
-    sns.histplot(df_hr_z.loc[:,region], bins=20, kde=True, color='skyblue')
-    plt.title(region)
-    plt.xlabel("Z-score")
-    plt.ylabel("Count")
-plt.tight_layout()
-plt.show()
+plot_feature_histograms(df_hr_z, region_names_z)
 
 # Correlate with behavior
 results = []
@@ -124,58 +118,72 @@ print('signficant correlations')
 print(sig_list)       # List of (Region, Behavior) tuples
 
 # Features and behaviors
-X = df_hr_z[region_names_z]  # signed z-scores
-behavior_cols = [col for col in behavior_df.columns if col != 'CandID']
-
-# Number of bootstrap repeats for stable feature importance
-n_repeats = 50
+X = df_hr_z[region_names_z]
 
 results = []
 
 for behavior in behavior_cols:
     y = behavior_df[behavior]
-
-    # Exclude NaNs
     mask = ~y.isna()
-    X_sub, y_sub = X.loc[mask], y[mask]
+    X_sub, y_sub = X[mask], y[mask]
 
-    # Store feature importances for bootstraps
-    importance_all = pd.DataFrame(0, index=region_names_z, columns=range(n_repeats))
+    # Elastic Net with cross-validated alpha and l1_ratio
+    model = ElasticNetCV(l1_ratio=[0.1, 0.5, 0.7, 0.9], alphas=np.logspace(-3, 2, 10),
+                         cv=5, max_iter=5000)
 
-    for i in range(n_repeats):
-        # Initialize XGBoost with conservative parameters for small dataset
-        model = XGBRegressor(
-            n_estimators=50,
-            max_depth=2,
-            learning_rate=0.05,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            n_jobs=-1,
-            random_state=42 + i
-        )
-        model.fit(X_sub, y_sub)
-        importance_all[i] = model.feature_importances_
+    scores = cross_val_score(model, X_sub, y_sub, cv=5, scoring='r2')
 
-    # Average importance across bootstraps
-    importance_mean = importance_all.mean(axis=1)
-    importance_std = importance_all.std(axis=1)
+    # Fit on all data to get coefficients
+    model.fit(X_sub, y_sub)
 
-    # Top 5 regions
-    top_regions = importance_mean.sort_values(ascending=False).head(5)
+    # Get top 5 predictive regions by absolute weight
+    coef_series = pd.Series(model.coef_, index=region_names_z)
+    top_regions = coef_series.abs().sort_values(ascending=False).head(5)
 
     results.append({
         'Behavior': behavior,
+        'Mean_R2_CV': np.mean(scores),
         'Top_Regions': top_regions.index.tolist(),
-        'Mean_Importance': top_regions.values.tolist(),
-        'Std_Importance': importance_std[top_regions.index].tolist()
+        'Top_Weights': top_regions.values.tolist()
     })
 
-# Convert to DataFrame for easy inspection
-ml_xgb_df = pd.DataFrame(results)
+ml_df = pd.DataFrame(results)
 
-# Optional: sort by first top importance for visualization
-ml_xgb_df['Max_Importance'] = ml_xgb_df['Mean_Importance'].apply(max)
-ml_xgb_df = ml_xgb_df.sort_values('Max_Importance', ascending=False).drop(columns='Max_Importance')
+# View results sorted by predictive power
+print(ml_df.sort_values('Mean_R2_CV', ascending=False))
+
+results = []
+
+for behavior in behavior_cols:
+    y = behavior_df[behavior]
+    mask = ~y.isna()
+    X_sub, y_sub = X[mask], y[mask]
+
+    model = XGBRegressor(
+        n_estimators=50,  # fewer trees
+        max_depth=2,  # shallower trees
+        learning_rate=0.05,  # slower learning
+        subsample=0.8,  # random subset of rows
+        colsample_bytree=0.8,  # random subset of features
+        n_jobs=-1,
+        random_state=42
+    )
+
+    scores = cross_val_score(model, X_sub, y_sub, cv=5, scoring='r2')
+    model.fit(X_sub, y_sub)
+
+    # Feature importance
+    importance = pd.Series(model.feature_importances_, index=region_names_z)
+    top_regions = importance.sort_values(ascending=False).head(5)
+
+    results.append({
+        'Behavior': behavior,
+        'Mean_R2_CV': np.mean(scores),
+        'Top_Regions': top_regions.index.tolist(),
+        'Top_Importances': top_regions.values.tolist()
+    })
+
+ml_xgb_df = pd.DataFrame(results)
 
 mystop=1
 
