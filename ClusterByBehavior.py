@@ -32,6 +32,7 @@ demo_beh_df = demographics.merge(behavior_df, on='Identifiers', how='left')
 
 mystop=1
 
+# behavior_cols = ["BRIEF2_GEC_T_score", "BRIEF2_shift_T_score","BRIEF2_inhibit_T_score","BRIEF2_working_memory_T_score"]
 behavior_cols = ["BRIEF2_GEC_T_score", "BRIEF2_shift_T_score","BRIEF2_inhibit_T_score","BRIEF2_working_memory_T_score","Flanker_Standard_Age_Corrected", "DCCS_Standard_Age_Corrected"]
 cov_cols = ['Sex, GroupFinal_Age_School_Age']
 

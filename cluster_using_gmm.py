@@ -59,8 +59,13 @@ def cluster_using_gmm(df, behavior_cols, group):
     df_lr = df_lr.dropna(subset=behavior_cols)
     df_lr['cluster'] = 'LR'
 
+    # ================================
+    # Z SCORES PLOT (BRIEF2 + Flanker + DCCS)
+    # ================================
+
     # --- Combine HR clusters and LR for plotting ---
     df_plot = pd.concat([df_group, df_lr], ignore_index=True)
+    df_plot['cluster'] = df_plot['cluster'].astype(str)
 
     # Reverse BRIEF2 scores so that higher = better
     # --- Reverse BRIEF2 scores so higher = better ---
@@ -83,7 +88,7 @@ def cluster_using_gmm(df, behavior_cols, group):
     # --- Compute mean and SD per cluster/measure ---
     summary = df_long.groupby(['cluster', 'measure'])['zscore'].agg(
         mean='mean',
-        sd='std'
+        ci95=lambda x: 1.96 * x.std(ddof=1) / np.sqrt(len(x))
     ).reset_index()
 
     # --- Ensure cluster labels are strings for consistent coloring ---
@@ -100,7 +105,7 @@ def cluster_using_gmm(df, behavior_cols, group):
         plt.errorbar(
             sub['measure'],
             sub['mean'],
-            yerr=sub['sd'],
+            yerr=sub['ci95'],
             label=f"Cluster {cluster}" if cluster != 'LR' else 'LR',
             marker='o',
             capsize=5,
@@ -112,7 +117,62 @@ def cluster_using_gmm(df, behavior_cols, group):
     plt.title(f"Behavioral Profiles by Cluster ({group} with LR reference)")
     plt.legend()
     plt.tight_layout()
-    plt.show()
+    plt.show(block=False)
+
+    # ================================
+    # RAW SCORES PLOT (BRIEF2 + Flanker + DCCS)
+    # ================================
+
+    df_plot = pd.concat([df_group, df_lr], ignore_index=True)
+    df_plot['cluster'] = df_plot['cluster'].astype(str)
+
+    # Reverse BRIEF2 scores so that higher = better
+    # --- Reverse BRIEF2 scores so higher = better ---
+    df_plot[brief_cols] = -df_plot[brief_cols] + df_plot[brief_cols].max(axis=0)
+
+    # Reverse BRIEF2 scores: higher = better
+    df_plot[brief_cols] = -df_plot[brief_cols] + df_plot[brief_cols].max(axis=0)
+
+    # Melt for plotting
+    df_raw_long = df_plot.melt(
+        id_vars="cluster",
+        value_vars=behavior_cols,
+        var_name="measure",
+        value_name="raw_score"
+    )
+
+    # Compute mean + 95% CI
+    raw_summary = (
+        df_raw_long
+        .groupby(["cluster", "measure"])["raw_score"]
+        .agg(
+            mean="mean",
+            ci95=lambda x: 1.96 * x.std(ddof=1) / np.sqrt(len(x))
+        )
+        .reset_index()
+    )
+
+    # Plot
+    plt.figure(figsize=(12, 6))
+    for cluster in raw_summary["cluster"].unique():
+        sub = raw_summary[raw_summary["cluster"] == cluster]
+        plt.errorbar(
+            sub["measure"],
+            sub["mean"],
+            yerr=sub["ci95"],
+            marker="o",
+            capsize=5,
+            label=f"Cluster {cluster}" if cluster != "LR" else "LR",
+            color=colors.get(cluster, "black")
+        )
+
+    plt.xticks(rotation=45)
+    plt.ylabel("Raw Score")
+    plt.title(f"Behavioral Raw Scores by Cluster ({group} + LR)")
+    plt.legend()
+    plt.tight_layout()
+    plt.show(block=False)
+
 
     # --- Contingency table ---
     asds_by_cluster = pd.crosstab(df_group['cluster'], df_group['Group'])
@@ -127,10 +187,14 @@ def cluster_using_gmm(df, behavior_cols, group):
     print("\n")
 
     # --- Chi-square test ---
+    # Test if the clusters have significantly different number of HR+ and HR- subjects
+    # Null hypotheseis: ASD outcome is not significantly different for the two clusters
     chi2, p, dof, expected = chi2_contingency(asds_by_cluster)
     print(f"Chi-square test: chi2 = {chi2:.2f}, p = {p:.3f}")
 
-    # Fisher exact test (only works for 2x2)
+    # Fisher exact test (only works for 2 clusters)
+    # Null hypothesis: ASD outcome is not significantly different for the two clusters
+    # Gives odds ratio, which is probabiity that cluster 0 represents the HR+ group
     if asds_by_cluster.shape == (2, 2):
         oddsratio, p_fisher = fisher_exact(asds_by_cluster)
         print(f"Fisher exact test: OR = {oddsratio:.2f}, p = {p_fisher:.3f}")
@@ -144,7 +208,7 @@ def cluster_using_gmm(df, behavior_cols, group):
     plt.title("ASD outcome by behavioral cluster")
     plt.ylim(0, 100)
     plt.xticks(rotation=0)
-    plt.show()
+    plt.show(block=False)
 
     # --- Define groups ---
     clusters = ['0', '1', 'LR']  # must match the 'cluster' labels used in your plotting
@@ -176,5 +240,54 @@ def cluster_using_gmm(df, behavior_cols, group):
 
     # --- Show results ---
     print(results_df)
+
+    # ================================
+    # Histogram of Raw Scores (BRIEF2 flipped + Flanker + DCCS)
+    # ================================
+
+    # Colors for clusters + LR
+    plot_colors = {
+        "0": "#1f77b4",  # Blue
+        "1": "#ff7f0e",  # Orange
+        "LR": "#2ca02c"  # Green
+    }
+
+    plt.figure(figsize=(14, 8))
+
+    # FacetGrid: one panel per measure
+    g = sns.FacetGrid(
+        df_raw_long,
+        col="measure",
+        col_wrap=3,
+        sharex=False,
+        sharey=False,
+        height=4
+    )
+
+    # Plot histograms using hue="cluster" (all groups plotted together)
+    g.map_dataframe(
+        sns.histplot,
+        x="raw_score",
+        hue="cluster",
+        palette=plot_colors,
+        alpha=0.5,
+        bins=20,
+        stat="density"
+    )
+
+    # Axis labels and titles
+    g.set_axis_labels("Raw Score", "Density")
+    g.set_titles(col_template="{col_name}")
+
+    # Add manual legend
+    handles = [
+        plt.Line2D([0], [0], color=clr, lw=8, alpha=0.5, label=lbl)
+        for lbl, clr in zip(["Cluster 0", "Cluster 1", "LR"], ["#1f77b4", "#ff7f0e", "#2ca02c"])
+    ]
+    g.fig.legend(handles=handles, loc="upper right", title="Group", frameon=True)
+
+    plt.subplots_adjust(top=0.9)
+    g.fig.suptitle(f"Distribution of Behavioral Raw Scores by Cluster ({group} + LR)")
+    plt.show()
 
     return df_group, best_gmm, cluster_profiles
