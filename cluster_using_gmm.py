@@ -9,6 +9,8 @@ from scipy.stats import chi2_contingency, fisher_exact
 from statsmodels.stats.multitest import multipletests
 from scipy.stats import mannwhitneyu
 import itertools
+from sklearn.metrics import silhouette_score
+from sklearn.decomposition import PCA
 
 
 def cluster_using_gmm(df, behavior_cols, group):
@@ -43,21 +45,72 @@ def cluster_using_gmm(df, behavior_cols, group):
     # Optional: soft assignments
     cluster_probs = best_gmm.predict_proba(X_scaled)
 
+    # --- Cluster profiles ---
     cluster_profiles = (
         df_group
         .groupby("cluster")[behavior_cols]
         .mean()
     )
-
     print(cluster_profiles)
 
+    # --- Cluster sizes ---
     cluster_counts = df_group['cluster'].value_counts().sort_index()
     print(cluster_counts)
+
+    # --- Silhouette score ---
+    sil_score = silhouette_score(X_scaled, df_group['cluster'])
+    print(f"Silhouette score for {best_k} clusters: {sil_score:.3f}")
+
+    # --- PCA visualization ---
+    pca = PCA(n_components=2)
+    X_pca = pca.fit_transform(X_scaled)
+    df_group['PC1'] = X_pca[:,0]
+    df_group['PC2'] = X_pca[:,1]
+
+    plt.figure(figsize=(8,6))
+    sns.scatterplot(
+        data=df_group,
+        x='PC1', y='PC2',
+        hue='cluster',
+        palette = {0:'#1f77b4', 1:'#ff7f0e'},
+        s=80,
+        alpha=0.8
+    )
+    plt.title(f"PCA of behavioral data (HR {group})")
+    plt.xlabel("PC1")
+    plt.ylabel("PC2")
+    plt.legend(title="Cluster")
+    plt.tight_layout()
+    plt.show(block=False)
 
     # --- Prepare LR group for plotting ---
     df_lr = df[df["Risk"] == "LR"].copy()
     df_lr = df_lr.dropna(subset=behavior_cols)
     df_lr['cluster'] = 'LR'
+
+    # --- Make a copy of the cluster column for plotting ---
+    df_counts = pd.concat([df_group, df_lr], ignore_index=True)
+    df_counts['cluster_plot'] = df_counts['cluster'].astype(str)
+
+    # Count subjects per cluster/group
+    cluster_counts = df_counts['cluster_plot'].value_counts()
+
+    # Reorder for plotting (strings)
+    cluster_order = ['0', '1', 'LR']
+    cluster_counts = cluster_counts.reindex(cluster_order)
+
+    # --- Bar plot ---
+    plt.figure(figsize=(6, 4))
+    sns.barplot(
+        x=cluster_counts.index,
+        y=cluster_counts.values,
+        palette={'0': '#1f77b4', '1': '#ff7f0e', 'LR': '#2ca02c'}
+    )
+    plt.xlabel("Cluster / Group")
+    plt.ylabel("Number of subjects")
+    plt.title(f"Number of subjects per cluster ({group} HR + LR)")
+    plt.tight_layout()
+    plt.show(block=False)
 
     # ================================
     # Z SCORES PLOT (BRIEF2 + Flanker + DCCS)
@@ -251,8 +304,6 @@ def cluster_using_gmm(df, behavior_cols, group):
         "1": "#ff7f0e",  # Orange
         "LR": "#2ca02c"  # Green
     }
-
-    plt.figure(figsize=(14, 8))
 
     # FacetGrid: one panel per measure
     g = sns.FacetGrid(
