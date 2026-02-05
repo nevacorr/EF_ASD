@@ -64,8 +64,28 @@ def cluster_using_gmm(df, behavior_cols, group):
     # --- PCA visualization ---
     pca = PCA(n_components=2)
     X_pca = pca.fit_transform(X_scaled)
+    explained_var = pca.explained_variance_ratio_[0]
+    print(f"PC1 explains {explained_var * 100:.1f}% of variance")
+
     df_group['PC1'] = X_pca[:,0]
     df_group['PC2'] = X_pca[:,1]
+
+    # --- Plot PC1 by cluster ---
+    plt.figure(figsize=(8, 6))
+    sns.stripplot(
+        data=df_group,
+        x='cluster',
+        y='PC1',
+        palette={'0': '#1f77b4', '1': '#ff7f0e'},
+        size=8,
+        jitter=True  # adds horizontal spread so points don't overlap
+    )
+
+    plt.title(f"PC1 of EF tasks by cluster ({group})\nExplained variance: {explained_var * 100:.1f}%")
+    plt.xlabel("Cluster")
+    plt.ylabel("PC1 (task-based EF)")
+    plt.tight_layout()
+    plt.show(block=False)
 
     plt.figure(figsize=(8,6))
     sns.scatterplot(
@@ -76,12 +96,28 @@ def cluster_using_gmm(df, behavior_cols, group):
         s=80,
         alpha=0.8
     )
-    plt.title(f"PCA of behavioral data (HR {group})")
+    plt.title(f"PCA of behavioral data ({group})")
     plt.xlabel("PC1")
     plt.ylabel("PC2")
     plt.legend(title="Cluster")
     plt.tight_layout()
     plt.show(block=False)
+
+    # PC1 loadings
+    pc1_loadings = pd.Series(
+        pca.components_[0],
+        index=behavior_cols
+    ).sort_values(key=np.abs, ascending=False)
+
+    print(pc1_loadings)
+
+    # PC2 loadings
+    pc2_loadings = pd.Series(
+        pca.components_[1],
+        index=behavior_cols
+    ).sort_values(key=np.abs, ascending=False)
+
+    print(pc1_loadings)
 
     # --- Prepare LR group for plotting ---
     df_lr = df[df["Risk"] == "LR"].copy()

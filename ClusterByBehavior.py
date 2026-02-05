@@ -6,9 +6,10 @@ from load_data_for_ML import load_all_data
 import pandas as pd
 from cluster_using_gmm import cluster_using_gmm
 from load_data_for_ML import load_all_data
-from brain_EF_correspondence import evaluate_brain_struct_diff_between_clusters
+from brain_EF_correspondence import evaluate_brain_struct_diff_between_clusters, univariate_regression
+from brain_EF_correspondence import multi_variate_analsis
 
-brain_metric = 'volume_VSA'
+brain_metric = 'subcort_infant'
 #options 'volume_infant', 'volume_VSA', 'subcort_VSA', 'subcort_infant', 'ad_VSA', 'rd_VSA', 'md_VSA', 'fa_VSA'
 #        'surface_area_VSA', 'cortical_thickness_VSA', 'subcort_infant+volume_infant'
 
@@ -89,6 +90,10 @@ df_hr_z = calc_normative_data(final_brain_df, group_col='Group', lr_label='LR-',
 
 df_hr_z = df_hr_z.drop(columns=['CandID'])
 
-evaluate_brain_struct_diff_between_clusters(df_clusters, df_hr_z, brain_cols, behavior_cols)
+results_ind_brain_regoins = evaluate_brain_struct_diff_between_clusters(df_clusters, df_hr_z, brain_cols, behavior_cols)
+
+multi_variate_analsis(df_clusters, df_hr_z, brain_cols)
+
+univariate_regression(df_clusters, df_hr_z, brain_cols, brain_metric)
 
 mystop=1
