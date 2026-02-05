@@ -6,8 +6,12 @@ from load_data_for_ML import load_all_data
 import pandas as pd
 from cluster_using_gmm import cluster_using_gmm
 from load_data_for_ML import load_all_data
+from brain_EF_correspondence import evaluate_brain_struct_diff_between_clusters
 
-brain_metric = 'subcort_infant'
+brain_metric = 'volume_VSA'
+#options 'volume_infant', 'volume_VSA', 'subcort_VSA', 'subcort_infant', 'ad_VSA', 'rd_VSA', 'md_VSA', 'fa_VSA'
+#        'surface_area_VSA', 'cortical_thickness_VSA', 'subcort_infant+volume_infant'
+
 working_dir = os.getcwd()
 
 behavior_filename="/Users/nevao/R_Projects/IBIS_EF/processed_datafiles/ibis_subj_demographics_and_data_used_for_2025analysis_with_Brief2_subscales_with_brief1.csv"
@@ -83,6 +87,8 @@ ef_col = 'BRIEF2_GEC_T_score'
 df_hr_z = calc_normative_data(final_brain_df, group_col='Group', lr_label='LR-', hr_labels=['HR+', 'HR-'],
                             brain_cols=brain_cols, ef_col=ef_col, covariates=cov_cols)
 
-df_hr_z_nocandID = df_hr_z.drop(columns=['CandID'])
+df_hr_z = df_hr_z.drop(columns=['CandID'])
+
+evaluate_brain_struct_diff_between_clusters(df_clusters, df_hr_z, brain_cols, behavior_cols)
 
 mystop=1
