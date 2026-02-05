@@ -15,8 +15,6 @@ def create_input_for_ML(dforig, metric):
     # Select columns of interest based on metric
     if metric == "volume_infant":
         pred_brain_cols = df.columns[df.columns.str.contains("WM_V12|WM_V24|GM_V12|GM_V24", regex=True)].tolist()
-        pred_brain_cols.remove('ICV_V12')
-        pred_brain_cols.remove('ICV_V24')
         ICV_cols=['ICV_V12', 'ICV_V24']
     elif metric == "volume_VSA":
         pred_brain_cols = df.columns[df.columns.str.contains("WM_VSA|GM_VSA", regex=True)].tolist()

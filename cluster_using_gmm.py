@@ -108,7 +108,7 @@ def cluster_using_gmm(df, behavior_cols, group):
     )
     plt.xlabel("Cluster / Group")
     plt.ylabel("Number of subjects")
-    plt.title(f"Number of subjects per cluster ({group} HR + LR)")
+    plt.title(f"Number of subjects per cluster ({group} + LR)")
     plt.tight_layout()
     plt.show(block=False)
 
@@ -122,8 +122,9 @@ def cluster_using_gmm(df, behavior_cols, group):
 
     # Reverse BRIEF2 scores so that higher = better
     # --- Reverse BRIEF2 scores so higher = better ---
-    brief_cols = ["BRIEF2_GEC_T_score", "BRIEF2_shift_T_score",
-                  "BRIEF2_inhibit_T_score", "BRIEF2_working_memory_T_score"]
+    brief_cols = ["BRIEF2_GEC_T_score"]
+    # brief_cols = ["BRIEF2_GEC_T_score", "BRIEF2_shift_T_score",
+    #               "BRIEF2_inhibit_T_score", "BRIEF2_working_memory_T_score"]
     df_plot[brief_cols] = -df_plot[brief_cols] + df_plot[brief_cols].max(axis=0)
 
     # --- Scale all measures to z-scores across combined HR + LR ---
@@ -166,8 +167,8 @@ def cluster_using_gmm(df, behavior_cols, group):
         )
 
     plt.xticks(rotation=45)
-    plt.ylabel("Z-score (HR + LR)")
-    plt.title(f"Behavioral Profiles by Cluster ({group} with LR reference)")
+    plt.ylabel("Z-score (BRIEF2 sign reversed)")
+    plt.title(f"Behavioral Profiles (Z-score, BRIEF2 sign reversed) by Cluster (HR with LR reference)")
     plt.legend()
     plt.tight_layout()
     plt.show(block=False)
@@ -181,9 +182,6 @@ def cluster_using_gmm(df, behavior_cols, group):
 
     # Reverse BRIEF2 scores so that higher = better
     # --- Reverse BRIEF2 scores so higher = better ---
-    df_plot[brief_cols] = -df_plot[brief_cols] + df_plot[brief_cols].max(axis=0)
-
-    # Reverse BRIEF2 scores: higher = better
     df_plot[brief_cols] = -df_plot[brief_cols] + df_plot[brief_cols].max(axis=0)
 
     # Melt for plotting
@@ -220,8 +218,8 @@ def cluster_using_gmm(df, behavior_cols, group):
         )
 
     plt.xticks(rotation=45)
-    plt.ylabel("Raw Score")
-    plt.title(f"Behavioral Raw Scores by Cluster ({group} + LR)")
+    plt.ylabel("Raw Score (BRIEF2 sign reversed)")
+    plt.title(f"Behavioral Raw Scores (BRIEF2 sign reversed) by Cluster ({group} + LR)")
     plt.legend()
     plt.tight_layout()
     plt.show(block=False)
@@ -338,7 +336,7 @@ def cluster_using_gmm(df, behavior_cols, group):
     g.fig.legend(handles=handles, loc="upper right", title="Group", frameon=True)
 
     plt.subplots_adjust(top=0.9)
-    g.fig.suptitle(f"Distribution of Behavioral Raw Scores by Cluster ({group} + LR)")
-    plt.show()
+    g.fig.suptitle(f"Distribution of Behavioral Raw Scores by Cluster (BRIEF2 sign reversed) ({group} + LR)")
+    plt.show(block=False)
 
-    return df_group, best_gmm, cluster_profiles
+    return df_group
