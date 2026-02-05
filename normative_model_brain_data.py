@@ -26,6 +26,7 @@ def calc_normative_data(df, group_col='Group', lr_label='LR-', hr_labels=['HR+',
     z_cols = []
     df_hr_z = pd.DataFrame()
     df_hr_z['CandID'] = df_hr['CandID']
+    df_hr_z['Identifiers'] = df_hr['Identifiers']
     df_hr_z.reset_index(inplace=True, drop=True)
     for col in brain_cols:
         # Keep only rows without NaN in covariates or the brain metric
