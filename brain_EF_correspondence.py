@@ -72,7 +72,7 @@ def univariate_regression(df_clusters, df_hr_z, brain_cols, brain_metric):
             data=df,
             x=col,
             y='PC1',
-            # hue='cluster',   # optional: color by cluster
+            hue='cluster',   # optional: color by cluster
             palette={0:'#1f77b4', 1:'#ff7f0e'},
             s=60,
             alpha=0.8
@@ -87,7 +87,7 @@ def univariate_regression(df_clusters, df_hr_z, brain_cols, brain_metric):
             line_kws={'linewidth':1.5},
             ci=None
         )
-        plt.title(f'PC1 vs {col} (p = {row["p_uncorrected"]:.3f})')
+        plt.title(f'PC1 vs {col} (p = {row["p_uncorrected"]:.3f} corr p = {row["p_fdr"]:.3f})')
         plt.xlabel(f'{col} (z-score)')
         plt.ylabel('PC1 (EF)')
         plt.tight_layout()

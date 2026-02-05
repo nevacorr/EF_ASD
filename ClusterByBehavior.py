@@ -9,7 +9,7 @@ from load_data_for_ML import load_all_data
 from brain_EF_correspondence import evaluate_brain_struct_diff_between_clusters, univariate_regression
 from brain_EF_correspondence import multi_variate_analsis
 
-brain_metric = 'subcort_infant'
+brain_metric = 'volume_infant'
 #options 'volume_infant', 'volume_VSA', 'subcort_VSA', 'subcort_infant', 'ad_VSA', 'rd_VSA', 'md_VSA', 'fa_VSA'
 #        'surface_area_VSA', 'cortical_thickness_VSA', 'subcort_infant+volume_infant'
 
