@@ -21,109 +21,101 @@ def cluster_using_gmm(df, behavior_cols, group):
 
     X = df_group[behavior_cols].values
     X_scaled = StandardScaler().fit_transform(X)
-    pca=PCA(n_components=1)
-    df['PC1'] = pca.fit_transform(X_scaled).flatten
 
-    gmm = GaussianMixture(n_components=2, random_state=42)
-    gmm.fit(df['PC1'])
-    df['group'] = gmm.predict(df[['PC1']])
+    bic = []
+    models = {}
 
-    # bic = []
-    # models = {}
-    #
-    # for k in range(2, 6):
-    #     gmm = GaussianMixture(
-    #         n_components=k,
-    #         covariance_type="full",
-    #         random_state=42
-    #     )
-    #     gmm.fit(X_scaled)
-    #     bic.append(gmm.bic(X_scaled))
-    #     models[k] = gmm
-    #
-    # best_k = list(models.keys())[np.argmin(bic)]
-    # best_gmm = models[best_k]
-    #
-    # print(f"Selected number of clusters: {best_k}")
-    #
-    # df_group["cluster"] = best_gmm.predict(X_scaled)
-    #
-    # # Optional: soft assignments
-    # cluster_probs = best_gmm.predict_proba(X_scaled)
-    #
-    # # --- Cluster profiles ---
-    # cluster_profiles = (
-    #     df_group
-    #     .groupby("cluster")[behavior_cols]
-    #     .mean()
-    # )
-    # print(cluster_profiles)
-    #
-    # # --- Cluster sizes ---
-    # cluster_counts = df_group['cluster'].value_counts().sort_index()
-    # print(cluster_counts)
-    #
-    # # --- Silhouette score ---
-    # sil_score = silhouette_score(X_scaled, df_group['cluster'])
-    # print(f"Silhouette score for {best_k} clusters: {sil_score:.3f}")
-    #
-    # # --- PCA visualization ---
-    # pca = PCA(n_components=2)
-    # X_pca = pca.fit_transform(X_scaled)
-    # explained_var = pca.explained_variance_ratio_[0]
-    # print(f"PC1 explains {explained_var * 100:.1f}% of variance")
-    #
-    # df_group['PC1'] = X_pca[:,0]
-    # df_group['PC2'] = X_pca[:,1]
-    #
-    # # --- Plot PC1 by cluster ---
-    # plt.figure(figsize=(8, 6))
-    # sns.stripplot(
-    #     data=df_group,
-    #     x='cluster',
-    #     y='PC1',
-    #     palette={'0': '#1f77b4', '1': '#ff7f0e'},
-    #     size=8,
-    #     jitter=True  # adds horizontal spread so points don't overlap
-    # )
-    #
-    # plt.title(f"PC1 of EF tasks by cluster ({group})\nExplained variance: {explained_var * 100:.1f}%")
-    # plt.xlabel("Cluster")
-    # plt.ylabel("PC1 (task-based EF)")
-    # plt.tight_layout()
-    # plt.show(block=False)
-    #
-    # plt.figure(figsize=(8,6))
-    # sns.scatterplot(
-    #     data=df_group,
-    #     x='PC1', y='PC2',
-    #     hue='cluster',
-    #     palette = {0:'#1f77b4', 1:'#ff7f0e'},
-    #     s=80,
-    #     alpha=0.8
-    # )
-    # plt.title(f"PCA of behavioral data ({group})")
-    # plt.xlabel("PC1")
-    # plt.ylabel("PC2")
-    # plt.legend(title="Cluster")
-    # plt.tight_layout()
-    # plt.show(block=False)
-    #
-    # # PC1 loadings
-    # pc1_loadings = pd.Series(
-    #     pca.components_[0],
-    #     index=behavior_cols
-    # ).sort_values(key=np.abs, ascending=False)
-    #
-    # print(pc1_loadings)
-    #
-    # # PC2 loadings
-    # pc2_loadings = pd.Series(
-    #     pca.components_[1],
-    #     index=behavior_cols
-    # ).sort_values(key=np.abs, ascending=False)
-    #
-    # print(pc1_loadings)
+    for k in range(2, 6):
+        gmm = GaussianMixture(
+            n_components=k,
+            covariance_type="full",
+            random_state=42
+        )
+        gmm.fit(X_scaled)
+        bic.append(gmm.bic(X_scaled))
+        models[k] = gmm
+
+    best_k = list(models.keys())[np.argmin(bic)]
+    best_gmm = models[best_k]
+
+    print(f"Selected number of clusters: {best_k}")
+
+    df_group["cluster"] = best_gmm.predict(X_scaled)
+
+    # Optional: soft assignments
+    cluster_probs = best_gmm.predict_proba(X_scaled)
+
+    # --- Cluster profiles ---
+    cluster_profiles = (
+        df_group
+        .groupby("cluster")[behavior_cols]
+        .mean()
+    )
+    print(cluster_profiles)
+
+    # --- Cluster sizes ---
+    cluster_counts = df_group['cluster'].value_counts().sort_index()
+    print(cluster_counts)
+
+    # --- Silhouette score ---
+    sil_score = silhouette_score(X_scaled, df_group['cluster'])
+    print(f"Silhouette score for {best_k} clusters: {sil_score:.3f}")
+
+    # --- PCA visualization ---
+    pca = PCA(n_components=2)
+    X_pca = pca.fit_transform(X_scaled)
+    explained_var = pca.explained_variance_ratio_[0]
+    print(f"PC1 explains {explained_var * 100:.1f}% of variance")
+
+    df_group['PC1'] = X_pca[:,0]
+    df_group['PC2'] = X_pca[:,1]
+
+    # --- Plot PC1 by cluster ---
+    plt.figure(figsize=(8, 6))
+    sns.stripplot(
+        data=df_group,
+        x='cluster',
+        y='PC1',
+        palette={'0': '#1f77b4', '1': '#ff7f0e'},
+        size=8,
+    )
+    plt.title(f"PC1 of EF tasks by cluster ({group} group only)\nExplained variance: {explained_var * 100:.1f}%")
+    plt.xlabel("Cluster")
+    plt.ylabel("PC1 (EF)")
+    plt.tight_layout()
+    plt.show(block=False)
+
+    plt.figure(figsize=(8,6))
+    sns.scatterplot(
+        data=df_group,
+        x='PC1', y='PC2',
+        hue='cluster',
+        palette = {0:'#1f77b4', 1:'#ff7f0e'},
+        s=80,
+        alpha=0.8
+    )
+    plt.title(f"PCA of EF data ({group} group only)")
+    plt.xlabel("PC1")
+    plt.ylabel("PC2")
+    plt.legend(title="Cluster")
+    plt.tight_layout()
+    plt.show(block=False)
+
+    # PC1 loadings
+    pc1_loadings = pd.Series(
+        pca.components_[0],
+        index=behavior_cols
+    ).sort_values(key=np.abs, ascending=False)
+
+    print(pc1_loadings)
+
+    # PC2 loadings
+    pc2_loadings = pd.Series(
+        pca.components_[1],
+        index=behavior_cols
+    ).sort_values(key=np.abs, ascending=False)
+
+    print(pc2_loadings)
 
     # --- Prepare LR group for plotting ---
     df_lr = df[df["Risk"] == "LR"].copy()
@@ -165,8 +157,6 @@ def cluster_using_gmm(df, behavior_cols, group):
     # Reverse BRIEF2 scores so that higher = better
     # --- Reverse BRIEF2 scores so higher = better ---
     brief_cols = ["BRIEF2_GEC_T_score"]
-    # brief_cols = ["BRIEF2_GEC_T_score", "BRIEF2_shift_T_score",
-    #               "BRIEF2_inhibit_T_score", "BRIEF2_working_memory_T_score"]
     df_plot[brief_cols] = -df_plot[brief_cols] + df_plot[brief_cols].max(axis=0)
 
     # --- Scale all measures to z-scores across combined HR + LR ---
