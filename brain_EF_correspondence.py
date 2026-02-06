@@ -7,6 +7,8 @@ import scipy.stats as stats
 import statsmodels.stats.multitest as smm
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+
 
 def evaluate_brain_struct_diff_between_clusters(df_clusters, df_hr_z, brain_cols, behavior_cols):
 
@@ -104,5 +106,74 @@ def multi_variate_analsis(df_clusters, df_hr_z, brain_cols):
     # Fit MANOVA: all brain regions as dependent variables, cluster as independent
     maov = MANOVA.from_formula(' + '.join(brain_cols_z) + ' ~ cluster', data=df)
     print(maov.mv_test())
+
+    # -------------------------
+    # LDA (CVA) for 2 clusters
+    # -------------------------
+    X_brain = df[brain_cols_z].values
+    y_cluster = df['cluster'].values
+
+    lda = LDA(n_components=1)  # 1 canonical axis for 2 clusters
+    X_lda = lda.fit_transform(X_brain, y_cluster)
+
+    df['Canonical1'] = X_lda[:, 0]
+
+    # -------------------------
+    # Plot clusters along canonical axis
+    # -------------------------
+    plt.figure(figsize=(8, 6))
+    sns.violinplot(x='cluster', y='Canonical1', data=df, palette={'0':'#1f77b4','1':'#ff7f0e'})
+    sns.stripplot(x='cluster', y='Canonical1', data=df, color='k', alpha=0.6, jitter=True)
+    plt.title("Clusters separated along canonical brain axis")
+    plt.ylabel("Canonical axis (brain volumes)")
+    plt.xlabel("EF cluster")
+    plt.tight_layout()
+    plt.show()
+
+    # -------------------------
+    # Show top regions driving separation
+    # -------------------------
+    coef = pd.Series(lda.coef_[0], index=brain_cols_z).sort_values(key=abs, ascending=False)
+    top_regions = coef.head(10)
+
+    plt.figure(figsize=(8, 4))
+    sns.barplot(x=top_regions.values, y=top_regions.index, palette="viridis")
+    plt.title("Top brain regions driving cluster separation (CVA)")
+    plt.xlabel("Canonical coefficient")
+    plt.tight_layout()
+    plt.show()
+
+    print("\nTop contributing brain regions:\n", top_regions)
+
+    """
+    Plots top regions driving canonical separation, colored by direction.
+    lda: fitted LinearDiscriminantAnalysis object
+    brain_cols_z: list of brain column names (z-scored)
+    top_n: number of top contributing regions to show
+    """
+
+    top_n=10
+
+    # Get canonical coefficients as Series
+    coef = pd.Series(lda.coef_[0], index=brain_cols_z)
+
+    # Select top N by absolute value
+    top_idx = coef.abs().sort_values(ascending=False).head(top_n).index
+    coef_top = coef.loc[top_idx]
+
+    # Assign colors: blue = favors higher EF, red = favors lower EF
+    colors = ['blue' if x > 0 else 'red' for x in coef_top.values]
+
+    # Plot
+    plt.figure(figsize=(8, 5))
+    sns.barplot(x=coef_top.values, y=coef_top.index, palette=colors)
+    plt.axvline(0, color='k', linestyle='--')
+    plt.xlabel("Canonical coefficient")
+    plt.ylabel("Brain region")
+    plt.title(f"Top {top_n} brain regions driving cluster separation\nBlue = higher EF, Red = lower EF")
+    plt.tight_layout()
+    plt.show()
+
+    print("\nCanonical coefficients of top regions:\n", coef_top)
 
     mystop=1
