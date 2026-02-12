@@ -88,7 +88,7 @@ df_hr_z = calc_normative_data(final_brain_df, group_col='Group', lr_label='LR-',
 
 df_hr_z = df_hr_z.drop(columns=['CandID'])
 
-results_ind_brain_regoins = evaluate_brain_struct_diff_between_clusters(df_clusters, df_hr_z, brain_cols, behavior_cols)
+results_ind_brain_regoins  = evaluate_brain_struct_diff_between_clusters(df_clusters, df_hr_z, brain_cols, behavior_cols)
 
 multi_variate_analsis(df_clusters, df_hr_z, brain_cols)
 

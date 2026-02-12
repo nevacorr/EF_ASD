@@ -184,7 +184,7 @@ def multi_variate_analsis(df_clusters, df_hr_z, brain_cols):
     print("\nCanonical coefficients of top regions:\n", coef_top)
 
     # ============================================================
-    # PC1-BASED DIMENSIONAL ANALYSIS (ADDED)
+    # PC1-BASED DIMENSIONAL ANALYSIS
     # ============================================================
 
     print("\n===== PC1-based dimensional brain–behavior analysis =====")
