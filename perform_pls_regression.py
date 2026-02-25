@@ -37,14 +37,17 @@ def optimise_pls_cv(X, y, max_components):
     return optimal_components, min_mse, mse_values, component_range
 
 
-def perform_pls_regression(final_brain_df, brain_cols, df_hr_z, ef_col):
+def perform_pls_regression(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling):
 
     df_ef=final_brain_df[['Identifiers', ef_col]].copy()
     df_all=pd.merge(df_ef, df_hr_z,  on="Identifiers", how="inner")
     df_all=df_all.dropna().reset_index(drop=True)
 
-    # Define features and target variable
-    brain_cols_z = [col + '_z' for col in brain_cols]
+    if perform_norm_modeling:
+        brain_cols_z = [col + '_z' for col in brain_cols]
+    else:
+        brain_cols_z = brain_cols
+
     X = df_all[brain_cols_z].copy()
     y = df_all[ef_col].copy()
 
@@ -57,7 +60,7 @@ def perform_pls_regression(final_brain_df, brain_cols, df_hr_z, ef_col):
     X_train_scaled = scaler.transform(X_train)
     X_test_scaled = scaler.transform(X_test)
 
-    max_components = 10
+    max_components = 3
     optimal_components, min_mse, mse_values, component_range = optimise_pls_cv(X_train_scaled, y_train, max_components)
 
     # Initialize PLS model with desired number of components
@@ -75,6 +78,7 @@ def perform_pls_regression(final_brain_df, brain_cols, df_hr_z, ef_col):
     mse = mean_squared_error(y_test, y_pred)
     print(f"Mean Squared Error: {mse}")
 
+    plt.figure()
     # Visualize predicted vs actual values with different colors
     plt.scatter(y_test, y_pred, c='blue', label='Actual vs Predicted')
     plt.plot([min(y_test), max(y_test)], [min(y_test), max(y_test)], '--', c='red', label='Perfect Prediction')

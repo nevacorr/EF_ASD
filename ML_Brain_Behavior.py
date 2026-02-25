@@ -10,8 +10,10 @@ from brain_EF_correspondence import evaluate_brain_struct_diff_between_clusters,
 from brain_EF_correspondence import multi_variate_analsis
 from perform_pls_regression import perform_pls_regression
 
-brain_metric = 'cortical_thickness_VSA'
+perform_norm_modeling = False
+brain_metric = 'subcort_VSA'
 ef_col = 'BRIEF2_GEC_T_score'
+# ef_col = 'Flanker_Standard_Age_Corrected'
 #options 'volume_infant', 'volume_VSA', 'subcort_VSA', 'subcort_infant', 'ad_VSA', 'rd_VSA', 'md_VSA', 'fa_VSA'
 #        'surface_area_VSA', 'cortical_thickness_VSA', 'subcort_infant+volume_infant'
 
@@ -54,13 +56,20 @@ brain_beh_df = demo_beh_df.merge(brain_df, on='Identifiers', how='left')
 # Also add site as a column to df
 final_brain_df, brain_cols, cov_cols = create_input_for_ML(brain_beh_df, brain_metric)
 
+if brain_metric == 'volume_VSA':
+    brain_cols = [col for col in brain_cols if "Frontal" in col]
+
 # Recode Sex as numeric
 final_brain_df['Sex'] = final_brain_df['Sex'].replace({'Female': 0, 'Male': 1}).astype('Int64')
 
-# Calculte z_scores for HR subjects
-df_hr_z = calc_normative_data(final_brain_df, group_col='Group', lr_label='LR-', hr_labels=['HR+', 'HR-'],
+if perform_norm_modeling:
+    # Calculate z_scores for HR subjects
+    df_hr_z = calc_normative_data(final_brain_df, group_col='Group', lr_label='LR-', hr_labels=['HR+', 'HR-'],
                             brain_cols=brain_cols, covariates=['Sex', 'Final_Age_School_Age', 'ICV_vol_VSA'])
 
-df_hr_z = df_hr_z.drop(columns=['CandID'])
+    df_hr_z = df_hr_z.drop(columns=['CandID'])
 
-perform_pls_regression(final_brain_df, brain_cols, df_hr_z, ef_col)
+else:
+    df_hr_z = final_brain_df[["Identifiers"] + brain_cols]
+
+perform_pls_regression(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling)
