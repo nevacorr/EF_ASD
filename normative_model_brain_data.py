@@ -11,23 +11,20 @@ import statsmodels.formula.api as smf
 from helper_functions_clustering import plot_brain_vs_age_by_sex_from_model
 
 def calc_normative_data(df, group_col='Group', lr_label='LR-', hr_labels=['HR+', 'HR-'],
-                        brain_cols=None, ef_col=None, covariates=['Sex', 'Age'],
-                        random_state=42):
+                        brain_cols=None, covariates=['Sex', 'Final_Age_School_Age', 'ICV_vol_VSA'], random_state=42):
     """
     1. Fit normative models on LR kids
     2. Compute z-scores for HR kids
     """
-
     # --------------- 1. Split dataframe ---------------
     df_lr = df[df[group_col] == lr_label].copy()
     df_hr = df[df[group_col].isin(hr_labels)].copy()
+    df_lr.reset_index(drop=True, inplace=True)
+    df_hr.reset_index(drop=True, inplace=True)
 
     # --------------- 2. Compute z-scores ---------------
     z_cols = []
-    df_hr_z = pd.DataFrame()
-    df_hr_z['CandID'] = df_hr['CandID']
-    df_hr_z['Identifiers'] = df_hr['Identifiers']
-    df_hr_z.reset_index(inplace=True, drop=True)
+    df_hr_z = df_hr[['CandID', 'Identifiers']].copy()
     for col in brain_cols:
         # Keep only rows without NaN in covariates or the brain metric
         df_lr_clean = df_lr.dropna(subset=covariates + [col]).copy()
