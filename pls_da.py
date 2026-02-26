@@ -32,7 +32,6 @@ def pls_da(final_brain_df, brain_cols, df_hr, ef_col):
 
     X_group = X_brain[mask]
     y_group = y_EF[mask].copy()
-    cov_group = covariates[mask]
 
     # Binary labels: 0 = Low EF, 1 = High EF
     y_group[:] = (y_group > q_high).astype(int)
@@ -40,12 +39,7 @@ def pls_da(final_brain_df, brain_cols, df_hr, ef_col):
     # -----------------------------
     # Step 3: Covariate adjustment (residualization)
     # -----------------------------
-    X_resid = pd.DataFrame(index=X_group.index, columns=X_group.columns)
-
-    for col in X_group.columns:
-        X_col = X_group[col]
-        model = sm.OLS(X_col, sm.add_constant(cov_group)).fit()
-        X_resid[col] = model.resid
+    X_resid = X_group.copy()
 
     # -----------------------------
     # Step 4: Standardize features
