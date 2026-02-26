@@ -9,9 +9,10 @@ from load_data_for_ML import load_all_data
 from brain_EF_correspondence import evaluate_brain_struct_diff_between_clusters, univariate_regression
 from brain_EF_correspondence import multi_variate_analsis
 from perform_pls_regression import perform_pls_regression
+from pls_da import pls_da
 
 perform_norm_modeling = False
-brain_metric = 'subcort_VSA'
+brain_metric = 'volume_VSA'
 ef_col = 'BRIEF2_GEC_T_score'
 # ef_col = 'Flanker_Standard_Age_Corrected'
 #options 'volume_infant', 'volume_VSA', 'subcort_VSA', 'subcort_infant', 'ad_VSA', 'rd_VSA', 'md_VSA', 'fa_VSA'
@@ -72,4 +73,6 @@ if perform_norm_modeling:
 else:
     df_hr_z = final_brain_df[["Identifiers"] + brain_cols]
 
-perform_pls_regression(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling)
+# perform_pls_regression(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling)
+
+pls_da(final_brain_df, brain_cols, df_hr_z, ef_col)
