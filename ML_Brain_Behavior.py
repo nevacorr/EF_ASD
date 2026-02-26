@@ -11,10 +11,12 @@ from brain_EF_correspondence import multi_variate_analsis
 from perform_pls_regression import perform_pls_regression
 from pls_da import pls_da
 
+
 perform_norm_modeling = False
 brain_metric = 'volume_VSA'
 ef_col = 'BRIEF2_GEC_T_score'
 # ef_col = 'Flanker_Standard_Age_Corrected'
+# ef_col = 'DCCS_Standard_Age_Corrected'
 #options 'volume_infant', 'volume_VSA', 'subcort_VSA', 'subcort_infant', 'ad_VSA', 'rd_VSA', 'md_VSA', 'fa_VSA'
 #        'surface_area_VSA', 'cortical_thickness_VSA', 'subcort_infant+volume_infant'
 
@@ -75,4 +77,4 @@ else:
 
 # perform_pls_regression(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling)
 
-pls_da(final_brain_df, brain_cols, df_hr_z, ef_col)
+pls_da(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling)
