@@ -38,18 +38,20 @@ def pls_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     # Binary labels: 0 = Low EF, 1 = High EF
     y_group[:] = (y_group > q_high).astype(int)
 
-    # -----------------------------
-    # Step 4: Standardize features
-    # -----------------------------
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X_group)
 
     # -----------------------------
-    # Step 5: Train/Test split
+    # Step 4: Train/Test split
     # -----------------------------
     X_train, X_test, y_train, y_test = train_test_split(
-        X_scaled, y_group, test_size=0.2, stratify=y_group, random_state=42
+        X_group, y_group, test_size=0.2, stratify=y_group, random_state=42
     )
+
+    # -----------------------------
+    # Step 5: Standardize features
+    # -----------------------------
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
 
     # -----------------------------
     # Step 4: Cross-validation to select n_components
@@ -88,7 +90,7 @@ def pls_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     # -----------------------------
     # Step 6: Permutation testing on test set
     # -----------------------------
-    n_permutations = 1000
+    n_permutations = 10000
     perm_aucs = []
 
     for i in tqdm(range(n_permutations)):
