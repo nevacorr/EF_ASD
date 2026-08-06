@@ -9,14 +9,10 @@ from scipy.stats import pearsonr
 def pls_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     import pandas as pd
     # -----------------------------
-    # Step 1: Prepare your data
+    # Step 1: Prepare data
     # -----------------------------
-    # X_brain: subjects x brain features (numpy array or DataFrame)
-    # y_EF: continuous EF scores (numpy array or Series)
-
-    # Example placeholder data
-    # X_brain = pd.DataFrame(np.random.rand(50, 100))  # 50 subjects, 100 brain features
-    # y_EF = pd.Series(np.random.rand(50))
+    # X_brain: brain features
+    # y_EF: EF scores
 
     if perform_norm_modeling:
         brain_cols= [col + '_z' for col in brain_cols]
@@ -111,133 +107,134 @@ def pls_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     brain_feature_importance = pd.Series(feature_weights, index=X_brain.columns).sort_values(ascending=False)
     print("Top 10 features driving Low vs High EF separation:")
     print(brain_feature_importance.head(10))
+    mystop=1
 
-    import pandas as pd
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    from scipy.stats import f_oneway
-    from statsmodels.stats.multicomp import pairwise_tukeyhsd
-
-    # -----------------------------
-    # Step 1: Compute Frontal EF Index
-    # -----------------------------
-    # Use your 4 PLS features and weights
-    frontal_index = (
-            0.746488 * X_brain['Frontal_L_WM_VSA'] +
-            0.467038 * X_brain['Frontal_L_GM_VSA'] +
-            0.452255 * X_brain['Frontal_R_WM_VSA'] +
-            -0.141765 * X_brain['Frontal_R_GM_VSA']
-    )
-
-    # Create DataFrame including risk group
-    df_plot = pd.DataFrame({
-        'Frontal_Index': frontal_index,
-        'Risk_Group': X_Group  # HR+, HR-, LR-
-    })
-
-    # -----------------------------
-    # Step 2: Boxplot with swarm
-    # -----------------------------
-    plt.figure(figsize=(6, 4))
-    sns.boxplot(x='Risk_Group', y='Frontal_Index', data=df_plot, palette="pastel")
-    sns.swarmplot(x='Risk_Group', y='Frontal_Index', data=df_plot, color=".25")
-    plt.ylabel('Frontal EF Index (PLS Component 1)')
-    plt.title('Frontal EF Index by Risk Group')
-    plt.show()
-
-    # -----------------------------
-    # Step 3: Statistical testing (ANOVA)
-    # -----------------------------
-    HR_plus = df_plot[df_plot['Risk_Group'] == 'HR+']['Frontal_Index']
-    HR_minus = df_plot[df_plot['Risk_Group'] == 'HR-']['Frontal_Index']
-    LR_minus = df_plot[df_plot['Risk_Group'] == 'LR-']['Frontal_Index']
-
-    F_stat, p_val = f_oneway(HR_plus, HR_minus, LR_minus)
-    print(f"ANOVA F={F_stat:.2f}, p={p_val:.3f}")
-
-    # -----------------------------
-    # Step 4: Post-hoc comparisons (Tukey HSD)
-    # -----------------------------
-    tukey = pairwise_tukeyhsd(endog=df_plot['Frontal_Index'],
-                              groups=df_plot['Risk_Group'],
-                              alpha=0.05)
-    print(tukey)
-
-    # Optional: plot Tukey HSD results
-    tukey.plot_simultaneous()
-    plt.title("Tukey HSD: Pairwise Risk Group Comparisons")
-    plt.show()
-
-    # -----------------------------
-    # Step 1: Add EF scores to the plotting DataFrame
-    # -----------------------------
-    df_plot['EF_Score'] = df_all[ef_col]  # make sure df_all has EF scores
-    df_plot['Frontal_Index'] = frontal_index  # your PLS-weighted index
-
-    # -----------------------------
-    # Step 2: Overall correlation
-    # -----------------------------
-    r_all, p_all = pearsonr(df_plot['Frontal_Index'], df_plot['EF_Score'])
-    print(f"Overall correlation: r = {r_all:.3f}, p = {p_all:.3f}")
-
-    # Scatter plot with regression line
-    plt.figure(figsize=(6, 5))
-    sns.scatterplot(x='Frontal_Index', y='EF_Score', hue='Risk_Group', data=df_plot, s=70)
-    sns.regplot(x='Frontal_Index', y='EF_Score', data=df_plot, scatter=False, color='gray')
-    plt.title(f'Frontal EF Index vs EF Score (Overall) \nr={r_all:.2f}, p={p_all:.3f}')
-    plt.xlabel('Frontal EF Index (PLS component 1)')
-    plt.ylabel('EF Score')
-    plt.legend(title='Risk Group')
-    plt.show()
-
-    # -----------------------------
-    # Step 3: Within-group correlations
-    # -----------------------------
-    for group in df_plot['Risk_Group'].unique():
-        sub = df_plot[df_plot['Risk_Group'] == group]
-        r, p = pearsonr(sub['Frontal_Index'], sub['EF_Score'])
-        print(f"{group}: r = {r:.3f}, p = {p:.3f}")
-
-        # Optional: scatter plot per group
-        plt.scatter(sub['Frontal_Index'], sub['EF_Score'], label=f"{group} (r={r:.2f})")
-
-    plt.xlabel('Frontal EF Index (PLS component 1)')
-    plt.ylabel('EF Score')
-    plt.title('Frontal EF Index vs EF Score by Risk Group')
-    plt.legend()
-    plt.show()
-
-    # -----------------------------
-    # Step 1: Define Low vs High EF groups
-    # -----------------------------
-    # You can define extremes based on percentiles, e.g., bottom/top 25%
-    low_thresh = df_plot['EF_Score'].quantile(0.25)
-    high_thresh = df_plot['EF_Score'].quantile(0.75)
-
-    df_plot['EF_Group'] = 'Middle'
-    df_plot.loc[df_plot['EF_Score'] <= low_thresh, 'EF_Group'] = 'Low EF'
-    df_plot.loc[df_plot['EF_Score'] >= high_thresh, 'EF_Group'] = 'High EF'
-
-    # Keep only Low and High for plotting
-    df_extremes = df_plot[df_plot['EF_Group'].isin(['Low EF', 'High EF'])]
-
-    # -----------------------------
-    # Step 2: Boxplot with swarm for extremes
-    # -----------------------------
-    plt.figure(figsize=(6, 5))
-    sns.boxplot(x='EF_Group', y='Frontal_Index', data=df_extremes, palette="pastel")
-    sns.swarmplot(x='EF_Group', y='Frontal_Index', data=df_extremes, color=".25")
-    plt.ylabel('Frontal EF Index (PLS Component 1)')
-    plt.title('Frontal EF Index: Low vs High EF')
-    plt.show()
-
-    # -----------------------------
-    # Step 3: Statistical test (t-test)
-    # -----------------------------
-    from scipy.stats import ttest_ind
-
-    low_vals = df_extremes[df_extremes['EF_Group'] == 'Low EF']['Frontal_Index']
-    high_vals = df_extremes[df_extremes['EF_Group'] == 'High EF']['Frontal_Index']
-
-    t_stat, p_val = ttest_ind(low_vals, high_vals)
-    print(f"Low vs High EF: t = {t_stat:.3f}, p = {p_val:.3f}")
+    # import pandas as pd
+    # import matplotlib.pyplot as plt
+    # import seaborn as sns
+    # from scipy.stats import f_oneway
+    # from statsmodels.stats.multicomp import pairwise_tukeyhsd
+    #
+    # # -----------------------------
+    # # Step 1: Compute Frontal EF Index
+    # # -----------------------------
+    # # Use your 4 PLS features and weights
+    # frontal_index = (
+    #         0.746488 * X_brain['Frontal_L_WM_VSA'] +
+    #         0.467038 * X_brain['Frontal_L_GM_VSA'] +
+    #         0.452255 * X_brain['Frontal_R_WM_VSA'] +
+    #         -0.141765 * X_brain['Frontal_R_GM_VSA']
+    # )
+    #
+    # # Create DataFrame including risk group
+    # df_plot = pd.DataFrame({
+    #     'Frontal_Index': frontal_index,
+    #     'Risk_Group': X_Group  # HR+, HR-, LR-
+    # })
+    #
+    # # -----------------------------
+    # # Step 2: Boxplot with swarm
+    # # -----------------------------
+    # plt.figure(figsize=(6, 4))
+    # sns.boxplot(x='Risk_Group', y='Frontal_Index', data=df_plot, palette="pastel")
+    # sns.swarmplot(x='Risk_Group', y='Frontal_Index', data=df_plot, color=".25")
+    # plt.ylabel('Frontal EF Index (PLS Component 1)')
+    # plt.title('Frontal EF Index by Risk Group')
+    # plt.show()
+    #
+    # # -----------------------------
+    # # Step 3: Statistical testing (ANOVA)
+    # # -----------------------------
+    # HR_plus = df_plot[df_plot['Risk_Group'] == 'HR+']['Frontal_Index']
+    # HR_minus = df_plot[df_plot['Risk_Group'] == 'HR-']['Frontal_Index']
+    # LR_minus = df_plot[df_plot['Risk_Group'] == 'LR-']['Frontal_Index']
+    #
+    # F_stat, p_val = f_oneway(HR_plus, HR_minus, LR_minus)
+    # print(f"ANOVA F={F_stat:.2f}, p={p_val:.3f}")
+    #
+    # # -----------------------------
+    # # Step 4: Post-hoc comparisons (Tukey HSD)
+    # # -----------------------------
+    # tukey = pairwise_tukeyhsd(endog=df_plot['Frontal_Index'],
+    #                           groups=df_plot['Risk_Group'],
+    #                           alpha=0.05)
+    # print(tukey)
+    #
+    # # Optional: plot Tukey HSD results
+    # tukey.plot_simultaneous()
+    # plt.title("Tukey HSD: Pairwise Risk Group Comparisons")
+    # plt.show()
+    #
+    # # -----------------------------
+    # # Step 1: Add EF scores to the plotting DataFrame
+    # # -----------------------------
+    # df_plot['EF_Score'] = df_all[ef_col]  # make sure df_all has EF scores
+    # df_plot['Frontal_Index'] = frontal_index  # your PLS-weighted index
+    #
+    # # -----------------------------
+    # # Step 2: Overall correlation
+    # # -----------------------------
+    # r_all, p_all = pearsonr(df_plot['Frontal_Index'], df_plot['EF_Score'])
+    # print(f"Overall correlation: r = {r_all:.3f}, p = {p_all:.3f}")
+    #
+    # # Scatter plot with regression line
+    # plt.figure(figsize=(6, 5))
+    # sns.scatterplot(x='Frontal_Index', y='EF_Score', hue='Risk_Group', data=df_plot, s=70)
+    # sns.regplot(x='Frontal_Index', y='EF_Score', data=df_plot, scatter=False, color='gray')
+    # plt.title(f'Frontal EF Index vs EF Score (Overall) \nr={r_all:.2f}, p={p_all:.3f}')
+    # plt.xlabel('Frontal EF Index (PLS component 1)')
+    # plt.ylabel('EF Score')
+    # plt.legend(title='Risk Group')
+    # plt.show()
+    #
+    # # -----------------------------
+    # # Step 3: Within-group correlations
+    # # -----------------------------
+    # for group in df_plot['Risk_Group'].unique():
+    #     sub = df_plot[df_plot['Risk_Group'] == group]
+    #     r, p = pearsonr(sub['Frontal_Index'], sub['EF_Score'])
+    #     print(f"{group}: r = {r:.3f}, p = {p:.3f}")
+    #
+    #     # Optional: scatter plot per group
+    #     plt.scatter(sub['Frontal_Index'], sub['EF_Score'], label=f"{group} (r={r:.2f})")
+    #
+    # plt.xlabel('Frontal EF Index (PLS component 1)')
+    # plt.ylabel('EF Score')
+    # plt.title('Frontal EF Index vs EF Score by Risk Group')
+    # plt.legend()
+    # plt.show()
+    #
+    # # -----------------------------
+    # # Step 1: Define Low vs High EF groups
+    # # -----------------------------
+    # # You can define extremes based on percentiles, e.g., bottom/top 25%
+    # low_thresh = df_plot['EF_Score'].quantile(0.25)
+    # high_thresh = df_plot['EF_Score'].quantile(0.75)
+    #
+    # df_plot['EF_Group'] = 'Middle'
+    # df_plot.loc[df_plot['EF_Score'] <= low_thresh, 'EF_Group'] = 'Low EF'
+    # df_plot.loc[df_plot['EF_Score'] >= high_thresh, 'EF_Group'] = 'High EF'
+    #
+    # # Keep only Low and High for plotting
+    # df_extremes = df_plot[df_plot['EF_Group'].isin(['Low EF', 'High EF'])]
+    #
+    # # -----------------------------
+    # # Step 2: Boxplot with swarm for extremes
+    # # -----------------------------
+    # plt.figure(figsize=(6, 5))
+    # sns.boxplot(x='EF_Group', y='Frontal_Index', data=df_extremes, palette="pastel")
+    # sns.swarmplot(x='EF_Group', y='Frontal_Index', data=df_extremes, color=".25")
+    # plt.ylabel('Frontal EF Index (PLS Component 1)')
+    # plt.title('Frontal EF Index: Low vs High EF')
+    # plt.show()
+    #
+    # # -----------------------------
+    # # Step 3: Statistical test (t-test)
+    # # -----------------------------
+    # from scipy.stats import ttest_ind
+    #
+    # low_vals = df_extremes[df_extremes['EF_Group'] == 'Low EF']['Frontal_Index']
+    # high_vals = df_extremes[df_extremes['EF_Group'] == 'High EF']['Frontal_Index']
+    #
+    # t_stat, p_val = ttest_ind(low_vals, high_vals)
+    # print(f"Low vs High EF: t = {t_stat:.3f}, p = {p_val:.3f}")

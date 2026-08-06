@@ -12,7 +12,7 @@ from perform_pls_regression import perform_pls_regression
 from pls_da import pls_da
 
 
-perform_norm_modeling = False
+perform_norm_modeling = True
 brain_metric = 'volume_VSA'
 ef_col = 'BRIEF2_GEC_T_score'
 # ef_col = 'Flanker_Standard_Age_Corrected'
@@ -59,8 +59,8 @@ brain_beh_df = demo_beh_df.merge(brain_df, on='Identifiers', how='left')
 # Also add site as a column to df
 final_brain_df, brain_cols, cov_cols = create_input_for_ML(brain_beh_df, brain_metric)
 
-if brain_metric == 'volume_VSA':
-    brain_cols = [col for col in brain_cols if "Frontal" in col]
+# if brain_metric == 'volume_VSA':
+#     brain_cols = [col for col in brain_cols if "Frontal" in col]
 
 # Recode Sex as numeric
 final_brain_df['Sex'] = final_brain_df['Sex'].replace({'Female': 0, 'Male': 1}).astype('Int64')
