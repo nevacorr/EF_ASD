@@ -13,7 +13,7 @@ from xgboost import XGBRegressor
 from plot_feature_histograms import plot_feature_histograms
 
 target = "BRIEF2_GEC_T_score"
-metric = 'cortical_thickness_VSA'
+metric = 'surface_area_VSA'
 #options 'volume_infant', 'volume_VSA', 'subcort_VSA', 'subcort_infant', 'ad_VSA', 'rd_VSA', 'md_VSA', 'fa_VSA'
 #        'surface_area_VSA', 'cortical_thickness_VSA', 'subcort_infant+volume_infant'
 working_dir = os.getcwd()
@@ -56,8 +56,7 @@ df_hr_z_nocandID = df_hr_z.drop(columns=['CandID'])
 
 # Create behavior dataframe with same subjects
 
-behavior_cols = ['CandID', 'BRIEF2_GEC_T_score', 'BRIEF2_GEC_raw_score',
-                   'Flanker_Standard_Age_Corrected', 'DCCS_Standard_Age_Corrected']
+behavior_cols = ['CandID', 'AB_24_Percent']
 
 # Filter df to only the rows in df_hr_z['CandID'] and only the columns in columns_to_keep
 behavior_df = df[df['CandID'].isin(df_hr_z['CandID'])][behavior_cols]

@@ -55,6 +55,7 @@ def create_input_for_ML(dforig, metric):
         pred_brain_cols = df.columns[df.columns.str.contains("CT_VSA")].tolist()
     elif metric == "surface_area_VSA":
         pred_brain_cols = df.columns[df.columns.str.contains("SA_VSA")].tolist()
+        ICV_cols = ['ICV_V12', 'ICV_V24', 'ICV_vol_VSA']
     elif metric in {"fa_VSA", "rd_VSA", "md_VSA", "ad_VSA"}:
         prefix = metric.split('_')[0]  # Extracts the prefix (e.g., "fa" from "fa_VSA")
         pred_brain_cols = df.columns[df.columns.str.startswith(prefix.upper() + '_')].tolist()

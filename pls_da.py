@@ -1,242 +1,178 @@
 import numpy as np
+import pandas as pd
 from sklearn.cross_decomposition import PLSRegression
-from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
+from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
-from scipy.stats import pearsonr
+from joblib import Parallel, delayed
+import matplotlib.pyplot as plt
+from plot_pls_scores import plot_pls_scores
+
+def run_cv_pipeline(X, y, max_components, outer_cv, inner_cv):
+    """
+    Runs nested cross-validation:
+      - Outer loop: evaluates model AUC on held-out fold
+      - Inner loop: selects optimal number of PLS components
+    Standardization is performed inside each outer fold to prevent leakage.
+    Note: PLSRegression is used with binary Y (0/1) to perform PLS-DA —
+    sklearn has no separate PLS-DA class.
+    Returns mean AUC across outer folds.
+    """
+    fold_aucs = []
+    pls1_scores = []
+    pls1_labels = []
+
+    for train_idx, test_idx in outer_cv.split(X, y):
+        X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+        y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
+
+        # ── Standardize inside fold (fit on train only) ───────────────────────
+        scaler = StandardScaler()
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled  = scaler.transform(X_test)
+
+        # ── Inner CV: select optimal n_components ─────────────────────────────
+        best_inner_auc = -np.inf
+        best_n = 1
+        for n_comp in range(1, max_components + 1):
+            pls = PLSRegression(n_components=n_comp)
+            inner_aucs = []
+            for inner_train_idx, inner_val_idx in inner_cv.split(X_train, y_train):
+                # Scale within each inner fold
+                scaler_inner = StandardScaler()
+                X_inner_train = scaler_inner.fit_transform(X_train.iloc[inner_train_idx])
+                X_inner_val = scaler_inner.transform(X_train.iloc[inner_val_idx])
+                pls.fit(X_inner_train, y_train.iloc[inner_train_idx])
+                y_val_pred = pls.predict(X_inner_val).ravel()
+                inner_aucs.append(roc_auc_score(y_train.iloc[inner_val_idx], y_val_pred))
+            mean_inner_auc = np.mean(inner_aucs)
+            if mean_inner_auc > best_inner_auc:
+                best_inner_auc = mean_inner_auc
+                best_n = n_comp
+
+        # ── Fit on full outer fold train set, evaluate on held-out test ───────
+        pls_fold = PLSRegression(n_components=best_n)
+        pls_fold.fit(X_train_scaled, y_train)
+        y_test_pred = pls_fold.predict(X_test_scaled).ravel()
+        fold_aucs.append(roc_auc_score(y_test, y_test_pred))
+
+        # Out-of-fold PLS1 scores for visualization
+        y_test_scores = pls_fold.transform(X_test_scaled)[:, 0]
+
+        pls1_scores.extend(y_test_scores)
+        pls1_labels.extend(y_test)
+
+    return np.mean(fold_aucs), np.array(pls1_scores), np.array(pls1_labels)
+
+
+def single_permutation(X, y, max_components):
+    """
+    Runs one permutation — shuffles labels and reruns the full nested CV pipeline
+    with fresh CV splits (random_state=None) so each permutation uses different folds.
+    """
+    y_perm   = pd.Series(np.random.permutation(y), index=y.index)
+    outer_cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=None)
+    inner_cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=None)
+
+    perm_auc, _, _ = run_cv_pipeline(X, y_perm, max_components, outer_cv, inner_cv)
+
+    return perm_auc
+
 
 def pls_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
-    import pandas as pd
-    # -----------------------------
-    # Step 1: Prepare data
-    # -----------------------------
-    # X_brain: brain features
-    # y_EF: EF scores
 
+    # ── Step 1: Prepare data ──────────────────────────────────────────────────
     if perform_norm_modeling:
-        brain_cols= [col + '_z' for col in brain_cols]
+        brain_cols = [col + '_z' for col in brain_cols]
 
-    df_ef=final_brain_df[['Identifiers', ef_col, 'Group']].copy()
-    df_all=pd.merge(df_ef, df_hr,  on="Identifiers", how="inner")
-    df_all=df_all.dropna().reset_index(drop=True)
+    # Keep only Frontal and Parietal regions
+    # brain_cols = [col for col in brain_cols if any(r in col for r in ['Frontal', 'Parietal', 'Temporal', 'Insula', 'Occipital'])]
+
+    df_ef  = final_brain_df[['Identifiers', ef_col, 'Group']].copy()
+    df_all = pd.merge(df_ef, df_hr, on="Identifiers", how="inner")
+    df_all = df_all.dropna().reset_index(drop=True)
 
     X_brain = df_all[brain_cols].copy()
-    y_EF = df_all[ef_col].copy()
+    y_EF    = df_all[ef_col].copy()
     X_Group = df_all['Group'].copy()
 
-    # -----------------------------
-    # Step 2: Extreme group selection
-    # -----------------------------
-    q_low = y_EF.quantile(0.25)
+    # ── Step 2: Extreme group selection ──────────────────────────────────────
+    q_low  = y_EF.quantile(0.25)
     q_high = y_EF.quantile(0.75)
-    mask = (y_EF <= q_low) | (y_EF >= q_high)
+    mask   = (y_EF <= q_low) | (y_EF >= q_high)
 
-    X_group = X_brain[mask]
-    y_group = y_EF[mask].copy()
+    X_group = X_brain[mask].reset_index(drop=True)
+    y_group = y_EF[mask].copy().reset_index(drop=True)
+    y_group[:] = (y_group > q_high).astype(int)   # 0 = Low EF, 1 = High EF
 
-    # Binary labels: 0 = Low EF, 1 = High EF
-    y_group[:] = (y_group > q_high).astype(int)
+    print(f"Subjects in extreme groups: {len(y_group)} "
+          f"(Low EF: {(y_group==0).sum()}, High EF: {(y_group==1).sum()})")
 
+    max_components = min(X_group.shape[0] // 2, X_group.shape[1], 5)
 
-    # -----------------------------
-    # Step 4: Train/Test split
-    # -----------------------------
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_group, y_group, test_size=0.2, stratify=y_group, random_state=42
+    # Different seeds for outer and inner CV to prevent correlated splits
+    outer_cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    inner_cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=43)
+
+    # ── Step 3: Nested CV — observed AUC ─────────────────────────────────────
+    mean_auc, pls1_scores, pls1_labels = run_cv_pipeline(X_group, y_group, max_components, outer_cv, inner_cv)
+    print(f"Nested CV AUC: {mean_auc:.3f}")
+
+    # ── Step 4: Permutation test — parallel, each permutation uses fresh CV splits ──
+    n_permutations = 1000
+    perm_aucs = Parallel(n_jobs=-1)(
+        delayed(single_permutation)(X_group, y_group, max_components)
+        for _ in tqdm(range(n_permutations), desc="Permutation test")
     )
 
-    # -----------------------------
-    # Step 5: Standardize features
-    # -----------------------------
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(X_train)
-    X_test = scaler.transform(X_test)
+    perm_aucs = np.array(perm_aucs)
+    p_value   = (np.sum(perm_aucs >= mean_auc) + 1) / (n_permutations + 1)
+    print(f"Permutation p-value: {p_value:.3f}")
 
-    # -----------------------------
-    # Step 4: Cross-validation to select n_components
-    # -----------------------------
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    max_components = min(X_train.shape[0], X_train.shape[1], 5)
+    # ── Step 5: Fit final model on ALL data for feature importance ────────────
 
-    best_auc = 0
-    best_n = 1
-
+    # Select best n_components using full-data inner CV
+    best_auc_final = -np.inf
+    best_n_final   = 1
     for n_comp in range(1, max_components + 1):
         pls = PLSRegression(n_components=n_comp)
-        aucs = []
-        for train_idx, val_idx in cv.split(X_train, y_train):
-            pls.fit(X_train[train_idx], y_train.iloc[train_idx])
-            y_val_pred = pls.predict(X_train[val_idx]).ravel()
-            aucs.append(roc_auc_score(y_train.iloc[val_idx], y_val_pred))
-        mean_auc = np.mean(aucs)
-        if mean_auc > best_auc:
-            best_auc = mean_auc
-            best_n = n_comp
+        fold_aucs = []
+        for train_idx, val_idx in inner_cv.split(X_group, y_group):
+            scaler = StandardScaler()
+            X_train = scaler.fit_transform(X_group.iloc[train_idx])
+            X_val = scaler.transform(X_group.iloc[val_idx])
+            pls.fit(X_train, y_group.iloc[train_idx])
+            y_val_pred = pls.predict(X_val).ravel()
+            fold_aucs.append(roc_auc_score(y_group.iloc[val_idx], y_val_pred))
+        mean_fold_auc = np.mean(fold_aucs)
+        if mean_fold_auc > best_auc_final:
+            best_auc_final = mean_fold_auc
+            best_n_final = n_comp
+    scaler_final = StandardScaler()
+    X_all_scaled = scaler_final.fit_transform(X_group)
+    pls_final = PLSRegression(n_components=best_n_final)
+    pls_final.fit(X_all_scaled, y_group)
+    print(f"Final model n_components: {best_n_final}")
+    # Plot first two components
+    plot_pls_scores(pls_final, y_group)
 
-    print(f"Selected n_components: {best_n}, CV AUC: {best_auc:.3f}")
+    # ── Step 6: Feature importance ────────────────────────────────────────────
+    # Feature weights for all PLS components
+    feature_weights = pd.DataFrame(
+        pls_final.x_weights_,
+        index=brain_cols,
+        columns=[f"Component {i + 1}" for i in range(pls_final.x_weights_.shape[1])]
+    )
 
-    # -----------------------------
-    # Step 5: Train final model on full training set
-    # -----------------------------
-    pls_final = PLSRegression(n_components=best_n)
-    pls_final.fit(X_train, y_train)
+    for component in feature_weights.columns:
+        print(f"\nTop features contributing to {component}:")
 
-    # Predict on test set
-    y_test_pred = pls_final.predict(X_test).ravel()
-    test_auc = roc_auc_score(y_test, y_test_pred)
-    print(f"Test ROC AUC: {test_auc:.3f}")
+        component_weights = feature_weights[component]
+        importance = component_weights.reindex(
+            component_weights.abs().sort_values(ascending=False).index
+        )
 
-    # -----------------------------
-    # Step 6: Permutation testing on test set
-    # -----------------------------
-    n_permutations = 10000
-    perm_aucs = []
+        print(importance.head(10))
 
-    for i in tqdm(range(n_permutations)):
-        y_perm = np.random.permutation(y_test)  # shuffle test labels
-        perm_auc = roc_auc_score(y_perm, y_test_pred)
-        perm_aucs.append(perm_auc)
-
-    perm_aucs = np.array(perm_aucs)
-    p_value = (np.sum(perm_aucs >= test_auc) + 1) / (n_permutations + 1)
-    print(f"Permutation p-value for test AUC: {p_value:.3f}")
-
-    # -----------------------------
-    # Step 7: Feature importance
-    # -----------------------------
-    feature_weights = pls_final.x_weights_[:, 0]
-    brain_feature_importance = pd.Series(feature_weights, index=X_brain.columns).sort_values(ascending=False)
-    print("Top 10 features driving Low vs High EF separation:")
-    print(brain_feature_importance.head(10))
-    mystop=1
-
-    # import pandas as pd
-    # import matplotlib.pyplot as plt
-    # import seaborn as sns
-    # from scipy.stats import f_oneway
-    # from statsmodels.stats.multicomp import pairwise_tukeyhsd
-    #
-    # # -----------------------------
-    # # Step 1: Compute Frontal EF Index
-    # # -----------------------------
-    # # Use your 4 PLS features and weights
-    # frontal_index = (
-    #         0.746488 * X_brain['Frontal_L_WM_VSA'] +
-    #         0.467038 * X_brain['Frontal_L_GM_VSA'] +
-    #         0.452255 * X_brain['Frontal_R_WM_VSA'] +
-    #         -0.141765 * X_brain['Frontal_R_GM_VSA']
-    # )
-    #
-    # # Create DataFrame including risk group
-    # df_plot = pd.DataFrame({
-    #     'Frontal_Index': frontal_index,
-    #     'Risk_Group': X_Group  # HR+, HR-, LR-
-    # })
-    #
-    # # -----------------------------
-    # # Step 2: Boxplot with swarm
-    # # -----------------------------
-    # plt.figure(figsize=(6, 4))
-    # sns.boxplot(x='Risk_Group', y='Frontal_Index', data=df_plot, palette="pastel")
-    # sns.swarmplot(x='Risk_Group', y='Frontal_Index', data=df_plot, color=".25")
-    # plt.ylabel('Frontal EF Index (PLS Component 1)')
-    # plt.title('Frontal EF Index by Risk Group')
-    # plt.show()
-    #
-    # # -----------------------------
-    # # Step 3: Statistical testing (ANOVA)
-    # # -----------------------------
-    # HR_plus = df_plot[df_plot['Risk_Group'] == 'HR+']['Frontal_Index']
-    # HR_minus = df_plot[df_plot['Risk_Group'] == 'HR-']['Frontal_Index']
-    # LR_minus = df_plot[df_plot['Risk_Group'] == 'LR-']['Frontal_Index']
-    #
-    # F_stat, p_val = f_oneway(HR_plus, HR_minus, LR_minus)
-    # print(f"ANOVA F={F_stat:.2f}, p={p_val:.3f}")
-    #
-    # # -----------------------------
-    # # Step 4: Post-hoc comparisons (Tukey HSD)
-    # # -----------------------------
-    # tukey = pairwise_tukeyhsd(endog=df_plot['Frontal_Index'],
-    #                           groups=df_plot['Risk_Group'],
-    #                           alpha=0.05)
-    # print(tukey)
-    #
-    # # Optional: plot Tukey HSD results
-    # tukey.plot_simultaneous()
-    # plt.title("Tukey HSD: Pairwise Risk Group Comparisons")
-    # plt.show()
-    #
-    # # -----------------------------
-    # # Step 1: Add EF scores to the plotting DataFrame
-    # # -----------------------------
-    # df_plot['EF_Score'] = df_all[ef_col]  # make sure df_all has EF scores
-    # df_plot['Frontal_Index'] = frontal_index  # your PLS-weighted index
-    #
-    # # -----------------------------
-    # # Step 2: Overall correlation
-    # # -----------------------------
-    # r_all, p_all = pearsonr(df_plot['Frontal_Index'], df_plot['EF_Score'])
-    # print(f"Overall correlation: r = {r_all:.3f}, p = {p_all:.3f}")
-    #
-    # # Scatter plot with regression line
-    # plt.figure(figsize=(6, 5))
-    # sns.scatterplot(x='Frontal_Index', y='EF_Score', hue='Risk_Group', data=df_plot, s=70)
-    # sns.regplot(x='Frontal_Index', y='EF_Score', data=df_plot, scatter=False, color='gray')
-    # plt.title(f'Frontal EF Index vs EF Score (Overall) \nr={r_all:.2f}, p={p_all:.3f}')
-    # plt.xlabel('Frontal EF Index (PLS component 1)')
-    # plt.ylabel('EF Score')
-    # plt.legend(title='Risk Group')
-    # plt.show()
-    #
-    # # -----------------------------
-    # # Step 3: Within-group correlations
-    # # -----------------------------
-    # for group in df_plot['Risk_Group'].unique():
-    #     sub = df_plot[df_plot['Risk_Group'] == group]
-    #     r, p = pearsonr(sub['Frontal_Index'], sub['EF_Score'])
-    #     print(f"{group}: r = {r:.3f}, p = {p:.3f}")
-    #
-    #     # Optional: scatter plot per group
-    #     plt.scatter(sub['Frontal_Index'], sub['EF_Score'], label=f"{group} (r={r:.2f})")
-    #
-    # plt.xlabel('Frontal EF Index (PLS component 1)')
-    # plt.ylabel('EF Score')
-    # plt.title('Frontal EF Index vs EF Score by Risk Group')
-    # plt.legend()
-    # plt.show()
-    #
-    # # -----------------------------
-    # # Step 1: Define Low vs High EF groups
-    # # -----------------------------
-    # # You can define extremes based on percentiles, e.g., bottom/top 25%
-    # low_thresh = df_plot['EF_Score'].quantile(0.25)
-    # high_thresh = df_plot['EF_Score'].quantile(0.75)
-    #
-    # df_plot['EF_Group'] = 'Middle'
-    # df_plot.loc[df_plot['EF_Score'] <= low_thresh, 'EF_Group'] = 'Low EF'
-    # df_plot.loc[df_plot['EF_Score'] >= high_thresh, 'EF_Group'] = 'High EF'
-    #
-    # # Keep only Low and High for plotting
-    # df_extremes = df_plot[df_plot['EF_Group'].isin(['Low EF', 'High EF'])]
-    #
-    # # -----------------------------
-    # # Step 2: Boxplot with swarm for extremes
-    # # -----------------------------
-    # plt.figure(figsize=(6, 5))
-    # sns.boxplot(x='EF_Group', y='Frontal_Index', data=df_extremes, palette="pastel")
-    # sns.swarmplot(x='EF_Group', y='Frontal_Index', data=df_extremes, color=".25")
-    # plt.ylabel('Frontal EF Index (PLS Component 1)')
-    # plt.title('Frontal EF Index: Low vs High EF')
-    # plt.show()
-    #
-    # # -----------------------------
-    # # Step 3: Statistical test (t-test)
-    # # -----------------------------
-    # from scipy.stats import ttest_ind
-    #
-    # low_vals = df_extremes[df_extremes['EF_Group'] == 'Low EF']['Frontal_Index']
-    # high_vals = df_extremes[df_extremes['EF_Group'] == 'High EF']['Frontal_Index']
-    #
-    # t_stat, p_val = ttest_ind(low_vals, high_vals)
-    # print(f"Low vs High EF: t = {t_stat:.3f}, p = {p_val:.3f}")
+    return mean_auc, p_value, importance, X_Group

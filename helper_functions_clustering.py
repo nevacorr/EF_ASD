@@ -199,8 +199,8 @@ import matplotlib.pyplot as plt
 def plot_brain_vs_age_by_sex_from_model(X_lr, y_lr, brain_col, model):
 
     sex_col = 0
-    icv_col = 1
-    age_col = 2
+    icv_col1 = 2
+    age_col = 1
 
     colors = {0: 'blue', 1: 'red'}
     labels = {0: 'Female', 1: "Male"}
@@ -209,7 +209,8 @@ def plot_brain_vs_age_by_sex_from_model(X_lr, y_lr, brain_col, model):
     age_range = np.linspace(X_lr[:,age_col].min(), X_lr[:,age_col].max(), 100)
 
     # Fix ICV at mean value for plotting
-    icv_fixed = X_lr[:, icv_col].mean()
+    icv1_fixed = X_lr[:, icv_col1].mean()
+
 
     plt.figure(figsize=(8, 6))
 
@@ -219,7 +220,12 @@ def plot_brain_vs_age_by_sex_from_model(X_lr, y_lr, brain_col, model):
         plt.scatter(X_lr[mask,age_col], y_lr[mask], color=colors[sex], alpha=0.5, label=labels[sex])
 
         # Plot regression line
-        X_plot = np.c_[np.full_like(age_range, sex), np.full_like(age_range, icv_fixed), age_range]
+        X_plot = np.c_[
+            np.full_like(age_range, sex),
+            age_range,
+            np.full_like(age_range, icv1_fixed),
+        ]
+        # X_plot = np.c_[np.full_like(age_range, sex), np.full_like(age_range, icv1_fixed, icv2_fixed), age_range]
         # Predict brain metric
         y_plot = model.predict(X_plot)
         plt.plot(age_range, y_plot, color=colors[sex])
