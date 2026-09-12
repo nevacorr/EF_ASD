@@ -255,8 +255,11 @@ def remove_duplicate_rows(df, measure):
     # Remove rows if all columns match
     df_clean = df.drop_duplicates(keep='first')
 
-    # Find duplicate candidate IDs
-    dup_candids = df_clean['CandID'][df_clean['CandID'].duplicated(keep=False)]
+    # Find duplicate candidate IDs that are not nan
+    dup_candids = df_clean.loc[
+        df_clean['CandID'].notna() & df_clean['CandID'].duplicated(keep=False),
+        'CandID'
+    ]
     print(f"{measure} Duplicate CandIDs: {dup_candids.unique()}")
 
     # Exit program if duplicate CandIDs are found
