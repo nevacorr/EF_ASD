@@ -258,6 +258,8 @@ def remove_duplicate_rows(df, measure):
     # Find duplicate candidate IDs
     dup_candids = df_clean['CandID'][df_clean['CandID'].duplicated(keep=False)]
     print(f"{measure} Duplicate CandIDs: {dup_candids.unique()}")
+
+    # Exit program if duplicate CandIDs are found
     if len(dup_candids) > 0:
         raise ValueError(f"Duplicate CandIDs found: {dup_candids}")
 
