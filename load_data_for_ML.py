@@ -22,7 +22,7 @@ def load_all_data():
     #############################
     datafilename = volume_infant_datafilename
     df_infant_dem_lobe = load_and_clean_infant_volume_data_and_all_behavior(vol_infant_dir, datafilename)
-    df_infant_dem_lobe = remove_duplicate_rows(df_infant_dem_lobe)
+    df_infant_dem_lobe = remove_duplicate_rows(df_infant_dem_lobe, 'infant lobe volumes')
 
     #############################
     #### Load school age lobe volume data and age data ######
@@ -33,7 +33,7 @@ def load_all_data():
     tot_tiss_SA_datafilename = 'IBISandDS_VSA_TissueSeg_Vols_v01.04_20250221.csv'
     df_vsa_lobe = load_and_clean_vsa_volume_data(vol_dir_SA, volume_SA_datafilename,
                                                  tot_tiss_dir_SA, tot_tiss_SA_datafilename)
-    df_vsa_lobe = remove_duplicate_rows(df_vsa_lobe)
+    df_vsa_lobe = remove_duplicate_rows(df_vsa_lobe, 'SA lobe volumes')
 
 
     #############################
@@ -42,7 +42,7 @@ def load_all_data():
     subcort_infant_dir = '/Users/nevao/Documents/IBIS_EF/source data/Brain_Data/IBIS1&2_volumes_v3.13'
     df = load_infant_subcortical_data(subcort_infant_dir)
     df_infant_subcort = df.reset_index(drop=True)
-    df_infant_subcort = remove_duplicate_rows(df_infant_subcort)
+    df_infant_subcort = remove_duplicate_rows(df_infant_subcort, 'infant subcort volumes')
 
     #############################
     #### Load school age subcort volume data ######
@@ -50,7 +50,7 @@ def load_all_data():
     subcort_vsa_dir = "/Users/nevao/Documents/IBIS_EF/source data/Brain_Data/updated imaging_2-27-25/IBISandDS_VSA_Subcort_and_LV_Vols_v01.04_20250221"
     subcort_vsa_datafilename = 'IBISandDS_VSA_Subcort_and_LV_Vols_v01.04_20250221.csv'
     df_vsa_subcort = load_vsa_subcortical_data(subcort_vsa_dir, subcort_vsa_datafilename)
-    df_vsa_subcort = remove_duplicate_rows(df_vsa_subcort)
+    df_vsa_subcort = remove_duplicate_rows(df_vsa_subcort, 'SA subcort volumes')
 
     #############################
     #### Load school age cortical thickness data ######
@@ -58,7 +58,7 @@ def load_all_data():
     ct_vsa_dir = "/Users/nevao/Documents/IBIS_EF/source data/Brain_Data/IBISandDS_VSA_SurfaceData_v01.02_20210809"
     ct_vsa_datafilename = 'IBISandDS_VSA_CorticalThickness_DKT_v01.02_20210708.csv'
     df_vsa_ct = load_vsa_ct_sa_data(ct_vsa_dir, ct_vsa_datafilename, 'CT')
-    df_vsa_ct = remove_duplicate_rows(df_vsa_ct)
+    df_vsa_ct = remove_duplicate_rows(df_vsa_ct, 'SA cortical thickness')
 
     #############################
     #### Load school age surface area data ######
@@ -66,33 +66,34 @@ def load_all_data():
     sa_vsa_dir = "/Users/nevao/Documents/IBIS_EF/source data/Brain_Data/IBISandDS_VSA_SurfaceData_v01.02_20210809"
     sa_vsa_datafilename = 'IBISandDS_VSA_SurfaceArea_DKT_v01.02_20210708.csv'
     df_vsa_sa = load_vsa_ct_sa_data(sa_vsa_dir, sa_vsa_datafilename, 'SA')
-    df_vsa_sa = remove_duplicate_rows(df_vsa_sa)
+    df_vsa_sa = remove_duplicate_rows(df_vsa_sa, 'SA surface area')
 
     #############################
     #### Load VSA DTI data ######
     #############################
-    dti_vsa_dir = ("/Users/nevao/Documents/IBIS_EF/source data/Brain_Data/updated imaging_2-27-25/"
-               "IBISandDS_VSA_DTI_Siemens_CMRR_v02.02_20250227/Siemens_CMRR")
-
-    metric_files = {
-        "FA": "IBISandDS_VSA_DTI_SiemensAndCMRR_FiberAverage_AD_v02.02_20250227.csv",
-        "AD": "IBISandDS_VSA_DTI_SiemensAndCMRR_FiberAverage_FA_v02.02_20250227.csv",
-        "MD": "IBISandDS_VSA_DTI_SiemensAndCMRR_FiberAverage_MD_v02.02_20250227.csv",
-        "RD": "IBISandDS_VSA_DTI_SiemensAndCMRR_FiberAverage_RD_v02.02_20250227.csv"
-    }
-
-    dfs = []
-    for metric, filename in metric_files.items():
-        df = load_and_clean_vsa_dti_data(dti_vsa_dir, filename)
-        df.rename(columns={col: f"{metric}_{col}" for col in df.columns if col != 'CandID'}, inplace=True)
-        dfs.append(df)
-
-    # Drop duplicate CandID columns from all but the first dataframe
-    dfs = [dfs[0]] + [df.drop(columns='CandID', errors='ignore') for df in dfs[1:]]
-
-    # Concatenate all DataFrames column-wise
-    df_vsa_dti = pd.concat(dfs, axis=1)
-    df_vsa_dti = remove_duplicate_rows(df_vsa_dti)
+    # Leaving DTI out for now because too many measurements for a number of subjects
+    # dti_vsa_dir = ("/Users/nevao/Documents/IBIS_EF/source data/Brain_Data/updated imaging_2-27-25/"
+    #            "IBISandDS_VSA_DTI_Siemens_CMRR_v02.02_20250227/Siemens_CMRR")
+    #
+    # metric_files = {
+    #     "FA": "IBISandDS_VSA_DTI_SiemensAndCMRR_FiberAverage_FA_v02.02_20250227.csv",
+    #     "AD": "IBISandDS_VSA_DTI_SiemensAndCMRR_FiberAverage_AD_v02.02_20250227.csv",
+    #     "MD": "IBISandDS_VSA_DTI_SiemensAndCMRR_FiberAverage_MD_v02.02_20250227.csv",
+    #     "RD": "IBISandDS_VSA_DTI_SiemensAndCMRR_FiberAverage_RD_v02.02_20250227.csv"
+    # }
+    #
+    # dfs = []
+    # for metric, filename in metric_files.items():
+    #     df = load_and_clean_vsa_dti_data(dti_vsa_dir, filename)
+    #     df.rename(columns={col: f"{metric}_{col}" for col in df.columns if col != 'CandID'}, inplace=True)
+    #     dfs.append(df)
+    #
+    # # Drop duplicate CandID columns from all but the first dataframe
+    # dfs = [dfs[0]] + [df.drop(columns='CandID', errors='ignore') for df in dfs[1:]]
+    #
+    # # Concatenate all DataFrames column-wise
+    # df_vsa_dti = pd.concat(dfs, axis=1)
+    # df_vsa_dti = remove_duplicate_rows(df_vsa_dti, 'SA DTI')
 
     #############################
     #### Combine all data ######
@@ -101,9 +102,6 @@ def load_all_data():
     #DTI has too many duplicate IDS with not duplicate measurements. Don't include for now
     dfs_list= [df_infant_dem_lobe, df_vsa_lobe, df_infant_subcort, df_vsa_subcort,
                df_vsa_ct, df_vsa_sa]
-
-    # dfs_list= [df_infant_dem_lobe, df_vsa_lobe, df_infant_subcort, df_vsa_subcort,
-    #            df_vsa_ct, df_vsa_sa, df_vsa_dti]
 
     dfs_combined = reduce(lambda left, right: pd.merge(left, right, on='CandID', how='outer'), dfs_list)
 
@@ -135,7 +133,7 @@ def load_all_data():
 
     df_all_brain_behav = dfs_all.dropna(subset=behav_cols, how='all')
 
-    # Divide all volume and surface area columns by totTissue for the appropriate age
+    # Divide all volume and surface area columns by totTissue or ICV for the appropriate age
     df_all_brain_behav = divide_columns_by_tottiss(df_all_brain_behav, df_infant_dem_lobe, "V12")
     df_all_brain_behav = divide_columns_by_tottiss(df_all_brain_behav, df_infant_dem_lobe, "V24")
     df_all_brain_behav = divide_columns_by_tottiss(df_all_brain_behav, df_vsa_lobe, "VSA")
