@@ -243,7 +243,7 @@ def plot_brain_vs_age_by_sex_from_model(X_lr, y_lr, brain_col, model):
     mystop=1
 
 def remove_duplicate_rows(df, measure):
-    # This function writes to console all CandIDs that are duplicate and CandIDs that have identifcal
+    # This function writes to console all CandIDs that are duplicate and CandIDs that have identical
     # values across all columns. It then deletes rows that have duplicate values across all rows
 
     # Find all rows that are duplicated across all columns
@@ -251,10 +251,15 @@ def remove_duplicate_rows(df, measure):
     # Get the CandID values for CandIDS where all columns match
     candids_with_duprows = df.loc[dup_mask, 'CandID'].unique().tolist()
     print(f"{measure} IDs with duplicate rows: {candids_with_duprows}")
-    # Find duplicate candidate IDs
-    candids = df['CandID'][df['CandID'].duplicated(keep=False)]
-    print(f"{measure} Duplicate CandIDs: {candids.unique()}")
-    # Remove rows  if all columns match
+
+    # Remove rows if all columns match
     df_clean = df.drop_duplicates(keep='first')
+
+    # Find duplicate candidate IDs
+    dup_candids = df_clean['CandID'][df_clean['CandID'].duplicated(keep=False)]
+    print(f"{measure} Duplicate CandIDs: {dup_candids.unique()}")
+    if len(dup_candids) > 0:
+        raise ValueError(f"Duplicate CandIDs found: {dup_candids}")
+
     return df_clean
 
