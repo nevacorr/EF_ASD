@@ -262,3 +262,33 @@ def remove_duplicate_rows(df, measure):
 
     return df_clean
 
+def plot_ef_distribution(y_EF, mask):
+    q_low = y_EF.quantile(0.25)
+    q_high = y_EF.quantile(0.75)
+
+    plt.figure(figsize=(8, 5))
+
+    # All EF values
+    plt.hist(y_EF.dropna(), bins=20, alpha=0.4, label='All subjects')
+
+    # Included in analysis
+    plt.hist(y_EF[mask].dropna(), bins=20, alpha=0.7,
+             label='Included in analysis')
+
+    # Quartile cutoffs
+    plt.axvline(q_low, linestyle='--', label=f'25th percentile = {q_low:.2f}')
+    plt.axvline(q_high, linestyle='--', label=f'75th percentile = {q_high:.2f}')
+
+    plt.xlabel('EF')
+    plt.ylabel('Number of subjects')
+    plt.gca().yaxis.set_major_locator(plt.MaxNLocator(integer=True))
+    plt.title('EF Distribution and Subjects Included in Analysis')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+    print(f'Total subjects: {y_EF.notna().sum()}')
+    print(f'Lower cutoff (<): {q_low:.3f}')
+    print(f'Upper cutoff (>): {q_high:.3f}')
+    print(f'Included in analysis: {mask.sum()}')
+    print(f'Excluded: {(~mask & y_EF.notna()).sum()}')
