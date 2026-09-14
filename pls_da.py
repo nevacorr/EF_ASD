@@ -82,12 +82,9 @@ def single_permutation(X, y, max_components):
 
 def pls_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
 
-    # ── Step 1: Prepare data ──────────────────────────────────────────────────
+    # Prepare data ──────────────────────────────────────────────────
     if perform_norm_modeling:
         brain_cols = [col + '_z' for col in brain_cols]
-
-    # Keep only Frontal and Parietal regions
-    # brain_cols = [col for col in brain_cols if any(r in col for r in ['Frontal', 'Parietal', 'Temporal', 'Insula', 'Occipital'])]
 
     df_ef  = final_brain_df[['Identifiers', ef_col, 'Group']].copy()
     df_all = pd.merge(df_ef, df_hr, on="Identifiers", how="inner")
@@ -100,7 +97,7 @@ def pls_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     # ── Step 2: Extreme group selection ──────────────────────────────────────
     q_low  = y_EF.quantile(0.25)
     q_high = y_EF.quantile(0.75)
-    mask   = (y_EF <= q_low) | (y_EF >= q_high)
+    mask   = (y_EF < q_low) | (y_EF > q_high)
 
     X_group = X_brain[mask].reset_index(drop=True)
     y_group = y_EF[mask].copy().reset_index(drop=True)
@@ -115,11 +112,11 @@ def pls_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     outer_cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     inner_cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=43)
 
-    # ── Step 3: Nested CV — observed AUC ─────────────────────────────────────
+    # Nested CV — observed AUC ─────────────────────────────────────
     mean_auc, pls1_scores, pls1_labels = run_cv_pipeline(X_group, y_group, max_components, outer_cv, inner_cv)
     print(f"Nested CV AUC: {mean_auc:.3f}")
 
-    # ── Step 4: Permutation test — parallel, each permutation uses fresh CV splits ──
+    # Permutation test — parallel, each permutation uses fresh CV splits ──
     n_permutations = 1000
     perm_aucs = Parallel(n_jobs=-1)(
         delayed(single_permutation)(X_group, y_group, max_components)
@@ -130,7 +127,7 @@ def pls_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     p_value   = (np.sum(perm_aucs >= mean_auc) + 1) / (n_permutations + 1)
     print(f"Permutation p-value: {p_value:.3f}")
 
-    # ── Step 5: Fit final model on ALL data for feature importance ────────────
+    # Fit final model on ALL data for feature importance ────────────
 
     # Select best n_components using full-data inner CV
     best_auc_final = -np.inf
@@ -157,7 +154,7 @@ def pls_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     # Plot first two components
     plot_pls_scores(pls_final, y_group)
 
-    # ── Step 6: Feature importance ────────────────────────────────────────────
+    # Feature importance ────────────────────────────────────────────
     # Feature weights for all PLS components
     feature_weights = pd.DataFrame(
         pls_final.x_weights_,
