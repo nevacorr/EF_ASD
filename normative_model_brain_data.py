@@ -11,7 +11,7 @@ import statsmodels.formula.api as smf
 from helper_functions_clustering import plot_brain_vs_age_by_sex_from_model
 
 def calc_normative_data(df, group_col='Group', lr_label='LR-', hr_labels=['HR+', 'HR-'],
-                        brain_cols=None, covariates=['Sex', 'Final_Age_School_Age', 'ICV_vol_VSA'], random_state=42):
+                        brain_cols=None, covariates=['Sex', 'Final_Age_School_Age'], random_state=42):
     """
     1. Fit normative models on LR kids
     2. Compute z-scores for HR kids
@@ -19,6 +19,8 @@ def calc_normative_data(df, group_col='Group', lr_label='LR-', hr_labels=['HR+',
     # --------------- 1. Split dataframe ---------------
     df_lr = df[df[group_col] == lr_label].copy()
     df_hr = df[df[group_col].isin(hr_labels)].copy()
+    df_nan = df[df[group_col].isna()].copy()
+    df_lr_pos = df[df[group_col] == "LR+"].copy()
     df_lr.reset_index(drop=True, inplace=True)
     df_hr.reset_index(drop=True, inplace=True)
 
@@ -43,10 +45,9 @@ def calc_normative_data(df, group_col='Group', lr_label='LR-', hr_labels=['HR+',
         y_actual_hr = df_hr_clean[col].values
 
         # SD of residuals in LR
-        resid_std = np.std(y_lr - model.predict(X_lr))
+        resid_std = np.std(y_lr - model.predict(X_lr), ddof=X_lr.shape[1] + 1)
 
         # Z-score for HR kids
-
         z_col = f"{col}_z"
         z_cols.append(z_col)
         df_tmp = pd.DataFrame({'CandID': df_hr_clean['CandID'], z_col:(y_actual_hr - y_pred_hr) / resid_std})
