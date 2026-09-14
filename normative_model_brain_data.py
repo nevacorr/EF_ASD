@@ -36,6 +36,25 @@ def calc_normative_data(df, group_col='Group', lr_label='LR-', hr_labels=['HR+',
         model = LinearRegression()
         model.fit(X_lr, y_lr)
 
+        # Calculate BIC  #
+        residuals_linear  = y_lr - model.predict(X_lr)
+        n=len(y_lr)
+        k_linear = X_lr.shape[1] + 1
+        bic_linear = n * np.log(np.sum(residuals_linear**2) / n) + k_linear * np.log(n)
+
+        #Quadratic model
+        X_lr_quad = np.column_stack([df_lr_clean['Sex'].values, df_lr_clean['Final_Age_School_Age'].values,
+                                     df_lr_clean['Final_Age_School_Age'].values**2])
+        model_quad = LinearRegression()
+        model_quad.fit(X_lr_quad, y_lr)
+        residuals_quad = y_lr - model_quad.predict(X_lr_quad)
+        k_quad = X_lr_quad.shape[1] + 1
+        bic_quad = n * np.log(np.sum(residuals_quad**2) / n) + k_quad * np.log(n)
+        rmse_linear = np.sqrt(np.mean(residuals_linear ** 2))
+        rmse_quad = np.sqrt(np.mean(residuals_quad ** 2))
+        print(f'{col} bic_linear = {bic_linear}, bic_quad = {bic_quad}, '
+              f'rmse_linear = {rmse_linear} rmse_quad = {rmse_quad}')
+
         # plot_brain_vs_age_by_sex_from_model(X_lr, y_lr, col, model)
 
         # Predicted for HR kids
@@ -45,7 +64,8 @@ def calc_normative_data(df, group_col='Group', lr_label='LR-', hr_labels=['HR+',
         y_actual_hr = df_hr_clean[col].values
 
         # SD of residuals in LR
-        resid_std = np.std(y_lr - model.predict(X_lr), ddof=X_lr.shape[1] + 1)
+        resid_std = np.std(residuals_linear, ddof=X_lr.shape[1] + 1)
+        print(f'resid sd {col} = {resid_std}')
 
         # Z-score for HR kids
         z_col = f"{col}_z"
