@@ -199,7 +199,6 @@ import matplotlib.pyplot as plt
 def plot_brain_vs_age_by_sex_from_model(X_lr, y_lr, brain_col, model):
 
     sex_col = 0
-    icv_col1 = 2
     age_col = 1
 
     colors = {0: 'blue', 1: 'red'}
@@ -207,10 +206,6 @@ def plot_brain_vs_age_by_sex_from_model(X_lr, y_lr, brain_col, model):
 
     # Create smooth age range
     age_range = np.linspace(X_lr[:,age_col].min(), X_lr[:,age_col].max(), 100)
-
-    # Fix ICV at mean value for plotting
-    icv1_fixed = X_lr[:, icv_col1].mean()
-
 
     plt.figure(figsize=(8, 6))
 
@@ -223,7 +218,6 @@ def plot_brain_vs_age_by_sex_from_model(X_lr, y_lr, brain_col, model):
         X_plot = np.c_[
             np.full_like(age_range, sex),
             age_range,
-            np.full_like(age_range, icv1_fixed),
         ]
         # X_plot = np.c_[np.full_like(age_range, sex), np.full_like(age_range, icv1_fixed, icv2_fixed), age_range]
         # Predict brain metric
