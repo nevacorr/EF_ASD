@@ -8,6 +8,7 @@ from tqdm import tqdm
 from joblib import Parallel, delayed
 import matplotlib.pyplot as plt
 from plot_pls_scores import plot_pls_scores
+from helper_functions_clustering import plot_ef_distribution
 
 def run_cv_pipeline(X, y, max_components, outer_cv, inner_cv):
     """
@@ -36,7 +37,7 @@ def run_cv_pipeline(X, y, max_components, outer_cv, inner_cv):
         best_inner_auc = -np.inf
         best_n = 1
         for n_comp in range(1, max_components + 1):
-            pls = PLSRegression(n_components=n_comp)
+            pls = PLSRegression(n_components=n_comp, scale=False)
             inner_aucs = []
             for inner_train_idx, inner_val_idx in inner_cv.split(X_train, y_train):
                 # Scale within each inner fold
@@ -50,12 +51,24 @@ def run_cv_pipeline(X, y, max_components, outer_cv, inner_cv):
             if mean_inner_auc > best_inner_auc:
                 best_inner_auc = mean_inner_auc
                 best_n = n_comp
-
+        print(f'mean auc={best_inner_auc}')
+        print(f'Best N for this outer fold is" {best_n}')
         # ── Fit on full outer fold train set, evaluate on held-out test ───────
-        pls_fold = PLSRegression(n_components=best_n)
+        pls_fold = PLSRegression(n_components=best_n, scale=False)
         pls_fold.fit(X_train_scaled, y_train)
         y_test_pred = pls_fold.predict(X_test_scaled).ravel()
-        fold_aucs.append(roc_auc_score(y_test, y_test_pred))
+        fold_auc = roc_auc_score(y_test.values, y_test_pred)
+
+        check = pd.DataFrame({
+            "y_true": y_test.to_numpy(),
+            "y_pred": y_test_pred,
+        }).sort_values("y_pred")
+
+        print("\nOuter-fold predictions")
+        print(check.to_string(index=False))
+        print(f"Outer AUC: {fold_auc:.3f}")
+
+        fold_aucs.append(fold_auc)
 
         # Out-of-fold PLS1 scores for visualization
         y_test_scores = pls_fold.transform(X_test_scaled)[:, 0]
@@ -63,6 +76,8 @@ def run_cv_pipeline(X, y, max_components, outer_cv, inner_cv):
         pls1_scores.extend(y_test_scores)
         pls1_labels.extend(y_test)
 
+    print(f'fold_aucs={fold_aucs}')
+    print(f'mean(fold_aucs)={np.mean(fold_aucs)}')
     return np.mean(fold_aucs), np.array(pls1_scores), np.array(pls1_labels)
 
 
@@ -98,6 +113,7 @@ def pls_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     q_low  = y_EF.quantile(0.25)
     q_high = y_EF.quantile(0.75)
     mask   = (y_EF < q_low) | (y_EF > q_high)
+    plot_ef_distribution(y_EF, mask)
 
     X_group = X_brain[mask].reset_index(drop=True)
     y_group = y_EF[mask].copy().reset_index(drop=True)
@@ -133,7 +149,7 @@ def pls_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     best_auc_final = -np.inf
     best_n_final   = 1
     for n_comp in range(1, max_components + 1):
-        pls = PLSRegression(n_components=n_comp)
+        pls = PLSRegression(n_components=n_comp, scale=False)
         fold_aucs = []
         for train_idx, val_idx in inner_cv.split(X_group, y_group):
             scaler = StandardScaler()
@@ -148,7 +164,7 @@ def pls_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
             best_n_final = n_comp
     scaler_final = StandardScaler()
     X_all_scaled = scaler_final.fit_transform(X_group)
-    pls_final = PLSRegression(n_components=best_n_final)
+    pls_final = PLSRegression(n_components=best_n_final, scale=False)
     pls_final.fit(X_all_scaled, y_group)
     print(f"Final model n_components: {best_n_final}")
     # Plot first two components
