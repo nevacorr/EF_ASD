@@ -8,7 +8,7 @@ from tqdm import tqdm
 from joblib import Parallel, delayed
 import matplotlib.pyplot as plt
 from plot_pls_scores import plot_pls_scores
-from helper_functions_clustering import plot_ef_distribution
+from helper_functions_clustering import plot_ef_distribution, plot_permutation_auc_distribution
 
 def run_cv_pipeline(X, y, max_components, outer_cv, inner_cv):
     """
@@ -20,6 +20,8 @@ def run_cv_pipeline(X, y, max_components, outer_cv, inner_cv):
     sklearn has no separate PLS-DA class.
     Returns mean AUC across outer folds.
     """
+    print_intermediate_vals = False
+
     fold_aucs = []
     pls1_scores = []
     pls1_labels = []
@@ -51,22 +53,24 @@ def run_cv_pipeline(X, y, max_components, outer_cv, inner_cv):
             if mean_inner_auc > best_inner_auc:
                 best_inner_auc = mean_inner_auc
                 best_n = n_comp
-        print(f'mean auc={best_inner_auc}')
-        print(f'Best N for this outer fold is" {best_n}')
+        if print_intermediate_vals:
+            print(f'mean auc={best_inner_auc}')
+            print(f'Best N for this outer fold is" {best_n}')
         # ── Fit on full outer fold train set, evaluate on held-out test ───────
         pls_fold = PLSRegression(n_components=best_n, scale=False)
         pls_fold.fit(X_train_scaled, y_train)
         y_test_pred = pls_fold.predict(X_test_scaled).ravel()
         fold_auc = roc_auc_score(y_test.values, y_test_pred)
 
-        check = pd.DataFrame({
-            "y_true": y_test.to_numpy(),
-            "y_pred": y_test_pred,
-        }).sort_values("y_pred")
+        if print_intermediate_vals:
+            check = pd.DataFrame({
+                "y_true": y_test.to_numpy(),
+                "y_pred": y_test_pred,
+            }).sort_values("y_pred")
 
-        print("\nOuter-fold predictions")
-        print(check.to_string(index=False))
-        print(f"Outer AUC: {fold_auc:.3f}")
+            print("\nOuter-fold predictions")
+            print(check.to_string(index=False))
+            print(f"Outer AUC: {fold_auc:.3f}")
 
         fold_aucs.append(fold_auc)
 
@@ -76,8 +80,9 @@ def run_cv_pipeline(X, y, max_components, outer_cv, inner_cv):
         pls1_scores.extend(y_test_scores)
         pls1_labels.extend(y_test)
 
-    print(f'fold_aucs={fold_aucs}')
-    print(f'mean(fold_aucs)={np.mean(fold_aucs)}')
+    if print_intermediate_vals:
+        print(f'fold_aucs={fold_aucs}')
+        print(f'mean(fold_aucs)={np.mean(fold_aucs)}')
     return np.mean(fold_aucs), np.array(pls1_scores), np.array(pls1_labels)
 
 
@@ -142,6 +147,13 @@ def pls_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     perm_aucs = np.array(perm_aucs)
     p_value   = (np.sum(perm_aucs >= mean_auc) + 1) / (n_permutations + 1)
     print(f"Permutation p-value: {p_value:.3f}")
+
+    permutation_results = plot_permutation_auc_distribution(
+        perm_aucs=perm_aucs,
+        observed_auc=mean_auc,
+        p_value=p_value,
+        bins=30,
+    )
 
     # Fit final model on ALL data for feature importance ────────────
 
