@@ -292,3 +292,84 @@ def plot_ef_distribution(y_EF, mask):
     print(f'Upper cutoff (>): {q_high:.3f}')
     print(f'Included in analysis: {mask.sum()}')
     print(f'Excluded: {(~mask & y_EF.notna()).sum()}')
+
+def plot_permutation_auc_distribution(perm_aucs, observed_auc, p_value, bins=30):
+    """
+    Print permutation-test diagnostics and plot the null distribution of
+    nested-CV mean outer-fold AUC values.
+
+    Parameters
+    ----------
+    perm_aucs : array-like
+        Mean nested-CV outer-fold AUC from every label permutation.
+    observed_auc : float
+        Mean nested-CV outer-fold AUC from the real, unpermuted labels.
+    p_value : float
+        One-sided permutation p-value:
+        (sum(perm_aucs >= observed_auc) + 1) / (n_permutations + 1).
+    bins : int
+        Number of bins in the histogram.
+    """
+    perm_aucs = np.asarray(perm_aucs)
+    n_permutations = len(perm_aucs)
+    n_at_or_above_observed = np.sum(perm_aucs >= observed_auc)
+
+    print("\n--- Permutation-test diagnostics ---")
+    print(f"Observed nested-CV AUC:       {observed_auc:.3f}")
+    print(f"Permutation null mean:        {perm_aucs.mean():.3f}")
+    print(f"Permutation null median:      {np.median(perm_aucs):.3f}")
+    print(f"Permutation null SD:          {perm_aucs.std(ddof=1):.3f}")
+    print(f"Null 2.5th percentile:        {np.quantile(perm_aucs, 0.025):.3f}")
+    print(f"Null 97.5th percentile:       {np.quantile(perm_aucs, 0.975):.3f}")
+    print(
+        f"Permutations >= observed:     "
+        f"{n_at_or_above_observed} / {n_permutations}"
+    )
+    print(f"One-sided permutation p-value:{p_value:.4f}")
+
+    fig, ax = plt.subplots(figsize=(7.5, 4.8))
+
+    ax.hist(
+        perm_aucs,
+        bins=bins,
+        color="#BDBDBD",
+        edgecolor="white",
+        linewidth=0.8,
+        alpha=0.95,
+    )
+
+    ax.axvline(
+        0.5,
+        color="black",
+        linestyle="--",
+        linewidth=1.5,
+        label="Chance AUC = 0.50",
+    )
+
+    ax.axvline(
+        observed_auc,
+        color="#C62828",
+        linewidth=2.5,
+        label=f"Observed nested-CV AUC = {observed_auc:.3f}",
+    )
+
+    ax.set_xlabel("Mean outer-fold AUC after label permutation")
+    ax.set_ylabel("Number of permutations")
+    ax.set_title("Permutation null distribution: nested-CV PLS-DA")
+    ax.set_xlim(0, 1)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.legend(frameon=False, loc="upper right")
+
+    plt.tight_layout()
+    plt.show()
+
+    return {
+        "observed_auc": observed_auc,
+        "null_mean": perm_aucs.mean(),
+        "null_median": np.median(perm_aucs),
+        "null_sd": perm_aucs.std(ddof=1),
+        "n_at_or_above_observed": n_at_or_above_observed,
+        "n_permutations": n_permutations,
+        "p_value": p_value,
+    }
