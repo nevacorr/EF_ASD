@@ -68,7 +68,7 @@ final_brain_df['Sex'] = final_brain_df['Sex'].replace({'Female': 0, 'Male': 1}).
 if perform_norm_modeling:
     # Calculate z_scores for HR subjects
     df_hr_z = calc_normative_data(final_brain_df, group_col='Group', lr_label='LR-', hr_labels=['HR+', 'HR-'],
-                            brain_cols=brain_cols, covariates=['Sex', 'Final_Age_School_Age', 'ICV_vol_VSA'])
+                            brain_cols=brain_cols, covariates=['Sex', 'Final_Age_School_Age'])
 
     df_hr_z = df_hr_z.drop(columns=['CandID'])
 
