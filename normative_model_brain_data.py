@@ -34,8 +34,8 @@ def calc_normative_data(df, group_col='Group', lr_label='LR-', hr_labels=['HR+',
     df_hr_columns_removed = df_hr_noth[columns_removed].copy()
 
     df_lr_harmonized, df_hr_harmonized = covbat_harmonize(df_lr_for_harmonize, df_hr_for_harmonize)
-    df_lr = df_lr_harmonized + df_lr_columns_removed
-    df_hr = df_hr_harmonized + df_hr_columns_removed
+    df_lr = pd.concat([df_lr_harmonized, df_lr_columns_removed], axis=1)
+    df_hr = pd.concat([df_hr_harmonized, df_hr_columns_removed], axis=1)
 
     # --------------- 2. Compute z-scores ---------------
     z_cols = []

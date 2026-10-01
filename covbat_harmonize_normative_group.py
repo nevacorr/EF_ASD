@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import pandas as pd
 import rpy2.robjects as robjects
 from rpy2.robjects.conversion import localconverter
 from rpy2.robjects import pandas2ri
@@ -56,4 +57,15 @@ def covbat_harmonize(X_LR, X_HR):
     # X_LR_harmonized = np.hstack([sex_train, X_LR_harmonized])
     # X_HR_harmonized = np.hstack([sex_test, X_HR_harmonized])
 
-    return X_LR_harmonized, X_HR_harmonized
+    X_LR_harmonized_df = pd.DataFrame(X_LR_harmonized)
+    column_names_LR = X_LR.columns.to_list()
+    column_names_LR.remove("Site")
+    X_LR_harmonized_df.columns = column_names_LR
+    X_HR_harmonized_df = pd.DataFrame(X_HR_harmonized)
+    column_names_HR = X_HR.columns.to_list()
+    column_names_HR.remove("Site")
+    X_HR_harmonized_df.columns = column_names_HR
+
+
+
+    return X_LR_harmonized_df, X_HR_harmonized_df
