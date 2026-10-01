@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
+from covbat_harmonize_normative_group import covbat_harmonize
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
@@ -17,12 +18,24 @@ def calc_normative_data(df, group_col='Group', lr_label='LR-', hr_labels=['HR+',
     2. Compute z-scores for HR kids
     """
     # --------------- 1. Split dataframe ---------------
-    df_lr = df[df[group_col] == lr_label].copy()
-    df_hr = df[df[group_col].isin(hr_labels)].copy()
+    df_lr_noth = df[df[group_col] == lr_label].copy()
+    df_hr_noth = df[df[group_col].isin(hr_labels)].copy()
     df_nan = df[df[group_col].isna()].copy()
     df_lr_pos = df[df[group_col] == "LR+"].copy()
-    df_lr.reset_index(drop=True, inplace=True)
-    df_hr.reset_index(drop=True, inplace=True)
+    print(f'df size = {df.shape[0]}, sum={df_lr_noth.shape[0]+ df_lr_pos.shape[0]+df_hr_noth.shape[0]+df_nan.shape[0]}')
+    df_lr_noth.reset_index(drop=True, inplace=True)
+    df_hr_noth.reset_index(drop=True, inplace=True)
+
+    # ----------------3. Harmonize data -----------------
+    df_lr_for_harmonize = df_lr_noth[['Site'] + brain_cols].copy()
+    df_hr_for_harmonize = df_hr_noth[['Site'] + brain_cols].copy()
+    columns_removed = [col for col in df_lr_noth.columns if col not in df_lr_for_harmonize]
+    df_lr_columns_removed = df_lr_noth[columns_removed].copy()
+    df_hr_columns_removed = df_hr_noth[columns_removed].copy()
+
+    df_lr_harmonized, df_hr_harmonized = covbat_harmonize(df_lr_for_harmonize, df_hr_for_harmonize)
+    df_lr = df_lr_harmonized + df_lr_columns_removed
+    df_hr = df_hr_harmonized + df_hr_columns_removed
 
     # --------------- 2. Compute z-scores ---------------
     z_cols = []
@@ -74,7 +87,7 @@ def calc_normative_data(df, group_col='Group', lr_label='LR-', hr_labels=['HR+',
         df_tmp.reset_index(inplace=True, drop=True)
         df_hr_z = df_hr_z.merge(df_tmp, on='CandID', how='left')
 
-        mystop=1
+        # plot_brain_vs_age_by_sex_from_model(X_hr, y_actual_hr, col, model)
 
     # Drop HR rows with any NaNs in z-scores
     df_hr_z= df_hr_z.dropna(subset=z_cols, how='any')
