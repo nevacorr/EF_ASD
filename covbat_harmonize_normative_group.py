@@ -25,10 +25,6 @@ def covbat_harmonize(X_LR, X_HR):
         site_col='Site'
     )
     
-    # # Keep a copy of Sex
-    # sex_train = X_LR_temp['Sex'].values.reshape(-1, 1)
-    # sex_test = X_HR_temp['Sex'].values.reshape(-1, 1)
-    
     # --- Convert to R data frames ---
     with localconverter(robjects.default_converter + pandas2ri.converter):
         X_LR_r = robjects.conversion.py2rpy(X_LR_temp.drop(columns=['Site']))
@@ -52,10 +48,6 @@ def covbat_harmonize(X_LR, X_HR):
     # --- Restore NaNs ---
     X_LR_harmonized[nan_indices_train] = np.nan
     X_HR_harmonized[nan_indices_test] = np.nan
-    
-    # # Add sex values back into array for xgboost now that the brain measures have been harmonized
-    # X_LR_harmonized = np.hstack([sex_train, X_LR_harmonized])
-    # X_HR_harmonized = np.hstack([sex_test, X_HR_harmonized])
 
     X_LR_harmonized_df = pd.DataFrame(X_LR_harmonized)
     column_names_LR = X_LR.columns.to_list()
@@ -65,7 +57,5 @@ def covbat_harmonize(X_LR, X_HR):
     column_names_HR = X_HR.columns.to_list()
     column_names_HR.remove("Site")
     X_HR_harmonized_df.columns = column_names_HR
-
-
 
     return X_LR_harmonized_df, X_HR_harmonized_df
