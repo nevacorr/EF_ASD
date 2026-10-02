@@ -10,6 +10,7 @@ from brain_EF_correspondence import evaluate_brain_struct_diff_between_clusters,
 from brain_EF_correspondence import multi_variate_analsis
 from perform_pls_regression import perform_pls_regression
 from pls_da import pls_da
+from svm_da import svm_da
 
 
 perform_norm_modeling = True
@@ -78,5 +79,6 @@ else:
 # perform_pls_regression(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling)
 
 pls_da(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling)
+svm_da(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling)
 
 # perform_pls_regression(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling)
