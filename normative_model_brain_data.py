@@ -22,7 +22,7 @@ def calc_normative_data(df, group_col='Group', lr_label='LR-', hr_labels=['HR+',
     df_hr_noth = df[df[group_col].isin(hr_labels)].copy()
     df_nan = df[df[group_col].isna()].copy()
     df_lr_pos = df[df[group_col] == "LR+"].copy()
-    print(f'df size = {df.shape[0]}, sum={df_lr_noth.shape[0]+ df_lr_pos.shape[0]+df_hr_noth.shape[0]+df_nan.shape[0]}')
+    # print(f'df size = {df.shape[0]}, sum={df_lr_noth.shape[0]+ df_lr_pos.shape[0]+df_hr_noth.shape[0]+df_nan.shape[0]}')
     df_lr_noth.reset_index(drop=True, inplace=True)
     df_hr_noth.reset_index(drop=True, inplace=True)
 
@@ -65,8 +65,8 @@ def calc_normative_data(df, group_col='Group', lr_label='LR-', hr_labels=['HR+',
         bic_quad = n * np.log(np.sum(residuals_quad**2) / n) + k_quad * np.log(n)
         rmse_linear = np.sqrt(np.mean(residuals_linear ** 2))
         rmse_quad = np.sqrt(np.mean(residuals_quad ** 2))
-        print(f'{col} bic_linear = {bic_linear}, bic_quad = {bic_quad}, '
-              f'rmse_linear = {rmse_linear} rmse_quad = {rmse_quad}')
+        # print(f'{col} bic_linear = {bic_linear}, bic_quad = {bic_quad}, '
+        #       f'rmse_linear = {rmse_linear} rmse_quad = {rmse_quad}')
 
         # plot_brain_vs_age_by_sex_from_model(X_lr, y_lr, col, model)
 
@@ -78,7 +78,7 @@ def calc_normative_data(df, group_col='Group', lr_label='LR-', hr_labels=['HR+',
 
         # SD of residuals in LR
         resid_std = np.std(residuals_linear, ddof=X_lr.shape[1] + 1)
-        print(f'resid sd {col} = {resid_std}')
+        # print(f'resid sd {col} = {resid_std}')
 
         # Z-score for HR kids
         z_col = f"{col}_z"

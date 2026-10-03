@@ -117,7 +117,7 @@ def svm_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
 
     mean_auc = np.mean(fold_aucs)
 
-    print(f"SVM nested CV AUC: {mean_auc:.3f}")
+    print(f"{ef_col} SVM nested CV AUC: {mean_auc:.3f}")
 
     # ---------------------------------------------------------
     # Permutation test
@@ -181,7 +181,7 @@ def svm_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
         n_permutations + 1
     )
 
-    print(f"SVM permutation p-value: {p_value:.3f}")
+    print(f"{ef_col} SVM permutation p-value: {p_value:.3f}")
 
     # ---------------------------------------------------------
     # Final SVM feature weights
@@ -208,7 +208,7 @@ def svm_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
         ascending=False
     )
 
-    print("\nTop 10 SVM feature weights:")
+    print(f"\n{ef_col} Top 10 SVM feature weights:")
     print(importance_df.head(10).to_string(index=False))
 
     return mean_auc, p_value

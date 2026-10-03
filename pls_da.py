@@ -9,6 +9,7 @@ from joblib import Parallel, delayed
 import matplotlib.pyplot as plt
 from plot_pls_scores import plot_pls_scores
 from helper_functions_clustering import plot_ef_distribution, plot_permutation_auc_distribution
+from tests_pls_asd_dx import test_pls_asd_dx
 
 def run_cv_pipeline(X, y, max_components, outer_cv, inner_cv):
     """
@@ -124,7 +125,7 @@ def pls_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     y_group = y_EF[mask].copy().reset_index(drop=True)
     y_group[:] = (y_group > q_high).astype(int)   # 0 = Low EF, 1 = High EF
 
-    print(f"Subjects in extreme groups: {len(y_group)} "
+    print(f"{ef_col} Subjects in extreme groups: {len(y_group)} "
           f"(Low EF: {(y_group==0).sum()}, High EF: {(y_group==1).sum()})")
 
     max_components = min(X_group.shape[0] // 2, X_group.shape[1], 5)
@@ -135,7 +136,7 @@ def pls_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
 
     # Nested CV — observed AUC ─────────────────────────────────────
     mean_auc, pls1_scores, pls1_labels = run_cv_pipeline(X_group, y_group, max_components, outer_cv, inner_cv)
-    print(f"Nested CV AUC: {mean_auc:.3f}")
+    print(f"{ef_col} Nested CV AUC: {mean_auc:.3f}")
 
     # Permutation test — parallel, each permutation uses fresh CV splits ──
     n_permutations = 1000
@@ -146,7 +147,7 @@ def pls_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
 
     perm_aucs = np.array(perm_aucs)
     p_value   = (np.sum(perm_aucs >= mean_auc) + 1) / (n_permutations + 1)
-    print(f"Permutation p-value: {p_value:.3f}")
+    print(f"{ef_col} Permutation p-value: {p_value:.3f}")
 
     permutation_results = plot_permutation_auc_distribution(
         perm_aucs=perm_aucs,
@@ -178,7 +179,21 @@ def pls_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     X_all_scaled = scaler_final.fit_transform(X_group)
     pls_final = PLSRegression(n_components=best_n_final, scale=False)
     pls_final.fit(X_all_scaled, y_group)
-    print(f"Final model n_components: {best_n_final}")
+
+    score_df = test_pls_asd_dx(pls_final,X_all_scaled,df_all,mask)
+
+    # PLS scores for the extreme Flanker groups
+    pls_scores = pls_final.transform(X_all_scaled)
+
+    score_df = pd.DataFrame({
+        'Identifiers': df_all.loc[mask, 'Identifiers'].values,
+        'PLS_Component_1': pls_scores[:, 0],
+    })
+
+    if pls_scores.shape[1] > 1:
+        score_df['PLS_Component_2'] = pls_scores[:, 1]
+
+    print(f"{ef_col} Final model n_components: {best_n_final}")
     # Plot first two components
     plot_pls_scores(pls_final, y_group)
 
@@ -191,7 +206,7 @@ def pls_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     )
 
     for component in feature_weights.columns:
-        print(f"\nTop features contributing to {component}:")
+        print(f"\n{ef_col}Top features contributing to {component}:")
 
         component_weights = feature_weights[component]
         importance = component_weights.reindex(

@@ -45,3 +45,4 @@ def plot_pls_scores(pls_model, y, component_x=1, component_y=2,
     plt.legend()
     plt.tight_layout()
     plt.show()
+    mystop=1
