@@ -11,7 +11,8 @@ from brain_EF_correspondence import multi_variate_analsis
 from perform_pls_regression import perform_pls_regression
 from pls_da import pls_da
 from svm_da import svm_da
-from plot_top_regions import plot_top_regions
+from plot_top_regions import plot_top_regions, plot_top_regions_fine, plot_top_regions_mean_ci
+from check_group_representations import check_group_representation
 
 
 perform_norm_modeling = True
@@ -81,5 +82,7 @@ else:
 # pls_da(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling)
 
 mean_auc, p_value, importance_df, df_all = svm_da(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling)
-plot_top_regions(df_all, importance_df, ef_col, n_top=6)
+# plot_top_regions_fine(df_all, importance_df, ef_col, n_top=9)
+# plot_top_regions_mean_ci(df_all, importance_df, ef_col, n_top=9, show_points=True)
+check_group_representation(df_all, ef_col, group_col='Group')
 
