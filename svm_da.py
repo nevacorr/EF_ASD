@@ -80,14 +80,23 @@ def svm_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     #
     # Scaling happens separately within each CV fold.
     # ---------------------------------------------------------
+    # pipeline = Pipeline([
+    #     ('scaler', StandardScaler()),
+    #     ('svm', SVC(kernel='linear'))
+    # ])
     pipeline = Pipeline([
         ('scaler', StandardScaler()),
-        ('svm', SVC(kernel='linear'))
+        ('svm', SVC(kernel='rbf'))
     ])
 
     # Tune the SVM regularization parameter
+    # param_grid = {
+    #     'svm__C': [0.001, 0.01, 0.1, 1, 10, 100]
+    # }
+
     param_grid = {
-        'svm__C': [0.001, 0.01, 0.1, 1, 10, 100]
+        'svm__C': [0.01, 0.1, 1, 10, 100],
+        'svm__gamma': ['scale', 0.001, 0.01, 0.1]
     }
 
     # ---------------------------------------------------------
@@ -223,15 +232,17 @@ def svm_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     #     ascending=False
     # )
 
-    coef = best_svm.coef_  # (3, n_features)
-    importance_df = pd.DataFrame({
-        'Region': brain_cols,
-        'Weight': coef.mean(axis=0),
-        'Abs_Weight': np.abs(coef).mean(axis=0)
-    }).sort_values(by='Abs_Weight', ascending=False)
+    # coef = best_svm.coef_  # (3, n_features)
+    # importance_df = pd.DataFrame({
+    #     'Region': brain_cols,
+    #     'Weight': coef.mean(axis=0),
+    #     'Abs_Weight': np.abs(coef).mean(axis=0)
+    # }).sort_values(by='Abs_Weight', ascending=False)
 
-    print(f"\n{ef_col} Top 10 SVM feature weights:")
-    print(importance_df.head(10).to_string(index=False))
+    # print(f"\n{ef_col} Top 10 SVM feature weights:")
+    # print(importance_df.head(10).to_string(index=False))
+
+    importance_df=None
 
     return mean_auc, p_value, importance_df, df_all
 
