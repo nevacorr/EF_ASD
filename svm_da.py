@@ -51,7 +51,7 @@ def svm_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
         f"(Low EF: {(y_group == 0).sum()}, "
         f"High EF: {(y_group == 1).sum()})"
     )
-    plot_svm_boundary_2d(X_group, y_group)
+    # plot_svm_boundary_2d(X_group, y_group)
     # ---------------------------------------------------------
     # Same nested CV structure as PLS
     # ---------------------------------------------------------
@@ -119,69 +119,71 @@ def svm_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
 
     print(f"{ef_col} SVM nested CV AUC: {mean_auc:.3f}")
 
-    # ---------------------------------------------------------
-    # Permutation test
-    # ---------------------------------------------------------
-    n_permutations = 1000
+    # # ---------------------------------------------------------
+    # # Permutation test
+    # # ---------------------------------------------------------
+    # n_permutations = 1000
+    #
+    # def svm_permutation(seed):
+    #
+    #     rng = np.random.RandomState(seed)
+    #
+    #     y_perm = pd.Series(
+    #         rng.permutation(y_group.values)
+    #     )
+    #
+    #     perm_fold_aucs = []
+    #
+    #     for train_idx, test_idx in outer_cv.split(
+    #         X_group, y_perm
+    #     ):
+    #
+    #         X_train = X_group.iloc[train_idx]
+    #         X_test = X_group.iloc[test_idx]
+    #
+    #         y_train = y_perm.iloc[train_idx]
+    #         y_test = y_perm.iloc[test_idx]
+    #
+    #         grid = GridSearchCV(
+    #             pipeline,
+    #             param_grid,
+    #             scoring='roc_auc',
+    #             cv=inner_cv,
+    #             n_jobs=-1
+    #         )
+    #
+    #         grid.fit(X_train, y_train)
+    #
+    #         y_test_score = grid.decision_function(X_test)
+    #
+    #         perm_fold_aucs.append(
+    #             roc_auc_score(
+    #                 y_test,
+    #                 y_test_score
+    #             )
+    #         )
+    #
+    #     return np.mean(perm_fold_aucs)
+    #
+    # perm_aucs = Parallel(n_jobs=-1)(
+    #     delayed(svm_permutation)(seed)
+    #     for seed in tqdm(
+    #         range(n_permutations),
+    #         desc="SVM permutation test"
+    #     )
+    # )
 
-    def svm_permutation(seed):
+    # perm_aucs = np.array(perm_aucs)
+    #
+    # p_value = (
+    #     np.sum(perm_aucs >= mean_auc) + 1
+    # ) / (
+    #     n_permutations + 1
+    # )
+    #
+    # print(f"{ef_col} SVM permutation p-value: {p_value:.3f}")
 
-        rng = np.random.RandomState(seed)
-
-        y_perm = pd.Series(
-            rng.permutation(y_group.values)
-        )
-
-        perm_fold_aucs = []
-
-        for train_idx, test_idx in outer_cv.split(
-            X_group, y_perm
-        ):
-
-            X_train = X_group.iloc[train_idx]
-            X_test = X_group.iloc[test_idx]
-
-            y_train = y_perm.iloc[train_idx]
-            y_test = y_perm.iloc[test_idx]
-
-            grid = GridSearchCV(
-                pipeline,
-                param_grid,
-                scoring='roc_auc',
-                cv=inner_cv,
-                n_jobs=-1
-            )
-
-            grid.fit(X_train, y_train)
-
-            y_test_score = grid.decision_function(X_test)
-
-            perm_fold_aucs.append(
-                roc_auc_score(
-                    y_test,
-                    y_test_score
-                )
-            )
-
-        return np.mean(perm_fold_aucs)
-
-    perm_aucs = Parallel(n_jobs=-1)(
-        delayed(svm_permutation)(seed)
-        for seed in tqdm(
-            range(n_permutations),
-            desc="SVM permutation test"
-        )
-    )
-
-    perm_aucs = np.array(perm_aucs)
-
-    p_value = (
-        np.sum(perm_aucs >= mean_auc) + 1
-    ) / (
-        n_permutations + 1
-    )
-
-    print(f"{ef_col} SVM permutation p-value: {p_value:.3f}")
+    p_value=None
 
     # ---------------------------------------------------------
     # Final SVM feature weights
@@ -211,7 +213,7 @@ def svm_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     print(f"\n{ef_col} Top 10 SVM feature weights:")
     print(importance_df.head(10).to_string(index=False))
 
-    return mean_auc, p_value
+    return mean_auc, p_value, importance_df, df_all
 
 def plot_svm_boundary_2d(X, y):
     """
