@@ -36,21 +36,28 @@ def svm_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     # Select extreme EF groups
     # ---------------------------------------------------------
     q_low = y_EF.quantile(0.25)
-    q_high = y_EF.quantile(0.75)
+    # q_high = y_EF.quantile(0.75)
 
-    mask = (y_EF < q_low) | (y_EF > q_high)
+    # mask = (y_EF < q_low) | (y_EF > q_high)
 
-    X_group = X_brain[mask].reset_index(drop=True)
-    y_group = y_EF[mask].reset_index(drop=True)
+    # X_group = X_brain[mask].reset_index(drop=True)
+    # y_group = y_EF[mask].reset_index(drop=True)
 
     # 0 = Low EF, 1 = High EF
-    y_group = (y_group > q_high).astype(int)
+    # y_group = (y_group > q_high).astype(int)
 
-    print(
-        f"SVM subjects in extreme groups: {len(y_group)} "
-        f"(Low EF: {(y_group == 0).sum()}, "
-        f"High EF: {(y_group == 1).sum()})"
-    )
+    X_group = X_brain.reset_index(drop=True)
+    y_group = (y_EF < q_low).astype(int).reset_index(drop=True)  # 1 = Low EF, 0 = everyone else
+
+    # print(
+    #     f"SVM subjects in extreme groups: {len(y_group)} "
+    #     f"(Low EF: {(y_group == 0).sum()}, "
+    #     f"High EF: {(y_group == 1).sum()})"
+    # )
+
+    print(f"SVM subjects: {len(y_group)} "
+          f"(Low EF: {(y_group == 1).sum()}, Rest: {(y_group == 0).sum()})")
+
     # plot_svm_boundary_2d(X_group, y_group)
     # ---------------------------------------------------------
     # Same nested CV structure as PLS
@@ -74,7 +81,7 @@ def svm_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     # ---------------------------------------------------------
     pipeline = Pipeline([
         ('scaler', StandardScaler()),
-        ('svm', SVC(kernel='linear'))
+        ('svm', SVC(kernel='linear', class_weight='balanced'))
     ])
 
     # Tune the SVM regularization parameter
