@@ -25,7 +25,7 @@ def plot_top_regions(df_all, importance_df, ef_col, n_top=6):
     plt.show()
     mystop=1
 
-def plot_top_regions_fine(df_all, importance_df, ef_col, n_top=6):
+def plot_top_regions_fine(df_all, importance_df, ef_col, perform_normative_modeling, n_top=6):
     d = df_all.copy()
 
     # Low (0-25%), middle split into 5 slices, High (75-100%)
@@ -42,8 +42,9 @@ def plot_top_regions_fine(df_all, importance_df, ef_col, n_top=6):
                     showfliers=False, sharey=False, height=3.5, aspect=1.4)
     g.map_dataframe(sns.stripplot, x='EF_group', y='z', order=order,
                     color='k', alpha=0.35, size=3)
-    for ax in g.axes.flat:
-        ax.axhline(0, ls='--', c='gray', lw=1)
+    if perform_normative_modeling:
+        for ax in g.axes.flat:
+            ax.axhline(0, ls='--', c='gray', lw=1)
     plt.tight_layout()
     plt.show()
     mystop=1
