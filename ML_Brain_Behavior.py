@@ -17,6 +17,8 @@ from check_group_representations import check_group_representation
 
 
 perform_norm_modeling = False
+select_extremes = False
+kernel='linear' # choose 'linear' or 'rbf'
 brain_metric = 'cortical_thickness_VSA'
 # ef_col = 'BRIEF2_GEC_T_score'
 ef_col = 'Flanker_Standard_Age_Corrected'
@@ -82,12 +84,15 @@ else:
                             + brain_cols].dropna(subset=brain_cols).copy().reset_index(drop=True)
 
 # perform_pls_regression(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling)
-# pls_da(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling)
+# pls_da(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling, select_extremes)
 
-# mean_auc, p_value, importance_df, df_all = svm_da(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling)
-# plot_top_regions_fine(df_all, importance_df, ef_col, perform_norm_modeling, n_top=9)
+mean_auc, p_value, importance_df, df_all = svm_da(final_brain_df, brain_cols, df_hr_z, ef_col,
+                                                  perform_norm_modeling, select_extremes, kernel)
+# if importance_df is not None:
+#   plot_top_regions_fine(df_all, importance_df, ef_col, perform_norm_modeling, n_top=9)
+
 # plot_top_regions_mean_ci(df_all, importance_df, ef_col, n_top=9, show_points=True)
 # check_group_representation(df_all, ef_col, group_col='Group')
 
-mean_rho, mean_r2, df_all = svr_reg(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling)
+# mean_rho, mean_r2, df_all = svr_reg(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling, select_extremes)
 

@@ -10,7 +10,7 @@ from tqdm import tqdm
 from joblib import Parallel, delayed
 from matplotlib import pyplot as plt
 
-def svm_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
+def svm_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling, select_extremes, kernel):
 
     # ---------------------------------------------------------
     # Prepare data
@@ -32,26 +32,33 @@ def svm_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     X_brain = df_all[brain_cols].copy()
     y_EF = df_all[ef_col].copy()
 
-    # ---------------------------------------------------------
-    # Select extreme EF groups
-    # ---------------------------------------------------------
-    q_low = y_EF.quantile(0.25)
-    q_high = y_EF.quantile(0.75)
+    if select_extremes:
+        # ---------------------------------------------------------
+        # Select extreme EF groups
+        # ---------------------------------------------------------
+        q_low = y_EF.quantile(0.25)
+        q_high = y_EF.quantile(0.75)
 
-    mask = (y_EF < q_low) | (y_EF > q_high)
+        mask = (y_EF < q_low) | (y_EF > q_high)
 
-    X_group = X_brain[mask].reset_index(drop=True)
-    y_group = y_EF[mask].reset_index(drop=True)
+        X_group = X_brain[mask].reset_index(drop=True)
+        y_group = y_EF[mask].reset_index(drop=True)
 
-    # 0 = Low EF, 1 = High EF
-    y_group = (y_group > q_high).astype(int)
+        # 0 = Low EF, 1 = High EF
+        y_group = (y_group > q_high).astype(int)
 
-    print(
-        f"SVM subjects in extreme groups: {len(y_group)} "
-        f"(Low EF: {(y_group == 0).sum()}, "
-        f"High EF: {(y_group == 1).sum()})"
-    )
-    # plot_svm_boundary_2d(X_group, y_group)
+        print(
+            f"SVM subjects in extreme groups: {len(y_group)} "
+            f"(Low EF: {(y_group == 0).sum()}, "
+            f"High EF: {(y_group == 1).sum()})"
+        )
+        # plot_svm_boundary_2d(X_group, y_group)
+    else:
+        q_low = y_EF.quantile(0.25)
+        q_high = y_EF.quantile(0.75)
+        X_group = X_brain.reset_index(drop=True)
+        y_group = pd.Series(np.where(y_EF < q_low, 0, np.where(y_EF > q_high, 2, 1)))
+        print(y_group.value_counts().sort_index())
     # ---------------------------------------------------------
     # Same nested CV structure as PLS
     # ---------------------------------------------------------
@@ -74,14 +81,17 @@ def svm_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     # ---------------------------------------------------------
     pipeline = Pipeline([
         ('scaler', StandardScaler()),
-        ('svm', SVC(kernel='linear'))
+        ('svm', SVC(kernel=kernel, decision_function_shape='ovo'))
     ])
 
     # Tune the SVM regularization parameter
-    param_grid = {
-        'svm__C': [0.001, 0.01, 0.1, 1, 10, 100]
-    }
-
+    if kernel == 'linear':
+        param_grid = {'svm__C': [0.001, 0.01, 0.1, 1, 10, 100]}
+    else:  # rbf
+        param_grid = {
+            'svm__C': [0.01, 0.1, 1, 10, 100],
+            'svm__gamma': ['scale', 0.001, 0.01, 0.1]
+        }
     # ---------------------------------------------------------
     # Nested CV
     # ---------------------------------------------------------
@@ -98,26 +108,33 @@ def svm_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
         grid = GridSearchCV(
             pipeline,
             param_grid,
-            scoring='roc_auc',
+            scoring='roc_auc' if select_extremes else 'balanced_accuracy',
             cv=inner_cv,
             n_jobs=-1
         )
 
         grid.fit(X_train, y_train)
-
         # Continuous SVM decision score
         y_test_score = grid.decision_function(X_test)
 
-        fold_auc = roc_auc_score(
-            y_test,
-            y_test_score
-        )
-
+        if select_extremes:
+            fold_auc = roc_auc_score(y_test,y_test_score)
+        else:
+            pairs = [(0, 1), (0, 2), (1, 2)]  # same order as the score columns
+            y_arr = y_test.to_numpy()
+            pair_aucs = []
+            for col, (a, b) in enumerate(pairs):
+                m = np.isin(y_arr, [a, b])
+                pair_aucs.append(roc_auc_score((y_arr[m] == a).astype(int),
+                                               y_test_score[m, col]))
+            fold_auc = np.mean(pair_aucs)
         fold_aucs.append(fold_auc)
 
     mean_auc = np.mean(fold_aucs)
 
-    print(f"{ef_col} SVM nested CV AUC: {mean_auc:.3f}")
+    print(f"\n{ef_col} SVM nested CV AUC: {mean_auc:.3f}")
+    print(f"normative modeling: {perform_norm_modeling}, "
+          f"extremes only: {select_extremes}, kernel: {kernel}")
 
     # # ---------------------------------------------------------
     # # Permutation test
@@ -191,7 +208,7 @@ def svm_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     final_grid = GridSearchCV(
         pipeline,
         param_grid,
-        scoring='roc_auc',
+        scoring='roc_auc' if select_extremes else 'balanced_accuracy',
         cv=inner_cv,
         n_jobs=-1
     )
@@ -199,19 +216,35 @@ def svm_da(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
     final_grid.fit(X_group, y_group)
 
     best_svm = final_grid.best_estimator_.named_steps['svm']
-    weights = best_svm.coef_[0]
 
-    importance_df = pd.DataFrame({
-        'Region': brain_cols,
-        'Weight': weights,
-        'Abs_Weight': np.abs(weights)
-    }).sort_values(
-        by='Abs_Weight',
-        ascending=False
-    )
+    if kernel == 'linear':
+        if select_extremes:
+            weights = best_svm.coef_[0]
 
-    print(f"\n{ef_col} Top 10 SVM feature weights:")
-    print(importance_df.head(10).to_string(index=False))
+            importance_df = pd.DataFrame({
+                'Region': brain_cols,
+                'Weight': weights,
+                'Abs_Weight': np.abs(weights)
+            }).sort_values(
+                by='Abs_Weight',
+                ascending=False
+            )
+        else:
+            weights = best_svm.coef_  # (3, n_features)
+
+            importance_df = pd.DataFrame({
+                'Region': brain_cols,
+                'Weight': weights.mean(axis=0),
+                'Abs_Weight': np.abs(weights).mean(axis=0)
+            }).sort_values(
+                by='Abs_Weight',
+                ascending=False
+            )
+        print(f"\n{ef_col} Top 10 SVM feature weights:")
+        print(importance_df.head(10).to_string(index=False))
+    else:
+        importance_df=None
+        print("RPF kernel: no feature weights available")
 
     return mean_auc, p_value, importance_df, df_all
 

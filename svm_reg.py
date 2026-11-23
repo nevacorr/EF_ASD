@@ -8,7 +8,7 @@ from sklearn.model_selection import GridSearchCV, KFold
 from sklearn.metrics import r2_score
 from scipy.stats import spearmanr
 
-def svr_reg(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling):
+def svr_reg(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling, select_extremes):
 
     # ---------------- Prepare data (same as svm_da) ----------------
     if perform_norm_modeling:
