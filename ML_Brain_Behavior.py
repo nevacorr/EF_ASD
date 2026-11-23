@@ -86,13 +86,13 @@ else:
 # perform_pls_regression(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling)
 # pls_da(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling, select_extremes)
 
-mean_auc, p_value, importance_df, df_all = svm_da(final_brain_df, brain_cols, df_hr_z, ef_col,
-                                                  perform_norm_modeling, select_extremes, kernel)
+# mean_auc, p_value, importance_df, df_all = svm_da(final_brain_df, brain_cols, df_hr_z, ef_col,
+#                                                   perform_norm_modeling, select_extremes, kernel)
 # if importance_df is not None:
 #   plot_top_regions_fine(df_all, importance_df, ef_col, perform_norm_modeling, n_top=9)
 
 # plot_top_regions_mean_ci(df_all, importance_df, ef_col, n_top=9, show_points=True)
 # check_group_representation(df_all, ef_col, group_col='Group')
 
-# mean_rho, mean_r2, df_all = svr_reg(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling, select_extremes)
+mean_rho, mean_r2, df_all = svr_reg(final_brain_df, brain_cols, df_hr_z, ef_col, perform_norm_modeling, select_extremes)
 

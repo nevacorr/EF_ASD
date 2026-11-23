@@ -7,6 +7,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import GridSearchCV, KFold
 from sklearn.metrics import r2_score
 from scipy.stats import spearmanr
+from sklearn.compose import TransformedTargetRegressor
 
 def svr_reg(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling, select_extremes):
 
@@ -21,10 +22,25 @@ def svr_reg(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling, se
     X = df_all[brain_cols].copy()
     y = df_all[ef_col].copy()
 
-    # Standardize EF so epsilon is on a sensible scale (2 numbers, negligible leakage)
-    y = (y - y.mean()) / y.std()
+    # ---------------- Select extreme EF groups ----------------
+    if select_extremes:
 
-    print(f"SVR subjects: {len(y)}")
+        q_low = y.quantile(0.25)
+        q_high = y.quantile(0.75)
+
+        mask = (y < q_low) | (y > q_high)
+
+        X = X[mask].reset_index(drop=True)
+        y = y[mask].reset_index(drop=True)
+
+        print(
+            f"SVR subjects in extreme groups: {len(y)} "
+            f"(Low EF: {(y < q_low).sum()}, "
+            f"High EF: {(y > q_high).sum()})"
+        )
+
+    else:
+        print(f"SVR subjects: {len(y)}")
 
     # ---------------- Nested CV ----------------
     outer_cv = KFold(n_splits=5, shuffle=True, random_state=42)
@@ -32,18 +48,22 @@ def svr_reg(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling, se
 
     pipeline = Pipeline([
         ('scaler', StandardScaler()),
-        ('svr', SVR(kernel='rbf'))
+        ('svr', TransformedTargetRegressor (
+            regressor=SVR(kernel='rbf'),
+            transformer=StandardScaler()
+        ))
     ])
 
     param_grid = {
-        'svr__C': [0.01, 0.1, 1, 10, 100],
-        'svr__gamma': ['scale', 0.001, 0.01, 0.1],
-        'svr__epsilon': [0.05, 0.1, 0.2]
+        'svr__regressor__C': [0.01, 0.1, 1, 10, 100],
+        'svr__regressor__gamma': ['scale', 0.001, 0.01, 0.1],
+        'svr__regressor__epsilon': [0.05, 0.1, 0.2]
     }
 
     fold_rho, fold_r2 = [], []
     all_true, all_pred = [], []
 
+    # ---------------- Outer CV ----------------
     for train_idx, test_idx in outer_cv.split(X, y):
         X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
         y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
@@ -57,17 +77,21 @@ def svr_reg(final_brain_df, brain_cols, df_hr, ef_col, perform_norm_modeling, se
 
         fold_rho.append(spearmanr(y_test, y_pred)[0])
         fold_r2.append(r2_score(y_test, y_pred))
+
         all_true.extend(y_test)
         all_pred.extend(y_pred)
 
     mean_rho = np.mean(fold_rho)
-    print(f"{ef_col} SVR Spearman rho: {mean_rho:.3f} (SD {np.std(fold_rho):.3f})")
-    print(f"{ef_col} SVR R2: {np.mean(fold_r2):.3f}  (0 = no better than predicting the mean)")
+    mean_r2 = np.mean(fold_r2)
 
+    print(f"{ef_col} SVR Spearman rho: {mean_rho:.3f} (SD {np.std(fold_rho):.3f})")
+    print(f"{ef_col} SVR mean fold R2: {mean_r2:.3f} (SD {np.std(fold_r2):.3f})") #  (0 = no better than predicting the mean)")
+
+    # ---------------- Predicted vs actual ----------------
     # Predicted vs actual
     plt.figure(figsize=(6, 6))
     plt.scatter(all_true, all_pred, alpha=0.5)
-    plt.xlabel('Actual EF (standardized)')
+    plt.xlabel('Actual EF')
     plt.ylabel('Predicted EF (out-of-fold)')
     plt.title(f'SVR: rho = {mean_rho:.2f}')
     plt.tight_layout()
